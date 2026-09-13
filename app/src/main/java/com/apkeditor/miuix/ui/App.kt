@@ -97,6 +97,8 @@ fun App(service: ApkDataService? = null) {
                 FloatingNavigationBar(
                     color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
                             else MiuixTheme.colorScheme.surfaceContainer,
+                    shadowElevation = 0.dp,
+                    showDivider = false,
                     modifier = if (blurActive) {
                         Modifier.textureBlur(
                             backdrop = backdrop,

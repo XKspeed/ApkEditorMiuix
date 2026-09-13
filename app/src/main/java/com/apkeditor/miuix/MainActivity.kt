@@ -14,6 +14,12 @@ import com.apkeditor.miuix.ui.App
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * miuix 0.9.3 的 MiuixPopupHost 内部使用 NavigationBackHandler，
@@ -28,6 +34,8 @@ private class AppNavigationEventDispatcherOwner : NavigationEventDispatcherOwner
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 安装崩溃日志记录器
+        installCrashLogger()
         // Android 15 强制 edge-to-edge：状态栏/导航栏透明，图标颜色由系统按主题自动适配
         enableEdgeToEdge()
         SavedApkStore.init(this)
@@ -58,4 +66,21 @@ private fun ProvideNavigationEventDispatcher(content: @Composable () -> Unit) {
         LocalNavigationEventDispatcherOwner provides owner,
         content = content,
     )
+}
+
+/** 崩溃日志记录：把未捕获异常写到 files/crash_log.txt */
+private fun ComponentActivity.installCrashLogger() {
+    val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+        try {
+            val sw = StringWriter()
+            throwable.printStackTrace(PrintWriter(sw))
+            val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+            val log = "[$time]\n$sw\n\n"
+            val file = File(filesDir, "crash_log.txt")
+            file.appendText(log)
+        } catch (_: Exception) {
+        }
+        defaultHandler?.uncaughtException(thread, throwable)
+    }
 }

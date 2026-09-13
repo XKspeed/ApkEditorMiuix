@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -42,6 +41,12 @@ kotlin {
     }
 }
 
+// 强制解决旧版vectordrawable namespace冲突
+configurations.all {
+    exclude(group = "androidx.vectordrawable", module = "vectordrawable")
+    exclude(group = "androidx.vectordrawable", module = "vectordrawable-animated")
+}
+
 dependencies {
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
@@ -68,4 +73,18 @@ dependencies {
     // BouncyCastle：Android 上生成自签名证书（签名密钥）
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
+
+    // sora-editor：MT/NP 同款代码编辑器（语法高亮、行号）
+    implementation("io.github.Rosemoe.sora-editor:editor:0.23.6")
+    implementation("io.github.Rosemoe.sora-editor:language-java:0.23.6")
+
+    // 图片查看（drawable 缩放）
+    implementation("com.github.chrisbanes:PhotoView:2.3.0")
+    implementation("com.davemorrissey.labs:subsampling-scale-image-view:3.10.0")
+
+    // Markdown 渲染
+    implementation("io.noties.markwon:core:4.6.2") {
+        exclude(group = "androidx.vectordrawable", module = "vectordrawable")
+        exclude(group = "androidx.vectordrawable", module = "vectordrawable-animated")
+    }
 }

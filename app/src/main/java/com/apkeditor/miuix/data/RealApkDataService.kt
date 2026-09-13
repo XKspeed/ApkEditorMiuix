@@ -1,6 +1,10 @@
 package com.apkeditor.miuix.data
 
 import android.content.Context
+import android.content.res.AssetManager
+import android.content.res.Resources
+import android.util.TypedValue
+import org.xmlpull.v1.XmlPullParser
 import android.net.Uri
 import com.apkeditor.miuix.SavedApkStore
 import com.android.apksig.ApkSigner
@@ -71,6 +75,9 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     /** smali 目录树缓存：按 dexNames 分组，切换界面回来直接复用，不重建 */
     private val smaliTreeCache = HashMap<String, List<SmaliTreeNode>>()
 
+    /** 当前 APK 的 minSdk（用于 baksmali 设置正确的 Opcodes，同 NP 管理器） */
+    private var currentMinSdk: Int = 35
+
     init {
         activeInstance = this
         ApkCacheManager.registerMemoryCleaner {
@@ -128,6 +135,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 val versionCode = runCatching { manifest.versionCode }.getOrNull() ?: 0
                 val minSdk = runCatching { manifest.minSdkVersion }.getOrNull() ?: 35
                 val targetSdk = runCatching { manifest.targetSdkVersion }.getOrNull() ?: 37
+                currentMinSdk = minSdk
                 val permissions = runCatching { manifest.usesPermissions }.getOrElse { emptyList() }
                 val mainActivity = runCatching { manifest.mainActivityClassName }.getOrNull() ?: ""
                 val dexNames = listDexNamesFromZip(input)
@@ -250,7 +258,11 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                             val dexFileObj = DexFileFactory.loadDexFile(
                                 File(dir, dex), Opcodes.getDefault(),
                             )
-                            Baksmali.disassembleDexFile(dexFileObj, smaliDir, 0, BaksmaliOptions())
+                            val threadCount = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
+                            val options = BaksmaliOptions().apply {
+                                apiLevel = currentMinSdk
+                            }
+                            Baksmali.disassembleDexFile(dexFileObj, smaliDir, threadCount, options)
                         }
                         val files = collectSmali(smaliDir)
                         smaliCache[dex] = files
@@ -281,18 +293,21 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         r
     }
 
-    override suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>> = runCatching {
+    override suspend fun listSmaliTree(
+        dexNames: List<String>,
+        onProgress: ((Int, Int) -> Unit)?,
+    ): Result<Map<String, List<SmaliTreeNode>>> = runCatching {
         val key = dexNames.joinToString(",")
         smaliTreeCache[key]?.let { cached ->
-            // 缓存的是各 dex 顶层节点列表，按 dexName 分组返回
             return@runCatching cached.groupBy { it.dex }
         }
-        // 复用 listSmaliFiles 的反编译缓存，不重复 baksmali
         val topNodes = mutableListOf<SmaliTreeNode>()
-        dexNames.forEach { dex ->
+        dexNames.forEachIndexed { index, dex ->
+            onProgress?.invoke(index, dexNames.size)
             val files = listSmaliFiles(dex).getOrThrow()
             topNodes.add(buildDexNode(dex, files))
         }
+        onProgress?.invoke(dexNames.size, dexNames.size)
         smaliTreeCache[key] = topNodes
         topNodes.groupBy { it.dex }
     }
@@ -349,6 +364,38 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             }
         }
 
+    override suspend fun renameSmaliFile(dexName: String, filePath: String, newClassName: String): Result<Unit> =
+        runCatching {
+            val oldFile = File(workDir(), "$dexName/$filePath")
+            if (!oldFile.exists()) error("文件不存在：$filePath")
+            // 包路径保持不变，只改类名
+            val dir = oldFile.parentFile!!
+            val newFile = File(dir, "$newClassName.smali")
+            // 读内容，替换 .class 声明里的类名
+            val oldContent = oldFile.readText()
+            val oldClassName = filePath.substringAfterLast("/").removeSuffix(".smali")
+            val newContent = oldContent.replace(
+                ".class public L$oldClassName;",
+                ".class public L$newClassName;"
+            ).replace(
+                ".class final L$oldClassName;",
+                ".class final L$newClassName;"
+            )
+            newFile.writeText(newContent)
+            oldFile.delete()
+            // 清缓存让树重建
+            smaliCache.remove(dexName)
+            smaliTreeCache.clear()
+        }
+
+    override suspend fun deleteSmaliFile(dexName: String, filePath: String): Result<Unit> = runCatching {
+        val f = File(workDir(), "$dexName/$filePath")
+        if (!f.exists()) error("文件不存在：$filePath")
+        f.delete()
+        smaliCache.remove(dexName)
+        smaliTreeCache.clear()
+    }
+
     override suspend fun assembleDex(dexName: String): Result<Unit> = runCatching {
         val dir = dexWorkDir(dexName)
         val smaliDir = File(dir, smaliDirName(dexName))
@@ -399,9 +446,16 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 if (type != null && t != type) return@forEach
                 if (kw.isNotEmpty()) {
                     val name = runCatching { r.name }.getOrNull() ?: ""
-                    if (!name.lowercase().contains(kw)) return@forEach
+                    val entryInfo = buildResourceEntryInfo(r)
+                    // 匹配资源名 或 资源值（array 类型匹配所有元素）
+                    val valueText = entryInfo.variants.joinToString(" ") { it.displayValue }
+                    if (!name.lowercase().contains(kw) && !valueText.lowercase().contains(kw)) {
+                        return@forEach
+                    }
+                    list.add(entryInfo)
+                } else {
+                    list.add(buildResourceEntryInfo(r))
                 }
-                list.add(buildResourceEntryInfo(r))
             }
             list
         }
@@ -491,6 +545,11 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         }
         if (valueType.isInteger()) {
             return "integer" to resValue.data.toString()
+        }
+        // array 类型：直接显示类型名
+        val typeName = runCatching { r.type }.getOrNull() ?: ""
+        if (typeName.contains("array", ignoreCase = true)) {
+            return "array" to "数组资源"
         }
         val s = runCatching { e.valueAsString }.getOrNull()
         return if (s != null) (valueType.typeName.ifBlank { "value" }) to s
@@ -611,15 +670,37 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     }
 
     override suspend fun readXmlFile(path: String): Result<String> = runCatching {
-        locked { m ->
-            val doc = m.decodeXMLFile(path)
-            val out = File(workDir(), "tmp/${path.substringAfterLast('/')}.xml.txt")
-            out.parentFile?.mkdirs()
-            val serializer = XMLFactory.newSerializer(out)
-            doc.serialize(serializer)
-            serializer.flush()
-            out.readText()
+        val apkFile = rawApkFile ?: throw IllegalStateException("尚未打开 APK")
+        // NP 管理器方案：用 AssetManager.addAssetPath 加载 APK，然后 XmlResourceParser 解码 AXML
+        val am = AssetManager::class.java.newInstance()
+        val addAssetPath = AssetManager::class.java.getMethod("addAssetPath", String::class.java)
+        addAssetPath.invoke(am, apkFile.absolutePath)
+        val res = Resources(am, null, null)
+        val parser = res.getAssets().openXmlResourceParser(path)
+        val sb = StringBuilder()
+        var event = parser.eventType
+        while (event != XmlPullParser.END_DOCUMENT) {
+            when (event) {
+                XmlPullParser.START_DOCUMENT -> sb.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+                XmlPullParser.START_TAG -> {
+                    sb.append("<").append(parser.name)
+                    for (i in 0 until parser.attributeCount) {
+                        val name = parser.getAttributeName(i)
+                        val value = parser.getAttributeValue(i)
+                        sb.append(" ").append(name).append("=\"").append(value).append("\"")
+                    }
+                    sb.append(">\n")
+                }
+                XmlPullParser.END_TAG -> sb.append("</").append(parser.name).append(">\n")
+                XmlPullParser.TEXT -> {
+                    val text = parser.text?.trim() ?: ""
+                    if (text.isNotEmpty()) sb.append(text).append("\n")
+                }
+            }
+            event = parser.next()
         }
+        parser.close()
+        sb.toString()
     }
 
     override suspend fun saveXmlFile(path: String, content: String): Result<Unit> = runCatching {

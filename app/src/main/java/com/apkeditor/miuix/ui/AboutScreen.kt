@@ -32,12 +32,6 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.blur.BlendColorEntry
-import top.yukonga.miuix.kmp.blur.BlurDefaults
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -51,9 +45,6 @@ fun AboutScreen(onBack: () -> Unit) {
         LicenseScreen(onBack = { showLicense = false })
         return
     }
-
-    // 模糊背景层（复刻官方示例）
-    val backdrop = rememberLayerBackdrop { drawContent() }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -70,15 +61,10 @@ fun AboutScreen(onBack: () -> Unit) {
             )
         },
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .layerBackdrop(backdrop)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = innerPadding,
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding,
-            ) {
                 // 顶部 logo + 应用名 + 版本
                 item {
                     Column(
@@ -120,20 +106,7 @@ fun AboutScreen(onBack: () -> Unit) {
 
                 // 第一组卡片：项目链接
                 item {
-                    Card(
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp)
-                            .textureBlur(
-                                backdrop = backdrop,
-                                shape = RoundedCornerShape(16.dp),
-                                blurRadius = 60f,
-                                colors = BlurDefaults.blurColors(),
-                            ),
-                        colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(
-                            color = Color.Transparent,
-                            contentColor = MiuixTheme.colorScheme.onSurface,
-                        ),
-                    ) {
+                    Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                         ArrowPreference(
                             title = "查看源码",
                             endActions = {
@@ -161,17 +134,7 @@ fun AboutScreen(onBack: () -> Unit) {
                     Card(
                         modifier = Modifier
                             .padding(horizontal = 12.dp)
-                            .padding(top = 12.dp)
-                            .textureBlur(
-                                backdrop = backdrop,
-                                shape = RoundedCornerShape(16.dp),
-                                blurRadius = 60f,
-                                colors = BlurDefaults.blurColors(),
-                            ),
-                        colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(
-                            color = Color.Transparent,
-                            contentColor = MiuixTheme.colorScheme.onSurface,
-                        ),
+                            .padding(top = 12.dp),
                     ) {
                         ArrowPreference(
                             title = "开源许可",
@@ -204,7 +167,6 @@ fun AboutScreen(onBack: () -> Unit) {
                     Spacer(Modifier.height(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()))
                 }
             }
-        }
     }
 }
 

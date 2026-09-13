@@ -259,6 +259,9 @@ private fun HomeContent(
             save = { text -> service.saveXmlFile(current.path, text) },
             onBack = goBack,
         )
+
+        is Screen.About -> AboutScreen(onBack = goBack)
+        is Screen.UiSettings -> UiSettingsScreen(onBack = goBack)
     }
 }
 

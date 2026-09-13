@@ -130,7 +130,7 @@ fun AboutScreen(onBack: () -> Unit) {
                                 colors = BlurDefaults.blurColors(),
                             ),
                         colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(
-                            backgroundColor = Color.Transparent,
+                            containerColor = Color.Transparent,
                             contentColor = MiuixTheme.colorScheme.onSurface,
                         ),
                     ) {
@@ -169,7 +169,7 @@ fun AboutScreen(onBack: () -> Unit) {
                                 colors = BlurDefaults.blurColors(),
                             ),
                         colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(
-                            backgroundColor = Color.Transparent,
+                            containerColor = Color.Transparent,
                             contentColor = MiuixTheme.colorScheme.onSurface,
                         ),
                     ) {

@@ -40,7 +40,6 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import top.yukonga.miuix.kmp.blur.highlight.Highlight
 import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -222,10 +221,6 @@ private fun AppNavigationBar(
         if (UiConfigState.useFloatingNavigationBar) {
             val floatingBarColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer
             val floatingBarShape = RoundedCornerShape(28.dp)
-            val isDark = !MiuixTheme.colorScheme.isLight
-            val floatingHighlight = remember(isDark) {
-                if (isDark) Highlight.GlassStrokeMiddleDark else Highlight.GlassStrokeMiddleLight
-            }
             Box {
                 FloatingNavigationBar(
                     modifier = if (blurActive && backdrop != null) {
@@ -238,7 +233,6 @@ private fun AppNavigationBar(
                                     BlendColorEntry(color = MiuixTheme.colorScheme.surfaceContainer.copy(0.6f)),
                                 ),
                             ),
-                            highlight = floatingHighlight,
                         )
                     } else {
                         Modifier

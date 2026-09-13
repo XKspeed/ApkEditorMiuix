@@ -1,382 +1,53 @@
-package com.apkeditor.miuix.ui
+// Copyright 2025, compose-miuix-ui contributors
+// SPDX-License-Identifier: Apache-2.0
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.unit.dp
-import com.apkeditor.miuix.data.ApkDataService
-import com.apkeditor.miuix.data.RealApkDataService
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
-import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem
-import top.yukonga.miuix.kmp.basic.NavigationBar
-import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode
-import top.yukonga.miuix.kmp.basic.NavigationBarItem
-import top.yukonga.miuix.kmp.basic.NavigationItem
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.preference.ArrowPreference
-import top.yukonga.miuix.kmp.blur.BlendColorEntry
-import top.yukonga.miuix.kmp.blur.BlurDefaults
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.blur.textureBlur
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Download
-import top.yukonga.miuix.kmp.icon.extended.Home
-import top.yukonga.miuix.kmp.icon.extended.Settings
+import kotlinx.coroutines.flow.drop
 import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-
-/** 主页 tab 内的页面路由 */
-sealed interface Screen {
-    data object Home : Screen
-    data class ApkInfo(val uri: String) : Screen
-    data class SmaliTree(val dexNames: List<String>) : Screen
-    data class SmaliEdit(val dexName: String, val filePath: String) : Screen
-    data object ArscTypes : Screen
-    data class ArscEntries(val type: String) : Screen
-    data object XmlFiles : Screen
-    data class XmlEdit(val path: String) : Screen
-    data object About : Screen
-    data object UiSettings : Screen
-}
-
-/** 底部导航 tab */
-private enum class BottomTab(val title: String) {
-    HOME("主页"),
-    SAVED("保存的APK"),
-    SETTINGS("设置"),
-}
+import ui.AppTheme
+import ui.keyColorFor
 
 @Composable
-fun App(service: ApkDataService? = null) {
-    val ctx = LocalContext.current
-    val svc: ApkDataService = if (service != null) {
-        service
-    } else {
-        remember { RealApkDataService(ctx) }
-    }
-    var tab by remember { mutableIntStateOf(0) }
-    val stack = remember { mutableStateListOf<Screen>(Screen.Home) }
-    val current = stack.last()
-
-    LaunchedEffect(Unit) { UiConfigState.load(ctx) }
-
-    CompositionLocalProvider(
-        LocalSquircleEnabled provides UiConfigState.enableSquircle,
-    ) {
-        // 完全照搬官方示例：CompactScreenLayout
-        CompactScreenLayout(
-            tab = tab,
-            onTabSelected = { tab = it },
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            ) {
-                when (tab) {
-                    0 -> HomeTestScreen()
-                    1 -> SavedTestScreen()
-                    2 -> SettingsTestScreen()
-                }
-            }
-        }
-
-        BackHandler {
-            when {
-                tab != 0 -> tab = 0
-                stack.size > 1 -> stack.removeLast()
-            }
-        }
-    }
-}
-
-/** 完全照搬官方示例的 CompactScreenLayout */
-@Composable
-private fun CompactScreenLayout(
-    tab: Int,
-    onTabSelected: (Int) -> Unit,
-    content: @Composable (androidx.compose.foundation.layout.PaddingValues) -> Unit,
+fun App(
+    padding: PaddingValues = PaddingValues(0.dp),
+    onColorModeChange: ((Int) -> Unit)? = null,
 ) {
-    val surfaceColor = MiuixTheme.colorScheme.surface
-    val backdrop = rememberLayerBackdrop {
-        drawRect(surfaceColor)
-        drawContent()
+    var appState by remember { mutableStateOf(AppState()) }
+    val updateAppState: ((AppState) -> AppState) -> Unit = remember {
+        { transform -> appState = transform(appState) }
     }
 
-    val navigationItems = remember {
-        listOf(
-            NavigationItem(BottomTab.HOME.title, MiuixIcons.Home),
-            NavigationItem(BottomTab.SAVED.title, MiuixIcons.Download),
-            NavigationItem(BottomTab.SETTINGS.title, MiuixIcons.Settings),
-        )
+    val currentOnColorModeChange by rememberUpdatedState(onColorModeChange)
+    LaunchedEffect(Unit) {
+        snapshotFlow { appState.colorMode }
+            .drop(1)
+            .collect { currentOnColorModeChange?.invoke(it) }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = Color.Transparent,
-        bottomBar = {
-            AppNavigationBar(
-                navigationItems = navigationItems,
-                selectedTab = tab,
-                onTabSelected = onTabSelected,
-                backdrop = backdrop,
-            )
-        },
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
-            content(innerPadding)
-        }
-    }
-}
+    val keyColor = keyColorFor(appState.seedIndex)
 
-/** 完全照搬官方示例的 NavigationBar 组件 */
-@Composable
-private fun AppNavigationBar(
-    navigationItems: List<NavigationItem>,
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit,
-    backdrop: LayerBackdrop?,
-) {
-    val blurActive = UiConfigState.enableBlur && backdrop != null && isRuntimeShaderSupported()
-    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
-
-    AnimatedVisibility(
-        visible = UiConfigState.showNavigationBar,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically(),
+    AppTheme(
+        colorMode = appState.colorMode,
+        keyColor = keyColor,
+        paletteStyle = appState.paletteStyle,
+        colorSpec = appState.colorSpec,
     ) {
-        AnimatedVisibility(
-            visible = !UiConfigState.useFloatingNavigationBar,
-            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+        CompositionLocalProvider(
+            LocalAppState provides appState,
+            LocalUpdateAppState provides updateAppState,
+            LocalSquircleEnabled provides appState.enableSquircle,
         ) {
-            Box(
-                modifier = Modifier
-                    .then(
-                        if (blurActive && backdrop != null) {
-                            Modifier.textureBlur(
-                                backdrop = backdrop,
-                                shape = RectangleShape,
-                                blurRadius = UiConfigState.blurRadius,
-                                colors = BlurDefaults.blurColors(
-                                    blendColors = listOf(
-                                        BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(0.8f)),
-                                    ),
-                                ),
-                            )
-                        } else {
-                            Modifier
-                        },
-                    )
-                    .background(barColor)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {},
-                    ),
-            ) {
-                NavigationBar(
-                    color = barColor,
-                    mode = NavigationBarDisplayMode.IconAndText,
-                ) {
-                    navigationItems.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = { onTabSelected(index) },
-                            icon = item.icon,
-                            label = item.label,
-                        )
-                    }
-                }
-            }
-        }
-
-        if (UiConfigState.useFloatingNavigationBar) {
-            val floatingBarColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer
-            val floatingBarShape = RoundedCornerShape(28.dp)
-            Box {
-                FloatingNavigationBar(
-                    modifier = if (blurActive && backdrop != null) {
-                        Modifier.textureBlur(
-                            backdrop = backdrop,
-                            shape = floatingBarShape,
-                            blurRadius = UiConfigState.blurRadius,
-                            colors = BlurDefaults.blurColors(
-                                blendColors = listOf(
-                                    BlendColorEntry(color = MiuixTheme.colorScheme.surfaceContainer.copy(0.6f)),
-                                ),
-                            ),
-                        )
-                    } else {
-                        Modifier
-                    },
-                    color = floatingBarColor,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    navigationItems.forEachIndexed { index, item ->
-                        FloatingNavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = { onTabSelected(index) },
-                            icon = item.icon,
-                            label = item.label,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** 主页 tab 内容 */
-@Composable
-private fun HomeContent(
-    current: Screen,
-    goBack: () -> Unit,
-    navigate: (Screen) -> Unit,
-    service: ApkDataService,
-) {
-    when (current) {
-        is Screen.Home -> HomeScreen(
-            onPickApk = { uri -> navigate(Screen.ApkInfo(uri)) },
-        )
-        is Screen.ApkInfo -> ApkInfoScreen(
-            uri = current.uri,
-            service = service,
-            onBack = goBack,
-            onOpenManifest = { navigate(Screen.XmlEdit("AndroidManifest.xml")) },
-            onOpenDex = { name -> navigate(Screen.SmaliTree(listOf(name))) },
-            onOpenAllDex = { names -> navigate(Screen.SmaliTree(names)) },
-            onOpenArsc = { navigate(Screen.ArscTypes) },
-            onOpenRes = { navigate(Screen.XmlFiles) },
-        )
-        is Screen.SmaliTree -> SmaliTreeScreen(
-            dexNames = current.dexNames,
-            service = service,
-            onBack = goBack,
-            onOpenFile = { dex, path -> navigate(Screen.SmaliEdit(dex, path)) },
-        )
-        is Screen.SmaliEdit -> TextEditorScreen(
-            title = current.filePath.substringAfterLast("/"),
-            subtitle = current.filePath,
-            load = { service.readSmaliFile(current.dexName, current.filePath) },
-            save = { text -> service.saveSmaliFile(current.dexName, current.filePath, text) },
-            onBack = goBack,
-        )
-        is Screen.ArscTypes -> ArscTypesScreen(
-            service = service,
-            onBack = goBack,
-            onOpenType = { type -> navigate(Screen.ArscEntries(type)) },
-        )
-        is Screen.ArscEntries -> ArscEntriesScreen(
-            type = current.type,
-            service = service,
-            onBack = goBack,
-        )
-        is Screen.XmlFiles -> XmlFilesScreen(
-            service = service,
-            onBack = goBack,
-            onOpenFile = { path -> navigate(Screen.XmlEdit(path)) },
-        )
-        is Screen.XmlEdit -> TextEditorScreen(
-            title = current.path.substringAfterLast("/"),
-            subtitle = current.path,
-            load = { service.readXmlFile(current.path) },
-            save = { text -> service.saveXmlFile(current.path, text) },
-            onBack = goBack,
-        )
-        is Screen.About -> AboutScreen(onBack = goBack)
-        is Screen.UiSettings -> UiSettingsScreen(onBack = goBack)
-    }
-}
-
-/** 主页测试界面 */
-@Composable
-private fun HomeTestScreen() {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        item {
-            SmallTitle("主页测试")
-        }
-        item {
-            Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                Text("这是主页测试界面", modifier = Modifier.padding(16.dp))
-            }
-        }
-    }
-}
-
-/** 保存的 APK 测试界面 */
-@Composable
-private fun SavedTestScreen() {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        item {
-            SmallTitle("保存的 APK 测试")
-        }
-        item {
-            Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                Text("这是保存的 APK 测试界面", modifier = Modifier.padding(16.dp))
-            }
-        }
-    }
-}
-
-/** 设置测试界面 */
-@Composable
-private fun SettingsTestScreen() {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        item {
-            SmallTitle("设置测试")
-        }
-        item {
-            Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                ArrowPreference(
-                    title = "UI 设置",
-                    summary = "底栏模糊 · 悬浮底栏 · 液态玻璃",
-                    onClick = { /* TODO */ },
-                )
-                ArrowPreference(
-                    title = "关于",
-                    summary = "版本 0.1 · 查看开源许可与鸣谢",
-                    onClick = { /* TODO */ },
-                )
-            }
+            AppContent(padding = padding)
         }
     }
 }

@@ -258,8 +258,11 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                             val dexFileObj = DexFileFactory.loadDexFile(
                                 File(dir, dex), Opcodes.getDefault(),
                             )
-                            val threadCount = 2
-                            Baksmali.disassembleDexFile(dexFileObj, smaliDir, threadCount, BaksmaliOptions())
+                            val threadCount = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
+                            val options = BaksmaliOptions().apply {
+                                apiLevel = currentMinSdk
+                            }
+                            Baksmali.disassembleDexFile(dexFileObj, smaliDir, threadCount, options)
                         }
                         val files = collectSmali(smaliDir)
                         smaliCache[dex] = files

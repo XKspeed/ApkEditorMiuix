@@ -80,6 +80,7 @@ fun UiSettingsPage(onBack: () -> Unit) {
                             .clickable(onClick = onBack),
                     )
                 },
+                scrollBehavior = top.yukonga.miuix.kmp.basic.MiuixScrollBehavior(),
             )
         }
     ) { innerPadding ->

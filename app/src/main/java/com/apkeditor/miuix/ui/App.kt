@@ -255,7 +255,7 @@ class Navigator(val backStack: NavBackStack<Screen>) {
     }
 }
 
-/** 完全按照官方示例的底栏写法 */
+/** 完全照搬官方示例的底栏写法 */
 @Composable
 private fun AppNavigationBar(
     navigationItems: List<NavigationItem>,
@@ -266,6 +266,7 @@ private fun AppNavigationBar(
 ) {
     val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
     val floatingBarColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer
+    val floatingBarShape = RoundedCornerShape(28.dp)
 
     AnimatedVisibility(
         visible = UiConfigState.showNavigationBar,
@@ -324,7 +325,7 @@ private fun AppNavigationBar(
                     modifier = if (blurActive && backdrop != null) {
                         Modifier.textureBlur(
                             backdrop = backdrop,
-                            shape = RoundedCornerShape(28.dp),
+                            shape = floatingBarShape,
                             blurRadius = UiConfigState.blurRadius,
                             colors = BlurDefaults.blurColors(
                                 blendColors = listOf(

@@ -29,5 +29,16 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
+include(":miuix-core")
+include(":miuix-ui")
+include(":miuix-preference")
+include(":miuix-shader")
+include(":miuix-blur")
+include(":miuix-squircle")
+include(":miuix-icons")
+include(":miuix-nav")
+
+include(":baselineprofile")
+
 include(":shared")
 include(":android")

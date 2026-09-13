@@ -89,14 +89,18 @@ fun App(service: ApkDataService? = null) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
+    ) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             containerColor = androidx.compose.ui.graphics.Color.Transparent,
             bottomBar = {
                 if (UiConfigState.useFloatingNavigationBar) {
-                    // 悬浮底栏（放 Scaffold bottomBar 里，自己定位到底部）
+                    // 悬浮底栏
                     FloatingNavigationBar(
                         color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
                                 else MiuixTheme.colorScheme.surfaceContainer,
@@ -173,11 +177,9 @@ fun App(service: ApkDataService? = null) {
                 }
             },
         ) { innerPadding ->
-            // 主内容区域：layerBackdrop 先挂载，再 padding，确保 backdrop 捕获完整画面
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier)
                     .padding(innerPadding),
             ) {
                 when (tab) {

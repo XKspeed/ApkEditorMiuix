@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "ApkEditorMiuix"
 include(":app")
+include(":shared")

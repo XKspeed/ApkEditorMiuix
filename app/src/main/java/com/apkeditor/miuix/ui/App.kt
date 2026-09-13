@@ -76,38 +76,20 @@ fun App(service: ApkDataService? = null) {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (UiConfigState.showNavigationBar) {
-                if (UiConfigState.useFloatingNavigationBar) {
-                    // 悬浮底栏
-                    FloatingNavigationBar {
-                        BottomTab.entries.forEachIndexed { index, item ->
-                            FloatingNavigationBarItem(
-                                selected = tab == index,
-                                onClick = { tab = index },
-                                icon = when (item) {
-                                    BottomTab.HOME -> MiuixIcons.Home
-                                    BottomTab.SAVED -> MiuixIcons.Download
-                                    BottomTab.SETTINGS -> MiuixIcons.Settings
-                                },
-                                label = item.title,
-                            )
-                        }
-                    }
-                } else {
-                    // 普通底栏
-                    NavigationBar {
-                        BottomTab.entries.forEachIndexed { index, item ->
-                            NavigationBarItem(
-                                selected = tab == index,
-                                onClick = { tab = index },
-                                icon = when (item) {
-                                    BottomTab.HOME -> MiuixIcons.Home
-                                    BottomTab.SAVED -> MiuixIcons.Download
-                                    BottomTab.SETTINGS -> MiuixIcons.Settings
-                                },
-                                label = item.title,
-                            )
-                        }
+            if (UiConfigState.showNavigationBar && !UiConfigState.useFloatingNavigationBar) {
+                // 普通底栏（放 Scaffold bottomBar，占位）
+                NavigationBar {
+                    BottomTab.entries.forEachIndexed { index, item ->
+                        NavigationBarItem(
+                            selected = tab == index,
+                            onClick = { tab = index },
+                            icon = when (item) {
+                                BottomTab.HOME -> MiuixIcons.Home
+                                BottomTab.SAVED -> MiuixIcons.Download
+                                BottomTab.SETTINGS -> MiuixIcons.Settings
+                            },
+                            label = item.title,
+                        )
                     }
                 }
             }
@@ -122,6 +104,26 @@ fun App(service: ApkDataService? = null) {
                 0 -> HomeContent(current, goBack, navigate, svc)
                 1 -> SavedApksScreen()
                 2 -> SettingsScreen()
+            }
+
+            // 悬浮底栏（放 Box 里，悬浮在内容上面，不占位）
+            if (UiConfigState.showNavigationBar && UiConfigState.useFloatingNavigationBar) {
+                FloatingNavigationBar(
+                    modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
+                ) {
+                    BottomTab.entries.forEachIndexed { index, item ->
+                        FloatingNavigationBarItem(
+                            selected = tab == index,
+                            onClick = { tab = index },
+                            icon = when (item) {
+                                BottomTab.HOME -> MiuixIcons.Home
+                                BottomTab.SAVED -> MiuixIcons.Download
+                                BottomTab.SETTINGS -> MiuixIcons.Settings
+                            },
+                            label = item.title,
+                        )
+                    }
+                }
             }
         }
     }

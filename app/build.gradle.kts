@@ -58,6 +58,10 @@ dependencies {
     implementation("top.yukonga.miuix.kmp:miuix-blur-android:0.9.3")
     implementation("top.yukonga.miuix.kmp:miuix-squircle-android:0.9.3")
 
+    // miuix-nav：官方路由组件，自带侧滑动画 + 预测性返回手势
+    // 从 JitPack 构建
+    implementation("com.github.compose-miuix-ui.miuix:miuix-nav:main-SNAPSHOT")
+
     // miuix 0.9.3 的 MiuixPopupHost 依赖此库（runtime scope 传递，需显式声明才能编译访问）
     // 提供 LocalNavigationEventDispatcherOwner，否则展开任意 Overlay 弹窗会闪退
     implementation("androidx.navigationevent:navigationevent-compose-android:1.1.2")

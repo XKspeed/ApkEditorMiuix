@@ -48,7 +48,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 3. 点变体直接编辑
  */
 @Composable
-fun ArscEntriesScreen(
+fun ArscEntriesPage(
     type: String,
     service: ApkDataService,
     onBack: () -> Unit,

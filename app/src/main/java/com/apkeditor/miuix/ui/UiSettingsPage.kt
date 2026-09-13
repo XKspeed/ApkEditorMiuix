@@ -97,7 +97,7 @@ object UiConfigState {
  * MIUI X UI 修改设置页
  */
 @Composable
-fun UiSettingsScreen(onBack: () -> Unit) {
+fun UiSettingsPage(onBack: () -> Unit) {
     // 返回键处理
     androidx.activity.compose.BackHandler { onBack() }
 

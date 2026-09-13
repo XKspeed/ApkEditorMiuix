@@ -41,7 +41,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 语法高亮、行号、搜索替换、跳转行。
  */
 @Composable
-fun TextEditorScreen(
+fun TextEditorPage(
     title: String,
     subtitle: String,
     load: suspend () -> Result<String>,

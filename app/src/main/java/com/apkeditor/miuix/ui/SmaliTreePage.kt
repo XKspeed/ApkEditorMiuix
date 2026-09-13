@@ -46,7 +46,7 @@ import kotlinx.coroutines.withContext
  * 性能优化：derivedStateOf 缓存 + 搜索后台线程
  */
 @Composable
-fun SmaliTreeScreen(
+fun SmaliTreePage(
     dexNames: List<String>,
     service: ApkDataService,
     onBack: () -> Unit,

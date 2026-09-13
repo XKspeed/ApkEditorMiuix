@@ -58,7 +58,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 点击 AndroidManifest.xml / classes.dex / resources.arsc / res/ 进入对应编辑功能。
  */
 @Composable
-fun ApkInfoScreen(
+fun ApkInfoPage(
     uri: String,
     service: ApkDataService,
     onBack: () -> Unit,

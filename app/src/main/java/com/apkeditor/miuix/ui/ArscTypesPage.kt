@@ -14,10 +14,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
-import com.apkeditor.miuix.data.DexEntry
+import com.apkeditor.miuix.data.ResourceTypeInfo
 import com.apkeditor.miuix.ui.components.ErrorBox
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.LoadingBox
@@ -30,25 +29,25 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.WindowInsets
 
 @Composable
-fun DexListScreen(
+fun ArscTypesPage(
     service: ApkDataService,
     onBack: () -> Unit,
-    onOpenDex: (String) -> Unit,
+    onOpenType: (String) -> Unit,
 ) {
-    var dexList by remember { mutableStateOf<List<DexEntry>?>(null) }
+    var types by remember { mutableStateOf<List<ResourceTypeInfo>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        service.listDexFiles()
-            .onSuccess { dexList = it }
-            .onFailure { error = it.message ?: "无法读取 DEX 列表" }
+        service.listResourceTypes()
+            .onSuccess { types = it }
+            .onFailure { error = it.message ?: "无法读取资源表" }
     }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = "DEX 文件",
+                title = "资源",
                 navigationIcon = {
                     Text(
                         "返回",
@@ -63,8 +62,7 @@ fun DexListScreen(
     ) { innerPadding ->
         when {
             error != null -> ErrorBox(error!!, onRetry = null)
-            dexList == null -> LoadingBox("读取 DEX 列表…")
-            dexList!!.isEmpty() -> ErrorBox("未找到 DEX 文件", onRetry = null)
+            types == null -> LoadingBox("读取资源表…")
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -72,18 +70,18 @@ fun DexListScreen(
             ) {
                 item {
                     Text(
-                        "点击 DEX 反汇编为 Smali 代码进行编辑",
+                        "点击类型查看资源条目",
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.subtitle,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
                     )
                 }
-                items(dexList!!) { dex ->
+                items(types!!) { t ->
                     ListItemRow(
-                        title = dex.name,
-                        subtitle = "点击反汇编",
-                        trailing = "${dex.size}  ›",
-                        onClick = { onOpenDex(dex.name) },
+                        title = t.type,
+                        subtitle = "资源条目",
+                        trailing = "${t.count}  ›",
+                        onClick = { onOpenType(t.type) },
                     )
                     HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
                 }

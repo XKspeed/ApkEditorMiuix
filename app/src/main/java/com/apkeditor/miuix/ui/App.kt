@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
@@ -40,6 +40,7 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.highlight.Highlight
 import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -89,7 +90,7 @@ fun App(service: ApkDataService? = null) {
     CompositionLocalProvider(
         LocalSquircleEnabled provides UiConfigState.enableSquircle,
     ) {
-        // 完全照搬官方示例：backdrop 在 CompactScreenLayout 级别创建
+        // 完全照搬官方示例：CompactScreenLayout
         CompactScreenLayout(
             tab = tab,
             onTabSelected = { tab = it },
@@ -128,7 +129,6 @@ private fun CompactScreenLayout(
         drawRect(surfaceColor)
         drawContent()
     }
-    val blurActive = UiConfigState.enableBlur && backdrop != null && isRuntimeShaderSupported()
 
     val navigationItems = remember {
         listOf(
@@ -148,7 +148,6 @@ private fun CompactScreenLayout(
                 selectedTab = tab,
                 onTabSelected = onTabSelected,
                 backdrop = backdrop,
-                blurActive = blurActive,
             )
         },
     ) { innerPadding ->
@@ -165,11 +164,9 @@ private fun AppNavigationBar(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
     backdrop: LayerBackdrop?,
-    blurActive: Boolean,
 ) {
+    val blurActive = UiConfigState.enableBlur && backdrop != null && isRuntimeShaderSupported()
     val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
-    val floatingBarColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer
-    val floatingBarShape = RoundedCornerShape(28.dp)
 
     AnimatedVisibility(
         visible = UiConfigState.showNavigationBar,
@@ -223,6 +220,12 @@ private fun AppNavigationBar(
         }
 
         if (UiConfigState.useFloatingNavigationBar) {
+            val floatingBarColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer
+            val floatingBarShape = RoundedCornerShape(28.dp)
+            val isDark = !MiuixTheme.colorScheme.isLight
+            val floatingHighlight = remember(isDark) {
+                if (isDark) Highlight.GlassStrokeMiddleDark else Highlight.GlassStrokeMiddleLight
+            }
             Box {
                 FloatingNavigationBar(
                     modifier = if (blurActive && backdrop != null) {
@@ -235,6 +238,7 @@ private fun AppNavigationBar(
                                     BlendColorEntry(color = MiuixTheme.colorScheme.surfaceContainer.copy(0.6f)),
                                 ),
                             ),
+                            highlight = floatingHighlight,
                         )
                     } else {
                         Modifier

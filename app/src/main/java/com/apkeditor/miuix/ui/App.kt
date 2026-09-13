@@ -128,10 +128,8 @@ fun App(service: ApkDataService? = null) {
             service = svc,
         )
 
-        BackHandler {
-            when {
-                stack.size > 1 -> stack.removeLast()
-            }
+        BackHandler(enabled = stack.size > 1) {
+            stack.removeLast()
         }
     }
 }
@@ -401,23 +399,32 @@ private fun HomeContent(
     AnimatedContent(
         targetState = current,
         transitionSpec = {
-            val initialOffset = if (initialState is Screen.Home && targetState !is Screen.Home) {
-                { fullWidth: Int -> fullWidth }
+            // 判断是进入二级页面还是返回
+            val isEntering = initialState is Screen.Home && targetState !is Screen.Home
+            val isReturning = initialState !is Screen.Home && targetState is Screen.Home
+
+            if (isEntering) {
+                // 进入二级页面：新页面从右滑入，旧页面向左移出
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth: Int -> fullWidth },
+                    animationSpec = tween(300),
+                ) togetherWith slideOutHorizontally(
+                    targetOffsetX = { fullWidth: Int -> -fullWidth / 4 },
+                    animationSpec = tween(300),
+                )
+            } else if (isReturning) {
+                // 返回：新页面从左滑入，旧页面向右滑出
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth: Int -> -fullWidth / 4 },
+                    animationSpec = tween(300),
+                ) togetherWith slideOutHorizontally(
+                    targetOffsetX = { fullWidth: Int -> fullWidth },
+                    animationSpec = tween(300),
+                )
             } else {
-                { fullWidth: Int -> -fullWidth / 4 }
+                // 其他情况（比如从一个二级页面到另一个二级页面）
+                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
             }
-            val targetOffset = if (initialState is Screen.Home && targetState !is Screen.Home) {
-                { fullWidth: Int -> -fullWidth / 4 }
-            } else {
-                { fullWidth: Int -> 0 }
-            }
-            slideInHorizontally(
-                initialOffsetX = targetOffset,
-                animationSpec = tween(300),
-            ) togetherWith slideOutHorizontally(
-                targetOffsetX = initialOffset,
-                animationSpec = tween(300),
-            )
         },
         label = "homeContentTransition",
     ) { target ->
@@ -485,24 +492,33 @@ private fun SettingsContent(
     AnimatedContent(
         targetState = current,
         transitionSpec = {
+            // 判断是进入二级页面还是返回
             val isRootPage = targetState !is Screen.UiSettings && targetState !is Screen.About
-            val initialOffset = if (isRootPage) {
-                { fullWidth: Int -> -fullWidth / 4 }
+            val isEntering = initialState.let { it !is Screen.UiSettings && it !is Screen.About } && !isRootPage
+            val isReturning = initialState.let { it is Screen.UiSettings || it is Screen.About } && isRootPage
+
+            if (isEntering) {
+                // 进入二级页面：新页面从右滑入，旧页面向左移出
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth: Int -> fullWidth },
+                    animationSpec = tween(300),
+                ) togetherWith slideOutHorizontally(
+                    targetOffsetX = { fullWidth: Int -> -fullWidth / 4 },
+                    animationSpec = tween(300),
+                )
+            } else if (isReturning) {
+                // 返回：新页面从左滑入，旧页面向右滑出
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth: Int -> -fullWidth / 4 },
+                    animationSpec = tween(300),
+                ) togetherWith slideOutHorizontally(
+                    targetOffsetX = { fullWidth: Int -> fullWidth },
+                    animationSpec = tween(300),
+                )
             } else {
-                { fullWidth: Int -> fullWidth }
+                // 其他情况
+                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
             }
-            val targetOffset = if (isRootPage) {
-                { fullWidth: Int -> 0 }
-            } else {
-                { fullWidth: Int -> -fullWidth / 4 }
-            }
-            slideInHorizontally(
-                initialOffsetX = targetOffset,
-                animationSpec = tween(300),
-            ) togetherWith slideOutHorizontally(
-                targetOffsetX = initialOffset,
-                animationSpec = tween(300),
-            )
         },
         label = "settingsContentTransition",
     ) { target ->

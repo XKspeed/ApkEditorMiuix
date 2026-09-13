@@ -3,35 +3,25 @@
 
 @file:Suppress("UnstableApiUsage")
 
-rootProject.name = "compose-miuix-ui"
+rootProject.name = "ApkEditorMiuix"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     includeBuild("build-plugins")
     repositories {
-        google {
-            mavenContent {
-                includeGroupAndSubgroups("androidx")
-                includeGroupAndSubgroups("com.android")
-                includeGroupAndSubgroups("com.google")
-            }
-        }
+        google()
         mavenCentral()
         gradlePluginPortal()
     }
 }
 
 dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        google {
-            mavenContent {
-                includeGroupAndSubgroups("androidx")
-                includeGroupAndSubgroups("com.android")
-                includeGroupAndSubgroups("com.google")
-            }
-        }
+        google()
         mavenCentral()
+        maven("https://jitpack.io")
     }
 }
 
@@ -39,22 +29,5 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-include(":miuix-core")
-include(":miuix-ui")
-include(":miuix-preference")
-include(":miuix-shader")
-include(":miuix-blur")
-include(":miuix-squircle")
-include(":miuix-icons")
-include(":miuix-nav")
-
-include(":baselineprofile")
-
-include(":example:shared")
-include(":example:android")
-include(":example:desktop")
-include(":example:web")
-include(":example:macos")
-
-include(":docs:demo")
-include(":docs:iconGen")
+include(":shared")
+include(":android")

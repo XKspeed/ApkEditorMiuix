@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -16,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.RealApkDataService
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
+import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -79,7 +81,7 @@ fun App(service: ApkDataService? = null) {
                     // 悬浮底栏
                     FloatingNavigationBar {
                         BottomTab.entries.forEachIndexed { index, item ->
-                            NavigationBarItem(
+                            FloatingNavigationBarItem(
                                 selected = tab == index,
                                 onClick = { tab = index },
                                 icon = when (item) {

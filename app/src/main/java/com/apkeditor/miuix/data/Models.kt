@@ -36,6 +36,15 @@ data class ResourceEntryInfo(
     val type: String,
     val value: String,
     val configs: List<String>,
+    val variants: List<ResourceVariant> = emptyList(),
+)
+
+/** ARSC 资源变体（不同配置） */
+data class ResourceVariant(
+    val qualifiers: String,
+    val valueType: String,
+    val displayValue: String,
+    val rawData: Int,
 )
 
 /** APK 内的 XML 文件 */

@@ -33,7 +33,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 全局 UI 配置（类似 ThemeState）
  */
 object UiConfigState {
-    var enableBlur by mutableStateOf(true)
+    var enableBlur by mutableStateOf(false)
     var enableSquircle by mutableStateOf(true)
     var useFloatingNavigationBar by mutableStateOf(false)
     var blurRadius by mutableStateOf(10f)

@@ -34,11 +34,11 @@ import top.yukonga.miuix.kmp.basic.rememberScrollBarAdapter
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import utils.AdaptiveTopAppBar
-import utils.BlurredBar
-import utils.pageContentPadding
-import utils.pageScrollModifiers
-import utils.rememberBlurBackdrop
+import com.apkeditor.miuix.utils.AdaptiveTopAppBar
+import com.apkeditor.miuix.utils.BlurredBar
+import com.apkeditor.miuix.utils.pageContentPadding
+import com.apkeditor.miuix.utils.pageScrollModifiers
+import com.apkeditor.miuix.utils.rememberBlurBackdrop
 
 @Immutable
 private data class TextStyleEntry(

@@ -68,7 +68,7 @@ import top.yukonga.miuix.kmp.icon.basic.Search
 import top.yukonga.miuix.kmp.icon.basic.SearchCleanup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
-import utils.SearchStatus
+import com.apkeditor.miuix.utils.SearchStatus
 
 // Search Pager Composable
 @Composable

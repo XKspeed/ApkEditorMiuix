@@ -64,14 +64,14 @@ import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import component.liquid.IosLiquidGlassNavigationBar
+import com.apkeditor.miuix.component.liquid.IosLiquidGlassNavigationBar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import navigation.CrossActivityTransition
-import navigation.Navigator
-import navigation.Route
+import com.apkeditor.miuix.navigation.CrossActivityTransition
+import com.apkeditor.miuix.navigation.Navigator
+import com.apkeditor.miuix.navigation.Route
 import top.yukonga.miuix.kmp.basic.Badge
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
@@ -120,10 +120,10 @@ import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection
 import top.yukonga.miuix.kmp.nav.transition.NavTransition
 import top.yukonga.miuix.kmp.nav.transition.NavTransitions
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import ui.isInDarkTheme
-import utils.FPSMonitor
-import utils.shouldExpandNavigationRail
-import utils.shouldShowSplitPane
+import com.apkeditor.miuix.theme.isInDarkTheme
+import com.apkeditor.miuix.utils.FPSMonitor
+import com.apkeditor.miuix.utils.shouldExpandNavigationRail
+import com.apkeditor.miuix.utils.shouldShowSplitPane
 import kotlin.math.abs
 
 private object UIConstants {

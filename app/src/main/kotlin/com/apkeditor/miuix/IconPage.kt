@@ -39,8 +39,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import component.SearchBarFake
-import component.SearchPager
+import com.apkeditor.miuix.component.SearchBarFake
+import com.apkeditor.miuix.component.SearchPager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -59,13 +59,13 @@ import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
 import top.yukonga.miuix.kmp.squircle.squircleClip
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
-import utils.AdaptiveTopAppBar
-import utils.All
-import utils.BlurredBar
-import utils.SearchStatus
-import utils.pageContentPadding
-import utils.pageScrollModifiers
-import utils.rememberBlurBackdrop
+import com.apkeditor.miuix.utils.AdaptiveTopAppBar
+import com.apkeditor.miuix.utils.All
+import com.apkeditor.miuix.utils.BlurredBar
+import com.apkeditor.miuix.utils.SearchStatus
+import com.apkeditor.miuix.utils.pageContentPadding
+import com.apkeditor.miuix.utils.pageScrollModifiers
+import com.apkeditor.miuix.utils.rememberBlurBackdrop
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable

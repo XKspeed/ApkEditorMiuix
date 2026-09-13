@@ -40,11 +40,11 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.darkColorScheme
 import top.yukonga.miuix.kmp.theme.lightColorScheme
 import top.yukonga.miuix.kmp.theme.platformDynamicColors
-import utils.AdaptiveTopAppBar
-import utils.BlurredBar
-import utils.pageContentPadding
-import utils.pageScrollModifiers
-import utils.rememberBlurBackdrop
+import com.apkeditor.miuix.utils.AdaptiveTopAppBar
+import com.apkeditor.miuix.utils.BlurredBar
+import com.apkeditor.miuix.utils.pageContentPadding
+import com.apkeditor.miuix.utils.pageScrollModifiers
+import com.apkeditor.miuix.utils.rememberBlurBackdrop
 
 private val CamelCaseRegex = Regex("([A-Z])")
 private val ColorBlockCornerRadius = 12.dp

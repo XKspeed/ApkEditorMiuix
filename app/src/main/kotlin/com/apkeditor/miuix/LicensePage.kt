@@ -24,7 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import component.BackNavigationIcon
+import com.apkeditor.miuix.component.BackNavigationIcon
 import kotlinx.coroutines.CancellationException
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -38,12 +38,12 @@ import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.shared.generated.resources.Res
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import utils.AdaptiveTopAppBar
-import utils.BlurredBar
-import utils.Library
-import utils.SimpleJsonParser
-import utils.pageContentPadding
-import utils.pageScrollModifiers
+import com.apkeditor.miuix.utils.AdaptiveTopAppBar
+import com.apkeditor.miuix.utils.BlurredBar
+import com.apkeditor.miuix.utils.Library
+import com.apkeditor.miuix.utils.SimpleJsonParser
+import com.apkeditor.miuix.utils.pageContentPadding
+import com.apkeditor.miuix.utils.pageScrollModifiers
 
 @Composable
 fun LicensePage(

@@ -18,8 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import misc.VersionInfo
-import navigation.Route
+import com.apkeditor.miuix.misc.VersionInfo
+import com.apkeditor.miuix.navigation.Route
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -37,11 +37,11 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeColorSpec
 import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
-import utils.AdaptiveTopAppBar
-import utils.BlurredBar
-import utils.pageContentPadding
-import utils.pageScrollModifiers
-import utils.rememberBlurBackdrop
+import com.apkeditor.miuix.utils.AdaptiveTopAppBar
+import com.apkeditor.miuix.utils.BlurredBar
+import com.apkeditor.miuix.utils.pageContentPadding
+import com.apkeditor.miuix.utils.pageScrollModifiers
+import com.apkeditor.miuix.utils.rememberBlurBackdrop
 
 private val NavigationBarDisplayModeOptions = listOf("IconAndText", "IconOnly", "IconWithSelectedLabel")
 private val FloatingNavigationBarStyleOptions = listOf("Default", "iOS-like")

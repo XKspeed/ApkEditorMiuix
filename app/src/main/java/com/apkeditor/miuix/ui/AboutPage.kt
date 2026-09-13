@@ -118,15 +118,6 @@ fun AboutPage(
                     color = barColor,
                     titleColor = titleColor,
                     defaultWindowInsetsPadding = false,
-                    navigationIcon = {
-                        MiuixText(
-                            text = "返回",
-                            color = MiuixTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .clickable(onClick = onBack)
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                        )
-                    },
                 )
             }
         },

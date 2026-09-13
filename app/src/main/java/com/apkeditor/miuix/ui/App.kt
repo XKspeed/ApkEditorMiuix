@@ -516,10 +516,8 @@ private fun SettingsContent(
     ) { target ->
         when (target) {
             is Screen.UiSettings -> UiSettingsPage(onBack = goBack)
-            is Screen.About -> AboutPage(onBack = goBack)
             else -> SettingsPage(
                 onOpenUiSettings = { navigate(Screen.UiSettings) },
-                onOpenAbout = { navigate(Screen.About) },
             )
         }
     }

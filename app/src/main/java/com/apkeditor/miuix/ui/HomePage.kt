@@ -82,7 +82,10 @@ fun HomePage(onPickApk: (String) -> Unit) {
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(title = currentDir.absolutePath) }
+        topBar = { TopAppBar(
+            title = currentDir.absolutePath,
+            scrollBehavior = top.yukonga.miuix.kmp.basic.MiuixScrollBehavior(),
+        ) }
     ) { innerPadding ->
         Column(Modifier.fillMaxSize().padding(innerPadding)) {
             // 上级目录

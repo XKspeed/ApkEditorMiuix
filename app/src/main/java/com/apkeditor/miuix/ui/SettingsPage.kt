@@ -44,12 +44,14 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色")
 /** 底部导航：设置 */
 @Composable
 fun SettingsPage(
-    onOpenAbout: () -> Unit = {},
     onOpenUiSettings: () -> Unit = {},
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(title = "设置") },
+        topBar = { TopAppBar(
+            title = "设置",
+            scrollBehavior = top.yukonga.miuix.kmp.basic.MiuixScrollBehavior(),
+        ) },
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
@@ -97,15 +99,6 @@ fun SettingsPage(
             }
             item {
                 SmallTitle("其他")
-            }
-            item {
-                Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                    ArrowPreference(
-                        title = "关于",
-                        summary = "版本 0.1 · 查看开源许可与鸣谢",
-                        onClick = onOpenAbout,
-                    )
-                }
             }
             item { Spacer(Modifier.height(24.dp)) }
         }

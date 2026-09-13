@@ -78,5 +78,8 @@ dependencies {
     implementation("com.davemorrissey.labs:subsampling-scale-image-view:3.10.0")
 
     // Markdown 渲染
-    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:core:4.6.2") {
+        exclude(group = "androidx.vectordrawable", module = "vectordrawable")
+        exclude(group = "androidx.vectordrawable", module = "vectordrawable-animated")
+    }
 }

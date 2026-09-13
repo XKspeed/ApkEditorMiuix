@@ -186,7 +186,6 @@ fun App(service: ApkDataService? = null) {
             }
         }
     }
-}
 
 /** 主页 tab 内容（含子页面导航栈） */
 @Composable

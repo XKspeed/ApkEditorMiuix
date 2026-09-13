@@ -130,7 +130,7 @@ fun App(service: ApkDataService? = null) {
         // 悬浮底栏（放 Box 顶层，align BottomCenter，独立于 Scaffold）
         if (UiConfigState.useFloatingNavigationBar) {
             FloatingNavigationBar(
-                horizontalAlignment = top.yukonga.miuix.kmp.basic.FloatingNavigationBarAlignment.Center,
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             ) {
                 BottomTab.entries.forEachIndexed { index, item ->
                     FloatingNavigationBarItem(

@@ -3,6 +3,8 @@ package com.apkeditor.miuix.ui
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.SmallTitle
@@ -147,7 +150,7 @@ fun UiSettingsScreen(onBack: () -> Unit) {
                             valueRange = 0f..30f,
                         )
                     }
-                    androidx.compose.foundation.layout.HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
+                    HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
                     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Text("悬浮高度", style = MiuixTheme.textStyles.main, modifier = Modifier.weight(1f))

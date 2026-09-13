@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
@@ -399,7 +401,23 @@ private fun HomeContent(
     AnimatedContent(
         targetState = current,
         transitionSpec = {
-            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+            val initialOffset = if (initialState is Screen.Home && targetState !is Screen.Home) {
+                { fullWidth: Int -> fullWidth }
+            } else {
+                { fullWidth: Int -> -fullWidth / 4 }
+            }
+            val targetOffset = if (initialState is Screen.Home && targetState !is Screen.Home) {
+                { fullWidth: Int -> -fullWidth / 4 }
+            } else {
+                { fullWidth: Int -> 0 }
+            }
+            slideInHorizontally(
+                initialOffsetX = targetOffset,
+                animationSpec = tween(300),
+            ) togetherWith slideOutHorizontally(
+                targetOffsetX = initialOffset,
+                animationSpec = tween(300),
+            )
         },
         label = "homeContentTransition",
     ) { target ->
@@ -467,7 +485,24 @@ private fun SettingsContent(
     AnimatedContent(
         targetState = current,
         transitionSpec = {
-            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+            val isRootPage = targetState !is Screen.UiSettings && targetState !is Screen.About
+            val initialOffset = if (isRootPage) {
+                { fullWidth: Int -> -fullWidth / 4 }
+            } else {
+                { fullWidth: Int -> fullWidth }
+            }
+            val targetOffset = if (isRootPage) {
+                { fullWidth: Int -> 0 }
+            } else {
+                { fullWidth: Int -> -fullWidth / 4 }
+            }
+            slideInHorizontally(
+                initialOffsetX = targetOffset,
+                animationSpec = tween(300),
+            ) togetherWith slideOutHorizontally(
+                targetOffsetX = initialOffset,
+                animationSpec = tween(300),
+            )
         },
         label = "settingsContentTransition",
     ) { target ->

@@ -70,4 +70,11 @@ dependencies {
     // sora-editor：MT/NP 同款代码编辑器（语法高亮、行号）
     implementation("io.github.Rosemoe.sora-editor:editor:0.23.6")
     implementation("io.github.Rosemoe.sora-editor:language-java:0.23.6")
+
+    // 图片查看（drawable 缩放）
+    implementation("com.github.chrisbanes:PhotoView:2.3.0")
+    implementation("com.davemorrissey.labs:subsampling-scale-image-view:3.10.0")
+
+    // Markdown 渲染
+    implementation("io.noties.markwon:core:4.6.2")
 }

@@ -63,7 +63,8 @@ fun TextEditorScreen(
     var showGoto by remember { mutableStateOf(false) }
     var gotoLine by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(editor) {
+        if (editor == null) return@LaunchedEffect
         load().onSuccess { content ->
             editor?.setText(content)
             dirty = false

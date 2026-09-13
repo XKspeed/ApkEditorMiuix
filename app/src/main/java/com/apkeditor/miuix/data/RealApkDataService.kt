@@ -293,18 +293,21 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         r
     }
 
-    override suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>> = runCatching {
+    override suspend fun listSmaliTree(
+        dexNames: List<String>,
+        onProgress: ((Int, Int) -> Unit)?,
+    ): Result<Map<String, List<SmaliTreeNode>>> = runCatching {
         val key = dexNames.joinToString(",")
         smaliTreeCache[key]?.let { cached ->
-            // 缓存的是各 dex 顶层节点列表，按 dexName 分组返回
             return@runCatching cached.groupBy { it.dex }
         }
-        // 复用 listSmaliFiles 的反编译缓存，不重复 baksmali
         val topNodes = mutableListOf<SmaliTreeNode>()
-        dexNames.forEach { dex ->
+        dexNames.forEachIndexed { index, dex ->
+            onProgress?.invoke(index, dexNames.size)
             val files = listSmaliFiles(dex).getOrThrow()
             topNodes.add(buildDexNode(dex, files))
         }
+        onProgress?.invoke(dexNames.size, dexNames.size)
         smaliTreeCache[key] = topNodes
         topNodes.groupBy { it.dex }
     }

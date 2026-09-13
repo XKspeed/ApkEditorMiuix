@@ -53,27 +53,25 @@ fun SmaliTreeScreen(
     var filter by remember { mutableStateOf("") }
     var assembling by remember { mutableStateOf(false) }
     var assembleResult by remember { mutableStateOf<String?>(null) }
+    var progressText by remember { mutableStateOf("") }
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(dexNames) {
         error = null
-        service.listSmaliTree(dexNames)
+        service.listSmaliTree(dexNames) { done, total ->
+            progressText = "正在反编译… ($done/$total)"
+        }
             .onSuccess { perDex ->
-                // 合并所有 DEX 的树到一个根节点（NP 风格：不区分 classes1/2/3）
-                val mergedChildren = mutableListOf<SmaliTreeNode>()
-                perDex.values.forEach { dexRoots ->
-                    dexRoots.forEach { dexRoot ->
-                        mergedChildren.addAll(dexRoot.children)
-                    }
-                }
+                // 合并所有 DEX 的树到一个根节点（NP 风格：相同包名文件夹合并）
+                val merged = mergeTrees(perDex.values.flatMap { it })
                 topNodes = listOf(
                     SmaliTreeNode(
                         name = "smali",
                         path = "merged",
                         isDir = true,
                         dex = "",
-                        children = mergedChildren,
+                        children = merged,
                     )
                 )
                 expanded["merged"] = true
@@ -137,7 +135,7 @@ fun SmaliTreeScreen(
             )
             when {
                 error != null -> ErrorBox(error!!, onRetry = null)
-                topNodes == null -> LoadingBox("正在反汇编…")
+                topNodes == null -> LoadingBox(progressText.ifBlank { "正在反编译 DEX…（首次打开需要几分钟）" })
                 isSearching -> {
                     // 搜索模式：扁平列表
                     LazyColumn(Modifier.fillMaxSize()) {
@@ -190,6 +188,23 @@ fun SmaliTreeScreen(
 
 private fun toggle(expanded: MutableMap<String, Boolean>, key: String) {
     expanded[key] = (expanded[key] != true)
+}
+
+/** 合并多个树的顶层节点，同名文件夹递归合并 */
+private fun mergeTrees(nodes: List<SmaliTreeNode>): List<SmaliTreeNode> {
+    val map = LinkedHashMap<String, SmaliTreeNode>()
+    nodes.forEach { node ->
+        val existing = map[node.name]
+        if (existing == null) {
+            map[node.name] = node
+        } else if (existing.isDir && node.isDir) {
+            // 同名文件夹：递归合并子节点
+            val mergedChildren = mergeTrees(existing.children + node.children)
+            map[node.name] = existing.copy(children = mergedChildren)
+        }
+        // 文件同名的话保留两个（不同 DEX 可能有同名类）
+    }
+    return map.values.toList()
 }
 
 private fun keyOf(node: SmaliTreeNode): String {

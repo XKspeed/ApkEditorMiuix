@@ -36,8 +36,12 @@ interface ApkDataService {
 
     /**
      * 列出指定 DEX 的 smali 目录树（构建一次后缓存，切换界面回来直接复用）。
+     * onProgress 回调：每完成一个 DEX 的反编译时调用，参数 (已完成数, 总数)
      */
-    suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>>
+    suspend fun listSmaliTree(
+        dexNames: List<String>,
+        onProgress: ((Int, Int) -> Unit)? = null,
+    ): Result<Map<String, List<SmaliTreeNode>>>
 
     /** 列出指定类型的资源条目 */
     suspend fun listResources(type: String): Result<List<ResourceEntryInfo>>

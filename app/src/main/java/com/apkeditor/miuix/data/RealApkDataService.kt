@@ -446,9 +446,16 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 if (type != null && t != type) return@forEach
                 if (kw.isNotEmpty()) {
                     val name = runCatching { r.name }.getOrNull() ?: ""
-                    if (!name.lowercase().contains(kw)) return@forEach
+                    val entryInfo = buildResourceEntryInfo(r)
+                    // 匹配资源名 或 资源值（array 类型匹配所有元素）
+                    val valueText = entryInfo.variants.joinToString(" ") { it.displayValue }
+                    if (!name.lowercase().contains(kw) && !valueText.lowercase().contains(kw)) {
+                        return@forEach
+                    }
+                    list.add(entryInfo)
+                } else {
+                    list.add(buildResourceEntryInfo(r))
                 }
-                list.add(buildResourceEntryInfo(r))
             }
             list
         }
@@ -538,6 +545,24 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         }
         if (valueType.isInteger()) {
             return "integer" to resValue.data.toString()
+        }
+        // array 类型：尝试读取所有元素
+        val typeName = runCatching { r.type }.getOrNull() ?: ""
+        if (typeName.contains("array", ignoreCase = true)) {
+            val items = mutableListOf<String>()
+            runCatching {
+                e.iterator().forEach { itemEntry ->
+                    val itemValue = runCatching { itemEntry.resValue }.getOrNull()
+                    val itemType = runCatching { itemValue?.valueType }.getOrNull()
+                    val itemStr = when {
+                        itemType == ValueType.STRING -> runCatching { itemEntry.valueAsString }.getOrNull() ?: ""
+                        itemType?.isInteger() == true -> itemValue?.data.toString()
+                        else -> runCatching { itemEntry.valueAsString }.getOrNull() ?: ""
+                    }
+                    items.add(itemStr)
+                }
+            }
+            return "array" to items.joinToString(", ")
         }
         val s = runCatching { e.valueAsString }.getOrNull()
         return if (s != null) (valueType.typeName.ifBlank { "value" }) to s

@@ -63,8 +63,11 @@ fun SmaliTreeScreen(
             progressText = "正在反编译… ($done/$total)"
         }
             .onSuccess { perDex ->
-                // 合并所有 DEX 的树到一个根节点（NP 风格：相同包名文件夹合并）
-                val merged = mergeTrees(perDex.values.flatMap { it })
+                // 合并所有 DEX 的包名文件夹（NP 风格：相同包名合并）
+                val allChildren = perDex.values.flatMap { roots ->
+                    roots.flatMap { it.children }
+                }
+                val merged = mergeTrees(allChildren)
                 topNodes = listOf(
                     SmaliTreeNode(
                         name = "smali",

@@ -37,7 +37,6 @@ import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationItem
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -90,34 +89,10 @@ fun App(service: ApkDataService? = null) {
     CompositionLocalProvider(
         LocalSquircleEnabled provides UiConfigState.enableSquircle,
     ) {
-        // 根据当前 tab 和页面计算顶栏标题
-        val title = when (tab) {
-            0 -> when (current) {
-                is Screen.Home -> "主页"
-                is Screen.ApkInfo -> "APK 信息"
-                is Screen.SmaliTree -> "smali 目录"
-                is Screen.SmaliEdit -> current.filePath.substringAfterLast("/")
-                is Screen.ArscTypes -> "资源类型"
-                is Screen.ArscEntries -> current.type
-                is Screen.XmlFiles -> "XML 文件"
-                is Screen.XmlEdit -> current.path.substringAfterLast("/")
-                else -> "主页"
-            }
-            1 -> "保存的 APK"
-            2 -> when (current) {
-                is Screen.About -> "关于"
-                is Screen.UiSettings -> "UI 设置"
-                else -> "设置"
-            }
-            else -> "ApkEditor Miuix"
-        }
-
         // 完全照搬官方示例：backdrop 在 CompactScreenLayout 级别创建
         CompactScreenLayout(
             tab = tab,
             onTabSelected = { tab = it },
-            showTopAppBar = UiConfigState.showTopAppBar,
-            title = title,
         ) { innerPadding ->
             Box(
                 modifier = Modifier
@@ -146,8 +121,6 @@ fun App(service: ApkDataService? = null) {
 private fun CompactScreenLayout(
     tab: Int,
     onTabSelected: (Int) -> Unit,
-    showTopAppBar: Boolean,
-    title: String,
     content: @Composable (androidx.compose.foundation.layout.PaddingValues) -> Unit,
 ) {
     val surfaceColor = MiuixTheme.colorScheme.surface
@@ -169,11 +142,6 @@ private fun CompactScreenLayout(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent,
-        topBar = {
-            AnimatedVisibility(visible = showTopAppBar) {
-                TopAppBar(title = title)
-            }
-        },
         bottomBar = {
             AppNavigationBar(
                 navigationItems = navigationItems,

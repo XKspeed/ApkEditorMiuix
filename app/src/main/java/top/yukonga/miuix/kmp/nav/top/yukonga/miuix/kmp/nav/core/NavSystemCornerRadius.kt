@@ -3,16 +3,45 @@
 
 package top.yukonga.miuix.kmp.nav.core
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.os.Build
+import android.view.RoundedCorner
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 /**
  * The device screen's corner radius, intended for [NavDisplayEffects.cornerClipRadius] so a
  * full-window navigation entry is clipped to match the rounded screen corner as it slides in.
  *
  * Android reads the [android.view.RoundedCorner] insets API (31+, bottom-left position), falling
- * back to the framework corner dimen, then to `0.dp` for flat-corner screens. Skiko targets
- * (Desktop / iOS / macOS / Web) return `0.dp`, since there is no OS-level screen corner to match.
+ * back to the framework corner dimen, then to `0.dp` for flat-corner screens.
  */
 @Composable
-expect fun rememberNavSystemCornerRadius(): Dp
+fun rememberNavSystemCornerRadius(): Dp {
+    val context = LocalContext.current
+    val density = LocalDensity.current.density
+    val view = LocalView.current
+    val insets = view.rootWindowInsets
+    val radiusPx = remember(context, view, insets) {
+        val fromInsets = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            insets?.getRoundedCorner(RoundedCorner.POSITION_BOTTOM_LEFT)?.radius?.takeIf { it > 0 }
+        } else {
+            null
+        }
+        fromInsets ?: bottomCornerRadiusFromResources(context)
+    }
+    return (radiusPx / density).dp
+}
+
+/** Framework `android`-package dimen fallback for the bottom screen corner radius; 0 when absent. */
+@SuppressLint("DiscouragedApi")
+private fun bottomCornerRadiusFromResources(context: Context): Int {
+    val id = context.resources.getIdentifier("rounded_corner_radius_bottom", "dimen", "android")
+    return if (id > 0) context.resources.getDimensionPixelSize(id) else 0
+}

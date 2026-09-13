@@ -1,6 +1,10 @@
 package com.apkeditor.miuix.data
 
 import android.content.Context
+import android.content.res.AssetManager
+import android.content.res.Resources
+import android.util.TypedValue
+import org.xmlpull.v1.XmlPullParser
 import android.net.Uri
 import com.apkeditor.miuix.SavedApkStore
 import com.android.apksig.ApkSigner
@@ -648,15 +652,37 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     }
 
     override suspend fun readXmlFile(path: String): Result<String> = runCatching {
-        locked { m ->
-            val doc = m.decodeXMLFile(path)
-            val out = File(workDir(), "tmp/${path.substringAfterLast('/')}.xml.txt")
-            out.parentFile?.mkdirs()
-            val serializer = XMLFactory.newSerializer(out)
-            doc.serialize(serializer)
-            serializer.flush()
-            out.readText()
+        val apkFile = rawApkFile ?: throw IllegalStateException("尚未打开 APK")
+        // NP 管理器方案：用 AssetManager.addAssetPath 加载 APK，然后 XmlResourceParser 解码 AXML
+        val am = AssetManager::class.java.newInstance()
+        val addAssetPath = AssetManager::class.java.getMethod("addAssetPath", String::class.java)
+        addAssetPath.invoke(am, apkFile.absolutePath)
+        val res = Resources(am, null, null)
+        val parser = res.getAssets().openXmlResourceParser(path)
+        val sb = StringBuilder()
+        var event = parser.eventType
+        while (event != XmlPullParser.END_DOCUMENT) {
+            when (event) {
+                XmlPullParser.START_DOCUMENT -> sb.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+                XmlPullParser.START_TAG -> {
+                    sb.append("<").append(parser.name)
+                    for (i in 0 until parser.attributeCount) {
+                        val name = parser.getAttributeName(i)
+                        val value = parser.getAttributeValue(i)
+                        sb.append(" ").append(name).append("=\"").append(value).append("\"")
+                    }
+                    sb.append(">\n")
+                }
+                XmlPullParser.END_TAG -> sb.append("</").append(parser.name).append(">\n")
+                XmlPullParser.TEXT -> {
+                    val text = parser.text?.trim() ?: ""
+                    if (text.isNotEmpty()) sb.append(text).append("\n")
+                }
+            }
+            event = parser.next()
         }
+        parser.close()
+        sb.toString()
     }
 
     override suspend fun saveXmlFile(path: String, content: String): Result<Unit> = runCatching {

@@ -64,8 +64,8 @@ dependencies {
 
     // miuix-nav 依赖
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
 
     // ==== 真实反编译引擎（v0.1 功能层）====
     // ARSCLib：纯 Java 直改二进制 resources.arsc 与 AXML（弃用 apktool+aapt2，规避 Android17 arsc 回编译问题）

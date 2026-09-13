@@ -90,9 +90,7 @@ fun App(service: ApkDataService? = null) {
     }
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
+        modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
@@ -176,7 +174,8 @@ fun App(service: ApkDataService? = null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
         ) {
             when (tab) {
                 0 -> HomeContent(current, goBack, navigate, svc)

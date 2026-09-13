@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -88,4 +89,7 @@ dependencies {
         exclude(group = "androidx.vectordrawable", module = "vectordrawable")
         exclude(group = "androidx.vectordrawable", module = "vectordrawable-animated")
     }
+
+    // kotlinx-serialization（miuix-nav 需要）
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }

@@ -18,9 +18,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -29,12 +29,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.RealApkDataService
+import kotlinx.serialization.Serializable
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationItem
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -42,28 +45,31 @@ import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
-import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Download
 import top.yukonga.miuix.kmp.icon.extended.Home
 import top.yukonga.miuix.kmp.icon.extended.Settings
+import top.yukonga.miuix.kmp.nav.core.NavBackStack
+import top.yukonga.miuix.kmp.nav.core.NavDisplay
+import top.yukonga.miuix.kmp.nav.core.NavKey
+import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
+import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/** 主页 tab 内的页面路由 */
-sealed interface Screen {
-    data object Home : Screen
-    data class ApkInfo(val uri: String) : Screen
-    data object DexList : Screen
-    data class SmaliTree(val dexNames: List<String>) : Screen
-    data class SmaliEdit(val dexName: String, val filePath: String) : Screen
-    data object ArscTypes : Screen
-    data class ArscEntries(val type: String) : Screen
-    data object XmlFiles : Screen
-    data class XmlEdit(val path: String) : Screen
-    data object About : Screen
-    data object UiSettings : Screen
+/** 页面路由（miuix-nav） */
+@Serializable
+sealed interface Screen : NavKey {
+    @Serializable data object Home : Screen
+    @Serializable data class ApkInfo(val uri: String) : Screen
+    @Serializable data object DexList : Screen
+    @Serializable data class SmaliTree(val dexNames: List<String>) : Screen
+    @Serializable data class SmaliEdit(val dexName: String, val filePath: String) : Screen
+    @Serializable data object ArscTypes : Screen
+    @Serializable data class ArscEntries(val type: String) : Screen
+    @Serializable data object XmlFiles : Screen
+    @Serializable data class XmlEdit(val path: String) : Screen
+    @Serializable data object About : Screen
+    @Serializable data object UiSettings : Screen
 }
 
 /** 底部导航 tab */
@@ -72,6 +78,8 @@ private enum class BottomTab(val title: String) {
     SAVED("保存的APK"),
     SETTINGS("设置"),
 }
+
+val LocalNavigator = staticCompositionLocalOf<Navigator> { error("No navigator found!") }
 
 @Composable
 fun App(service: ApkDataService? = null) {
@@ -82,15 +90,17 @@ fun App(service: ApkDataService? = null) {
         remember { RealApkDataService(ctx) }
     }
     var tab by remember { mutableIntStateOf(0) }
-    val stack = remember { mutableStateListOf<Screen>(Screen.Home) }
-    val current = stack.last()
 
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
+    // miuix-nav 返回栈
+    val backStack = rememberNavBackStack<Screen>(Screen.Home)
+    val navigator = remember { Navigator(backStack) }
+
     CompositionLocalProvider(
         LocalSquircleEnabled provides UiConfigState.enableSquircle,
+        LocalNavigator provides navigator,
     ) {
-        // 完全按照官方示例的 backdrop 写法
         val surfaceColor = MiuixTheme.colorScheme.surface
         val blurActive = UiConfigState.enableBlur && isRuntimeShaderSupported()
         val backdrop: LayerBackdrop? = rememberLayerBackdrop {
@@ -98,17 +108,13 @@ fun App(service: ApkDataService? = null) {
             drawContent()
         }
 
-        val goBack = { if (stack.size > 1) stack.removeLast() }
-        val navigate: (Screen) -> Unit = { stack.add(it) }
-
         BackHandler {
             when {
                 tab != 0 -> tab = 0
-                stack.size > 1 -> goBack()
+                backStack.size > 1 -> navigator.pop()
             }
         }
 
-        // 导航项列表
         val navigationItems = remember {
             listOf(
                 NavigationItem(BottomTab.HOME.title, MiuixIcons.Home),
@@ -143,12 +149,109 @@ fun App(service: ApkDataService? = null) {
                     .padding(innerPadding),
             ) {
                 when (tab) {
-                    0 -> HomeContent(current, goBack, navigate, svc)
+                    0 -> HomeNavDisplay(backStack, svc)
                     1 -> SavedApksScreen()
-                    2 -> SettingsContent(current, goBack, navigate)
+                    2 -> SettingsNavDisplay(backStack)
                 }
             }
         }
+    }
+}
+
+/** 主页 tab 的 NavDisplay */
+@Composable
+private fun HomeNavDisplay(backStack: NavBackStack<Screen>, service: ApkDataService) {
+    NavDisplay(
+        backStack = backStack,
+    ) { entry ->
+        when (val screen = entry.key) {
+            is Screen.Home -> HomeScreen(
+                onPickApk = { uri -> backStack.push(Screen.ApkInfo(uri)) },
+            )
+            is Screen.ApkInfo -> ApkInfoScreen(
+                uri = screen.uri,
+                service = service,
+                onBack = { backStack.pop() },
+                onOpenManifest = { backStack.push(Screen.XmlEdit("AndroidManifest.xml")) },
+                onOpenDex = { name -> backStack.push(Screen.SmaliTree(listOf(name))) },
+                onOpenAllDex = { names -> backStack.push(Screen.SmaliTree(names)) },
+                onOpenArsc = { backStack.push(Screen.ArscTypes) },
+                onOpenRes = { backStack.push(Screen.XmlFiles) },
+            )
+            is Screen.DexList -> DexListScreen(
+                service = service,
+                onBack = { backStack.pop() },
+                onOpenDex = { name -> backStack.push(Screen.SmaliTree(listOf(name))) },
+            )
+            is Screen.SmaliTree -> SmaliTreeScreen(
+                dexNames = screen.dexNames,
+                service = service,
+                onBack = { backStack.pop() },
+                onOpenFile = { dex, path -> backStack.push(Screen.SmaliEdit(dex, path)) },
+            )
+            is Screen.SmaliEdit -> TextEditorScreen(
+                title = screen.filePath.substringAfterLast("/"),
+                subtitle = screen.filePath,
+                load = { service.readSmaliFile(screen.dexName, screen.filePath) },
+                save = { text -> service.saveSmaliFile(screen.dexName, screen.filePath, text) },
+                onBack = { backStack.pop() },
+            )
+            is Screen.ArscTypes -> ArscTypesScreen(
+                service = service,
+                onBack = { backStack.pop() },
+                onOpenType = { type -> backStack.push(Screen.ArscEntries(type)) },
+            )
+            is Screen.ArscEntries -> ArscEntriesScreen(
+                type = screen.type,
+                service = service,
+                onBack = { backStack.pop() },
+            )
+            is Screen.XmlFiles -> XmlFilesScreen(
+                service = service,
+                onBack = { backStack.pop() },
+                onOpenFile = { path -> backStack.push(Screen.XmlEdit(path)) },
+            )
+            is Screen.XmlEdit -> TextEditorScreen(
+                title = screen.path.substringAfterLast("/"),
+                subtitle = screen.path,
+                load = { service.readXmlFile(screen.path) },
+                save = { text -> service.saveXmlFile(screen.path, text) },
+                onBack = { backStack.pop() },
+            )
+            is Screen.About -> AboutScreen(onBack = { backStack.pop() })
+            is Screen.UiSettings -> UiSettingsScreen(onBack = { backStack.pop() })
+        }
+    }
+}
+
+/** 设置 tab 的 NavDisplay */
+@Composable
+private fun SettingsNavDisplay(backStack: NavBackStack<Screen>) {
+    NavDisplay(
+        backStack = backStack,
+    ) { entry ->
+        when (val screen = entry.key) {
+            is Screen.Home -> SettingsScreen(
+                onOpenAbout = { backStack.push(Screen.About) },
+                onOpenUiSettings = { backStack.push(Screen.UiSettings) },
+            )
+            is Screen.About -> AboutScreen(onBack = { backStack.pop() })
+            is Screen.UiSettings -> UiSettingsScreen(onBack = { backStack.pop() })
+            else -> SettingsScreen(
+                onOpenAbout = { backStack.push(Screen.About) },
+                onOpenUiSettings = { backStack.push(Screen.UiSettings) },
+            )
+        }
+    }
+}
+
+/** 简单的 Navigator 包装 */
+class Navigator(val backStack: NavBackStack<Screen>) {
+    fun push(route: Screen) {
+        backStack.push(route)
+    }
+    fun pop() {
+        if (backStack.size > 1) backStack.pop()
     }
 }
 
@@ -246,102 +349,5 @@ private fun AppNavigationBar(
                 }
             }
         }
-    }
-}
-
-/** 主页 tab 内容（含子页面导航栈） */
-@Composable
-private fun HomeContent(
-    current: Screen,
-    goBack: () -> Unit,
-    navigate: (Screen) -> Unit,
-    service: ApkDataService,
-) {
-    when (current) {
-        is Screen.Home -> HomeScreen(
-            onPickApk = { uri -> navigate(Screen.ApkInfo(uri)) },
-        )
-
-        is Screen.ApkInfo -> ApkInfoScreen(
-            uri = current.uri,
-            service = service,
-            onBack = goBack,
-            onOpenManifest = { navigate(Screen.XmlEdit("AndroidManifest.xml")) },
-            onOpenDex = { name -> navigate(Screen.SmaliTree(listOf(name))) },
-            onOpenAllDex = { names -> navigate(Screen.SmaliTree(names)) },
-            onOpenArsc = { navigate(Screen.ArscTypes) },
-            onOpenRes = { navigate(Screen.XmlFiles) },
-        )
-
-        is Screen.DexList -> DexListScreen(
-            service = service,
-            onBack = goBack,
-            onOpenDex = { name -> navigate(Screen.SmaliTree(listOf(name))) },
-        )
-
-        is Screen.SmaliTree -> SmaliTreeScreen(
-            dexNames = current.dexNames,
-            service = service,
-            onBack = goBack,
-            onOpenFile = { dex, path -> navigate(Screen.SmaliEdit(dex, path)) },
-        )
-
-        is Screen.SmaliEdit -> TextEditorScreen(
-            title = current.filePath.substringAfterLast("/"),
-            subtitle = current.filePath,
-            load = { service.readSmaliFile(current.dexName, current.filePath) },
-            save = { text -> service.saveSmaliFile(current.dexName, current.filePath, text) },
-            onBack = goBack,
-        )
-
-        is Screen.ArscTypes -> ArscTypesScreen(
-            service = service,
-            onBack = goBack,
-            onOpenType = { type -> navigate(Screen.ArscEntries(type)) },
-        )
-
-        is Screen.ArscEntries -> ArscEntriesScreen(
-            type = current.type,
-            service = service,
-            onBack = goBack,
-        )
-
-        is Screen.XmlFiles -> XmlFilesScreen(
-            service = service,
-            onBack = goBack,
-            onOpenFile = { path -> navigate(Screen.XmlEdit(path)) },
-        )
-
-        is Screen.XmlEdit -> TextEditorScreen(
-            title = current.path.substringAfterLast("/"),
-            subtitle = current.path,
-            load = { service.readXmlFile(current.path) },
-            save = { text -> service.saveXmlFile(current.path, text) },
-            onBack = goBack,
-        )
-
-        is Screen.About -> AboutScreen(onBack = goBack)
-        is Screen.UiSettings -> UiSettingsScreen(onBack = goBack)
-    }
-}
-
-/** 设置 tab 内容（含子页面导航栈） */
-@Composable
-private fun SettingsContent(
-    current: Screen,
-    goBack: () -> Unit,
-    navigate: (Screen) -> Unit,
-) {
-    when (current) {
-        is Screen.Home -> SettingsScreen(
-            onOpenAbout = { navigate(Screen.About) },
-            onOpenUiSettings = { navigate(Screen.UiSettings) },
-        )
-        is Screen.About -> AboutScreen(onBack = goBack)
-        is Screen.UiSettings -> UiSettingsScreen(onBack = goBack)
-        else -> SettingsScreen(
-            onOpenAbout = { navigate(Screen.About) },
-            onOpenUiSettings = { navigate(Screen.UiSettings) },
-        )
     }
 }

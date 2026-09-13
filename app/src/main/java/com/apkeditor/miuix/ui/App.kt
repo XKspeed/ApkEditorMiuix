@@ -89,15 +89,10 @@ fun App(service: ApkDataService? = null) {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
             if (UiConfigState.useFloatingNavigationBar) {
                 // 悬浮底栏（放 Scaffold bottomBar 里，官方推荐）
@@ -179,7 +174,8 @@ fun App(service: ApkDataService? = null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
         ) {
             when (tab) {
                 0 -> HomeContent(current, goBack, navigate, svc)
@@ -187,7 +183,6 @@ fun App(service: ApkDataService? = null) {
                 2 -> SettingsScreen()
             }
         }
-    }
     }
 }
 

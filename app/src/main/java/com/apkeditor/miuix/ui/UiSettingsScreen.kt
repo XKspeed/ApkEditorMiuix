@@ -124,15 +124,6 @@ fun UiSettingsScreen(onBack: () -> Unit) {
             item { SmallTitle("基础") }
             item {
                 Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    OverlayDropdownPreference(
-                        title = "颜色模式",
-                        items = COLOR_MODE_OPTIONS,
-                        selectedIndex = UiConfigState.colorMode,
-                        onSelectedIndexChange = {
-                            UiConfigState.colorMode = it
-                            UiConfigState.save(context)
-                        },
-                    )
                     SwitchPreference(
                         title = "启用滚动结束震动",
                         checked = UiConfigState.enableScrollEndHaptic,

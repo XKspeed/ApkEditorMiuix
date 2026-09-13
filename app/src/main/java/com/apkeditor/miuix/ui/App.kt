@@ -43,6 +43,7 @@ import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Download
 import top.yukonga.miuix.kmp.icon.extended.Home
@@ -115,6 +116,11 @@ fun App(service: ApkDataService? = null) {
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent,
+        topBar = {
+            AnimatedVisibility(visible = UiConfigState.showTopAppBar) {
+                TopAppBar(title = "ApkEditor Miuix")
+            }
+        },
         bottomBar = {
             AppNavigationBar(
                 navigationItems = navigationItems,
@@ -153,7 +159,7 @@ private fun AppNavigationBar(
     val floatingBarColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer
 
     AnimatedVisibility(
-        visible = true,
+        visible = UiConfigState.showNavigationBar,
         enter = fadeIn() + expandVertically(),
         exit = fadeOut() + shrinkVertically(),
     ) {

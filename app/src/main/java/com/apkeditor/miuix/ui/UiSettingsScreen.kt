@@ -26,10 +26,17 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * MIUI X UI 修改设置页（全中文）：
- * - 底栏模糊（默认开启）
- * - 悬浮底栏（默认关闭）
- * - 液态玻璃（默认开启，不支持时自动隐藏）
+ * MIUI X UI 配置（参考官方示例 AppState 模式）
+ */
+data class UiConfig(
+    val enableBlur: Boolean = true,          // 模糊效果
+    val enableSquircle: Boolean = true,      // 液态玻璃
+    val showNavigationBar: Boolean = true,   // 显示导航栏
+    val useFloatingNavigationBar: Boolean = false, // 悬浮底栏
+)
+
+/**
+ * MIUI X UI 修改设置页（参考官方示例 SettingsPage）
  */
 @Composable
 fun UiSettingsScreen(onBack: () -> Unit) {
@@ -37,13 +44,30 @@ fun UiSettingsScreen(onBack: () -> Unit) {
     androidx.activity.compose.BackHandler { onBack() }
 
     val context = LocalContext.current
-    val config = remember { UiConfigManager(context) }
+    val prefs = remember { context.getSharedPreferences("ui_config", Context.MODE_PRIVATE) }
 
-    // 用 mutableStateOf 包装，修改后自动触发重组
-    var bottomBarBlur by remember { mutableStateOf(config.bottomBarBlur) }
-    var liquidGlass by remember { mutableStateOf(config.liquidGlass) }
-    var floatingBar by remember { mutableStateOf(config.floatingBar) }
-    var showNavBar by remember { mutableStateOf(config.showNavBar) }
+    // 用 mutableStateOf 包装整个配置，修改时 copy 新配置触发重组
+    var config by remember {
+        mutableStateOf(
+            UiConfig(
+                enableBlur = prefs.getBoolean("enable_blur", true),
+                enableSquircle = prefs.getBoolean("enable_squircle", true),
+                showNavigationBar = prefs.getBoolean("show_navbar", true),
+                useFloatingNavigationBar = prefs.getBoolean("use_floating_navbar", false),
+            )
+        )
+    }
+
+    fun update(transform: (UiConfig) -> UiConfig) {
+        config = transform(config)
+        // 持久化
+        prefs.edit().apply {
+            putBoolean("enable_blur", config.enableBlur)
+            putBoolean("enable_squircle", config.enableSquircle)
+            putBoolean("show_navbar", config.showNavigationBar)
+            putBoolean("use_floating_navbar", config.useFloatingNavigationBar)
+        }.apply()
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -69,11 +93,8 @@ fun UiSettingsScreen(onBack: () -> Unit) {
                     SwitchPreference(
                         title = "底栏模糊",
                         summary = "开启底部导航栏模糊效果",
-                        checked = bottomBarBlur,
-                        onCheckedChange = {
-                            bottomBarBlur = it
-                            config.bottomBarBlur = it
-                        },
+                        checked = config.enableBlur,
+                        onCheckedChange = { update { c -> c.copy(enableBlur = it) } },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     // 液态玻璃（RuntimeShader 支持时才显示）
@@ -81,11 +102,8 @@ fun UiSettingsScreen(onBack: () -> Unit) {
                         SwitchPreference(
                             title = "液态玻璃",
                             summary = "启用 Squircle 液态玻璃效果",
-                            checked = liquidGlass,
-                            onCheckedChange = {
-                                liquidGlass = it
-                                config.liquidGlass = it
-                            },
+                            checked = config.enableSquircle,
+                            onCheckedChange = { update { c -> c.copy(enableSquircle = it) } },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -95,56 +113,21 @@ fun UiSettingsScreen(onBack: () -> Unit) {
             item {
                 Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
                     SwitchPreference(
-                        title = "悬浮底栏",
-                        summary = "使用悬浮式导航底栏",
-                        checked = floatingBar,
-                        onCheckedChange = {
-                            floatingBar = it
-                            config.floatingBar = it
-                        },
+                        title = "显示导航栏",
+                        summary = "显示或隐藏底部导航栏",
+                        checked = config.showNavigationBar,
+                        onCheckedChange = { update { c -> c.copy(showNavigationBar = it) } },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     SwitchPreference(
-                        title = "显示导航栏",
-                        summary = "显示或隐藏底部导航栏",
-                        checked = showNavBar,
-                        onCheckedChange = {
-                            showNavBar = it
-                            config.showNavBar = it
-                        },
+                        title = "悬浮底栏",
+                        summary = "使用悬浮式导航底栏",
+                        checked = config.useFloatingNavigationBar,
+                        onCheckedChange = { update { c -> c.copy(useFloatingNavigationBar = it) } },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
         }
-    }
-}
-
-/** 全局 UI 配置管理器（SharedPreferences 持久化） */
-class UiConfigManager(context: Context) {
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("ui_config", Context.MODE_PRIVATE)
-
-    var bottomBarBlur: Boolean
-        get() = prefs.getBoolean(KEY_BLUR, true)
-        set(value) = prefs.edit().putBoolean(KEY_BLUR, value).apply()
-
-    var liquidGlass: Boolean
-        get() = prefs.getBoolean(KEY_SQUIRCLE, true)
-        set(value) = prefs.edit().putBoolean(KEY_SQUIRCLE, value).apply()
-
-    var floatingBar: Boolean
-        get() = prefs.getBoolean(KEY_FLOATING, false)
-        set(value) = prefs.edit().putBoolean(KEY_FLOATING, value).apply()
-
-    var showNavBar: Boolean
-        get() = prefs.getBoolean(KEY_SHOW_NAVBAR, true)
-        set(value) = prefs.edit().putBoolean(KEY_SHOW_NAVBAR, value).apply()
-
-    companion object {
-        private const val KEY_BLUR = "bottom_bar_blur"
-        private const val KEY_SQUIRCLE = "liquid_glass"
-        private const val KEY_FLOATING = "floating_bar"
-        private const val KEY_SHOW_NAVBAR = "show_nav_bar"
     }
 }

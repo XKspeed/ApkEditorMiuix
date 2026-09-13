@@ -73,8 +73,9 @@ fun App(service: ApkDataService? = null) {
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
     // 模糊背景层（照搬官方示例）
+    val surfaceColor = MiuixTheme.colorScheme.surface
     val backdrop = rememberLayerBackdrop {
-        drawRect(MiuixTheme.colorScheme.surface)
+        drawRect(surfaceColor)
         drawContent()
     }
     val blurActive = UiConfigState.enableBlur && isRuntimeShaderSupported()

@@ -263,42 +263,6 @@ private fun MainPage(
                     3 -> AboutPage(onBack = {})
                 }
             }
-
-            // 顶栏
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically(),
-            ) {
-                // 自动切换标题：根据当前页面栈的最顶层页面
-                val title = when (current) {
-                    is Screen.Home -> BottomTab.HOME.title
-                    is Screen.ApkInfo -> "APK 信息"
-                    is Screen.SmaliTree -> "Smali 浏览"
-                    is Screen.SmaliEdit -> "Smali 编辑"
-                    is Screen.ArscTypes -> "资源类型"
-                    is Screen.ArscEntries -> "资源条目"
-                    is Screen.XmlFiles -> "XML 文件"
-                    is Screen.XmlEdit -> "XML 编辑"
-                    is Screen.About -> BottomTab.ABOUT.title
-                    is Screen.UiSettings -> "UI 修改"
-                }
-                TopAppBar(
-                    title = title,
-                    navigationIcon = {
-                        if (stack.size > 1) {
-                            Text(
-                                text = "返回",
-                                color = MiuixTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                                    .clickable(onClick = goBack),
-                            )
-                        }
-                    },
-                    scrollBehavior = top.yukonga.miuix.kmp.basic.MiuixScrollBehavior(),
-                )
-            }
         }
     }
 }

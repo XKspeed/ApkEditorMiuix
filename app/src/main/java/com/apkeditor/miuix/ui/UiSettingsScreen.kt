@@ -39,6 +39,12 @@ fun UiSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val config = remember { UiConfigManager(context) }
 
+    // 用 mutableStateOf 包装，修改后自动触发重组
+    var bottomBarBlur by remember { mutableStateOf(config.bottomBarBlur) }
+    var liquidGlass by remember { mutableStateOf(config.liquidGlass) }
+    var floatingBar by remember { mutableStateOf(config.floatingBar) }
+    var showNavBar by remember { mutableStateOf(config.showNavBar) }
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
@@ -63,8 +69,11 @@ fun UiSettingsScreen(onBack: () -> Unit) {
                     SwitchPreference(
                         title = "底栏模糊",
                         summary = "开启底部导航栏模糊效果",
-                        checked = config.bottomBarBlur,
-                        onCheckedChange = { config.bottomBarBlur = it },
+                        checked = bottomBarBlur,
+                        onCheckedChange = {
+                            bottomBarBlur = it
+                            config.bottomBarBlur = it
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     // 液态玻璃（RuntimeShader 支持时才显示）
@@ -72,8 +81,11 @@ fun UiSettingsScreen(onBack: () -> Unit) {
                         SwitchPreference(
                             title = "液态玻璃",
                             summary = "启用 Squircle 液态玻璃效果",
-                            checked = config.liquidGlass,
-                            onCheckedChange = { config.liquidGlass = it },
+                            checked = liquidGlass,
+                            onCheckedChange = {
+                                liquidGlass = it
+                                config.liquidGlass = it
+                            },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -85,15 +97,21 @@ fun UiSettingsScreen(onBack: () -> Unit) {
                     SwitchPreference(
                         title = "悬浮底栏",
                         summary = "使用悬浮式导航底栏",
-                        checked = config.floatingBar,
-                        onCheckedChange = { config.floatingBar = it },
+                        checked = floatingBar,
+                        onCheckedChange = {
+                            floatingBar = it
+                            config.floatingBar = it
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     SwitchPreference(
                         title = "显示导航栏",
                         summary = "显示或隐藏底部导航栏",
-                        checked = config.showNavBar,
-                        onCheckedChange = { config.showNavBar = it },
+                        checked = showNavBar,
+                        onCheckedChange = {
+                            showNavBar = it
+                            config.showNavBar = it
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

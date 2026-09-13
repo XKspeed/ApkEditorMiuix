@@ -38,7 +38,6 @@ object UiConfigState {
     var useFloatingNavigationBar by mutableStateOf(false)
     var blurRadius by mutableStateOf(10f)
     var floatingElevation by mutableStateOf(8f)
-    var floatingElevation by mutableStateOf(8f)
 
     fun load(context: Context) {
         val prefs = context.getSharedPreferences("ui_config", Context.MODE_PRIVATE)

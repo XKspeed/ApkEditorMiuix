@@ -67,10 +67,14 @@ class MockApkDataService : ApkDataService {
         )
     }
 
-    override suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>> {
+    override suspend fun listSmaliTree(
+        dexNames: List<String>,
+        onProgress: ((Int, Int) -> Unit)?,
+    ): Result<Map<String, List<SmaliTreeNode>>> {
         mockDelay()
         val map = LinkedHashMap<String, List<SmaliTreeNode>>()
-        dexNames.forEach { dex ->
+        dexNames.forEachIndexed { index, dex ->
+            onProgress?.invoke(index, dexNames.size)
             val files = listSmaliFiles(dex).getOrThrow()
             map[dex] = listOf(
                 SmaliTreeNode(name = "smali", path = dex, isDir = true, dex = dex,
@@ -80,6 +84,7 @@ class MockApkDataService : ApkDataService {
                 )
             )
         }
+        onProgress?.invoke(dexNames.size, dexNames.size)
         return Result.success(map)
     }
 

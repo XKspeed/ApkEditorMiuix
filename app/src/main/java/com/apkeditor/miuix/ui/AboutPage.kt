@@ -73,7 +73,7 @@ import top.yukonga.miuix.kmp.basic.Text as MiuixText
 
 @Composable
 fun AboutPage(
-    openLicensePage: () -> Unit,
+    onBack: () -> Unit,
     isBlurEnabled: Boolean = true,
 ) {
     val topAppBarScrollBehavior = MiuixScrollBehavior()
@@ -111,11 +111,20 @@ fun AboutPage(
             )
             BlurredBar(hazeState, blurActive) {
                 SmallTopAppBar(
-                    title = stringResource(R.string.about),
+                    title = "关于",
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,
                     titleColor = titleColor,
                     defaultWindowInsetsPadding = false,
+                    navigationIcon = {
+                        MiuixText(
+                            text = "返回",
+                            color = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clickable(onClick = onBack)
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                        )
+                    },
                 )
             }
         },
@@ -130,7 +139,7 @@ fun AboutPage(
                 topAppBarScrollBehavior = topAppBarScrollBehavior,
                 lazyListState = lazyListState,
                 scrollProgressProvider = { scrollProgress },
-                openLicensePage = openLicensePage,
+                onBack = onBack,
             )
         }
     }
@@ -142,7 +151,7 @@ private fun AboutContent(
     topAppBarScrollBehavior: ScrollBehavior,
     lazyListState: LazyListState,
     scrollProgressProvider: () -> Float,
-    openLicensePage: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
     val contentBackdrop = rememberBlurBackdrop()
@@ -189,7 +198,7 @@ private fun AboutContent(
 
     val density = LocalDensity.current
     var logoHeightDp by remember { mutableStateOf(300.dp) }
-    val appName = stringResource(R.string.app_name)
+    val appName = "ApkEditor·Miuix"
     val ctx = LocalContext.current
     // 直接读取应用启动图标，保证与桌面图标始终一致。
     val appIcon = remember(ctx, density) {
@@ -346,13 +355,13 @@ private fun AboutContent(
                         ),
                     ) {
                         ArrowPreference(
-                            title = stringResource(R.string.about_source_code),
-                            summary = stringResource(R.string.about_source_code_summary),
+                            title = "查看源码",
+                            summary = "GitHub",
                             onClick = { uriHandler.openUri("https://github.com/HyperNavBar/HyperNavBar") },
                         )
                         ArrowPreference(
-                            title = stringResource(R.string.about_telegram),
-                            summary = stringResource(R.string.about_telegram_summary),
+                            title = "Telegram 群组",
+                            summary = "加入讨论",
                             onClick = { uriHandler.openUri("https://t.me/HyperNavBar") },
                         )
                     }
@@ -384,13 +393,13 @@ private fun AboutContent(
                         ),
                     ) {
                         ArrowPreference(
-                            title = stringResource(R.string.license_apache),
-                            summary = stringResource(R.string.license_apache_summary),
+                            title = "Apache License 2.0",
+                            summary = "开源许可证",
                             onClick = { uriHandler.openUri("https://www.apache.org/licenses/LICENSE-2.0.txt") },
                         )
                         ArrowPreference(
-                            title = stringResource(R.string.about_dependencies),
-                            onClick = openLicensePage,
+                            title = "开源依赖",
+                            onClick = onBack,
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))

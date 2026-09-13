@@ -1,11 +1,14 @@
 package com.apkeditor.miuix.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -393,56 +396,64 @@ private fun HomeContent(
     navigate: (Screen) -> Unit,
     service: ApkDataService,
 ) {
-    when (current) {
-        is Screen.Home -> HomePage(
-            onPickApk = { uri -> navigate(Screen.ApkInfo(uri)) },
-        )
-        is Screen.ApkInfo -> ApkInfoPage(
-            uri = current.uri,
-            service = service,
-            onBack = goBack,
-            onOpenManifest = { navigate(Screen.XmlEdit("AndroidManifest.xml")) },
-            onOpenDex = { name -> navigate(Screen.SmaliTree(listOf(name))) },
-            onOpenAllDex = { names -> navigate(Screen.SmaliTree(names)) },
-            onOpenArsc = { navigate(Screen.ArscTypes) },
-            onOpenRes = { navigate(Screen.XmlFiles) },
-        )
-        is Screen.SmaliTree -> SmaliTreePage(
-            dexNames = current.dexNames,
-            service = service,
-            onBack = goBack,
-            onOpenFile = { dex, path -> navigate(Screen.SmaliEdit(dex, path)) },
-        )
-        is Screen.SmaliEdit -> TextEditorPage(
-            title = current.filePath.substringAfterLast("/"),
-            subtitle = current.filePath,
-            load = { service.readSmaliFile(current.dexName, current.filePath) },
-            save = { text -> service.saveSmaliFile(current.dexName, current.filePath, text) },
-            onBack = goBack,
-        )
-        is Screen.ArscTypes -> ArscTypesPage(
-            service = service,
-            onBack = goBack,
-            onOpenType = { type -> navigate(Screen.ArscEntries(type)) },
-        )
-        is Screen.ArscEntries -> ArscEntriesPage(
-            type = current.type,
-            service = service,
-            onBack = goBack,
-        )
-        is Screen.XmlFiles -> XmlFilesPage(
-            service = service,
-            onBack = goBack,
-            onOpenFile = { path -> navigate(Screen.XmlEdit(path)) },
-        )
-        is Screen.XmlEdit -> TextEditorPage(
-            title = current.path.substringAfterLast("/"),
-            subtitle = current.path,
-            load = { service.readXmlFile(current.path) },
-            save = { text -> service.saveXmlFile(current.path, text) },
-            onBack = goBack,
-        )
-        else -> {}
+    AnimatedContent(
+        targetState = current,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+        },
+        label = "homeContentTransition",
+    ) { target ->
+        when (target) {
+            is Screen.Home -> HomePage(
+                onPickApk = { uri -> navigate(Screen.ApkInfo(uri)) },
+            )
+            is Screen.ApkInfo -> ApkInfoPage(
+                uri = target.uri,
+                service = service,
+                onBack = goBack,
+                onOpenManifest = { navigate(Screen.XmlEdit("AndroidManifest.xml")) },
+                onOpenDex = { name -> navigate(Screen.SmaliTree(listOf(name))) },
+                onOpenAllDex = { names -> navigate(Screen.SmaliTree(names)) },
+                onOpenArsc = { navigate(Screen.ArscTypes) },
+                onOpenRes = { navigate(Screen.XmlFiles) },
+            )
+            is Screen.SmaliTree -> SmaliTreePage(
+                dexNames = target.dexNames,
+                service = service,
+                onBack = goBack,
+                onOpenFile = { dex, path -> navigate(Screen.SmaliEdit(dex, path)) },
+            )
+            is Screen.SmaliEdit -> TextEditorPage(
+                title = target.filePath.substringAfterLast("/"),
+                subtitle = target.filePath,
+                load = { service.readSmaliFile(target.dexName, target.filePath) },
+                save = { text -> service.saveSmaliFile(target.dexName, target.filePath, text) },
+                onBack = goBack,
+            )
+            is Screen.ArscTypes -> ArscTypesPage(
+                service = service,
+                onBack = goBack,
+                onOpenType = { type -> navigate(Screen.ArscEntries(type)) },
+            )
+            is Screen.ArscEntries -> ArscEntriesPage(
+                type = target.type,
+                service = service,
+                onBack = goBack,
+            )
+            is Screen.XmlFiles -> XmlFilesPage(
+                service = service,
+                onBack = goBack,
+                onOpenFile = { path -> navigate(Screen.XmlEdit(path)) },
+            )
+            is Screen.XmlEdit -> TextEditorPage(
+                title = target.path.substringAfterLast("/"),
+                subtitle = target.path,
+                load = { service.readXmlFile(target.path) },
+                save = { text -> service.saveXmlFile(target.path, text) },
+                onBack = goBack,
+            )
+            else -> {}
+        }
     }
 }
 
@@ -453,12 +464,20 @@ private fun SettingsContent(
     goBack: () -> Unit,
     navigate: (Screen) -> Unit,
 ) {
-    when (current) {
-        is Screen.UiSettings -> UiSettingsPage(onBack = goBack)
-        is Screen.About -> AboutPage(onBack = goBack)
-        else -> SettingsPage(
-            onOpenUiSettings = { navigate(Screen.UiSettings) },
-            onOpenAbout = { navigate(Screen.About) },
-        )
+    AnimatedContent(
+        targetState = current,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+        },
+        label = "settingsContentTransition",
+    ) { target ->
+        when (target) {
+            is Screen.UiSettings -> UiSettingsPage(onBack = goBack)
+            is Screen.About -> AboutPage(onBack = goBack)
+            else -> SettingsPage(
+                onOpenUiSettings = { navigate(Screen.UiSettings) },
+                onOpenAbout = { navigate(Screen.About) },
+            )
+        }
     }
 }

@@ -18,6 +18,7 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -56,12 +57,15 @@ fun UiSettingsScreen(onBack: () -> Unit) {
                         checked = UiSettingsState.enableBlur,
                         onCheckedChange = { UiSettingsState.enableBlur = it },
                     )
-                    SwitchPreference(
-                        title = "Enable Squircle Shapes",
-                        summary = "液态玻璃效果",
-                        checked = UiSettingsState.enableSquircle,
-                        onCheckedChange = { UiSettingsState.enableSquircle = it },
-                    )
+                    // 液态玻璃（RuntimeShader 支持时才显示）
+                    if (isRuntimeShaderSupported()) {
+                        SwitchPreference(
+                            title = "Enable Squircle Shapes",
+                            summary = "液态玻璃效果",
+                            checked = UiSettingsState.enableSquircle,
+                            onCheckedChange = { UiSettingsState.enableSquircle = it },
+                        )
+                    }
                 }
             }
             item { SmallTitle("导航栏") }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
@@ -107,25 +108,20 @@ fun ArscEntriesScreen(
                 })
                 entries == null -> LoadingBox("读取资源条目…")
                 else -> LazyColumn(Modifier.fillMaxSize()) {
-                    // 平铺所有变体值
-                    val flatVariants = mutableListOf<Triple<ResourceEntryInfo, ResourceVariant, Int>>()
-                    visible.forEach { e ->
-                        e.variants.forEachIndexed { idx, v ->
-                            flatVariants.add(Triple(e, v, idx))
-                        }
-                    }
-                    items(flatVariants) { (e, v, _) ->
-                        val showColorBlock = type == "color" && v.displayValue.startsWith("#")
+                    // 每个资源名一行，下面每行显示一个来源
+                    items(visible) { e ->
+                        val defaultVariant = e.variants.firstOrNull { it.qualifiers.isBlank() }
+                            ?: e.variants.firstOrNull()
+                        val showColorBlock = type == "color" && (defaultVariant?.displayValue ?: e.value).startsWith("#")
+                        
+                        // 第一行：资源名 + 颜色块
                         Row(
-                            Modifier.fillMaxWidth().clickable {
-                                editing = e to v
-                                editValue = v.displayValue
-                            }.padding(horizontal = 20.dp, vertical = 8.dp),
+                            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             if (showColorBlock) {
                                 val color = runCatching {
-                                    androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(v.displayValue))
+                                    androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(defaultVariant?.displayValue ?: e.value))
                                 }.getOrNull()
                                 if (color != null) {
                                     Spacer(Modifier.width(4.dp))
@@ -137,19 +133,35 @@ fun ArscEntriesScreen(
                                     Spacer(Modifier.width(8.dp))
                                 }
                             }
-                            Column(Modifier.weight(1f)) {
-                                Text(e.name, style = MiuixTheme.textStyles.main)
-                                Spacer(Modifier.height(2.dp))
+                            Text(e.name, style = MiuixTheme.textStyles.main)
+                        }
+                        
+                        // 下面每行：来源 · 值
+                        e.variants.forEach { v ->
+                            Row(
+                                Modifier.fillMaxWidth().clickable {
+                                    editing = e to v
+                                    editValue = v.displayValue
+                                }.padding(start = 44.dp, end = 20.dp, top = 4.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Text(
-                                    "${v.qualifiers.ifBlank { "default" }} · ${v.displayValue.ifEmpty { "<空>" }}",
+                                    v.qualifiers.ifBlank { "default" },
                                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                    style = MiuixTheme.textStyles.subtitle,
+                                    modifier = Modifier.width(80.dp),
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    v.displayValue.ifEmpty { "<空>" },
+                                    style = MiuixTheme.textStyles.subtitle,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text("›",
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions,
                                     style = MiuixTheme.textStyles.subtitle,
                                 )
                             }
-                            Text("›",
-                                color = MiuixTheme.colorScheme.onSurfaceVariantActions,
-                                style = MiuixTheme.textStyles.subtitle,
-                            )
                         }
                         HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
                     }

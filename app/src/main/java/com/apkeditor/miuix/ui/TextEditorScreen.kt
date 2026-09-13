@@ -1,6 +1,5 @@
 package com.apkeditor.miuix.ui
 
-import android.view.View
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,8 +39,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * NP 管理器同款代码编辑器（sora-editor）：
- * 语法高亮、行号、自动缩进、查找替换、跳转行。
- * Smali 用 Java 语言高亮，XML 用纯文本。
+ * 语法高亮、行号、查找替换、跳转行。
  */
 @Composable
 fun TextEditorScreen(
@@ -125,30 +123,22 @@ fun TextEditorScreen(
                 error != null -> ErrorBox(error!!, onRetry = null)
                 !loaded -> LoadingBox("加载中…")
                 else -> {
-                    // 查找面板
                     if (showFind) {
                         Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                            TextField(
-                                value = findQuery,
-                                onValueChange = { findQuery = it },
-                                label = "查找",
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                            TextField(value = findQuery, onValueChange = { findQuery = it },
+                                label = "查找", modifier = Modifier.fillMaxWidth())
                             Spacer(Modifier.height(6.dp))
-                            TextField(
-                                value = replaceQuery,
-                                onValueChange = { replaceQuery = it },
-                                label = "替换为",
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                            TextField(value = replaceQuery, onValueChange = { replaceQuery = it },
+                                label = "替换为", modifier = Modifier.fillMaxWidth())
                             Spacer(Modifier.height(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Button(onClick = {
-                                    editor?.searcher?.search(findQuery, 0, false, false)
+                                    editor?.searcher?.search(findQuery)
                                 }, minWidth = 64.dp) { Text("查找") }
                                 Spacer(Modifier.width(6.dp))
                                 Button(onClick = {
                                     editor?.searcher?.replaceCurrentMatch(replaceQuery)
+                                    dirty = true
                                 }, minWidth = 64.dp) { Text("替换") }
                                 Spacer(Modifier.width(6.dp))
                                 Button(onClick = {
@@ -161,24 +151,20 @@ fun TextEditorScreen(
                         }
                     }
 
-                    // sora-editor 代码编辑器
                     AndroidView(
                         factory = { ctx ->
                             CodeEditor(ctx).apply {
                                 setEditorLanguage(JavaLanguage())
                                 isWordwrap = false
-                                isNonPrintablePaintingFlags = CodeEditor.FLAG_DRAW_WHITESPACE_LEADING
                                 typefaceText = android.graphics.Typeface.MONOSPACE
-                                textSize = 14.dp.value
-                                setOnTextChangeListener { _, _, _, _, _ -> dirty = true }
-                                setCursorListener { line, _ -> cursorLine = line + 1 }
+                                setOnTextChangedListener { _, _, _, _, _ -> dirty = true }
+                                cursorLine = cursor.leftLine + 1
                                 editor = this
                             }
                         },
                         modifier = Modifier.fillMaxWidth().weight(1f),
                     )
 
-                    // 底部状态栏
                     HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
                     Row(
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),

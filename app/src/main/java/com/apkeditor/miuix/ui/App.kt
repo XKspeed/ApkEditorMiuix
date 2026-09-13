@@ -61,7 +61,6 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 sealed interface Screen : NavKey {
     @Serializable data object Home : Screen
     @Serializable data class ApkInfo(val uri: String) : Screen
-    @Serializable data object DexList : Screen
     @Serializable data class SmaliTree(val dexNames: List<String>) : Screen
     @Serializable data class SmaliEdit(val dexName: String, val filePath: String) : Screen
     @Serializable data object ArscTypes : Screen
@@ -149,9 +148,9 @@ fun App(service: ApkDataService? = null) {
                     .padding(innerPadding),
             ) {
                 when (tab) {
-                    0 -> HomeNavDisplay(backStack, svc)
+                    0 -> HomeNavDisplay(backStack, navigator, svc)
                     1 -> SavedApksScreen()
-                    2 -> SettingsNavDisplay(backStack)
+                    2 -> SettingsNavDisplay(backStack, navigator)
                 }
             }
         }
@@ -160,98 +159,120 @@ fun App(service: ApkDataService? = null) {
 
 /** 主页 tab 的 NavDisplay */
 @Composable
-private fun HomeNavDisplay(backStack: NavBackStack<Screen>, service: ApkDataService) {
+private fun HomeNavDisplay(
+    backStack: NavBackStack,
+    navigator: Navigator,
+    service: ApkDataService,
+) {
     NavDisplay(
         backStack = backStack,
-    ) { entry ->
-        when (val screen = entry.key) {
-            is Screen.Home -> HomeScreen(
-                onPickApk = { uri -> backStack.push(Screen.ApkInfo(uri)) },
+        onBack = { navigator.pop() },
+    ) {
+        entry<Screen.Home> {
+            HomeScreen(
+                onPickApk = { uri -> navigator.push(Screen.ApkInfo(uri)) },
             )
-            is Screen.ApkInfo -> ApkInfoScreen(
+        }
+        entry<Screen.ApkInfo> { screen ->
+            ApkInfoScreen(
                 uri = screen.uri,
                 service = service,
-                onBack = { backStack.pop() },
-                onOpenManifest = { backStack.push(Screen.XmlEdit("AndroidManifest.xml")) },
-                onOpenDex = { name -> backStack.push(Screen.SmaliTree(listOf(name))) },
-                onOpenAllDex = { names -> backStack.push(Screen.SmaliTree(names)) },
-                onOpenArsc = { backStack.push(Screen.ArscTypes) },
-                onOpenRes = { backStack.push(Screen.XmlFiles) },
+                onBack = { navigator.pop() },
+                onOpenManifest = { navigator.push(Screen.XmlEdit("AndroidManifest.xml")) },
+                onOpenDex = { name -> navigator.push(Screen.SmaliTree(listOf(name))) },
+                onOpenAllDex = { names -> navigator.push(Screen.SmaliTree(names)) },
+                onOpenArsc = { navigator.push(Screen.ArscTypes) },
+                onOpenRes = { navigator.push(Screen.XmlFiles) },
             )
-            is Screen.DexList -> DexListScreen(
-                service = service,
-                onBack = { backStack.pop() },
-                onOpenDex = { name -> backStack.push(Screen.SmaliTree(listOf(name))) },
-            )
-            is Screen.SmaliTree -> SmaliTreeScreen(
+        }
+        entry<Screen.SmaliTree> { screen ->
+            SmaliTreeScreen(
                 dexNames = screen.dexNames,
                 service = service,
-                onBack = { backStack.pop() },
-                onOpenFile = { dex, path -> backStack.push(Screen.SmaliEdit(dex, path)) },
+                onBack = { navigator.pop() },
+                onOpenFile = { dex, path -> navigator.push(Screen.SmaliEdit(dex, path)) },
             )
-            is Screen.SmaliEdit -> TextEditorScreen(
+        }
+        entry<Screen.SmaliEdit> { screen ->
+            TextEditorScreen(
                 title = screen.filePath.substringAfterLast("/"),
                 subtitle = screen.filePath,
                 load = { service.readSmaliFile(screen.dexName, screen.filePath) },
                 save = { text -> service.saveSmaliFile(screen.dexName, screen.filePath, text) },
-                onBack = { backStack.pop() },
+                onBack = { navigator.pop() },
             )
-            is Screen.ArscTypes -> ArscTypesScreen(
+        }
+        entry<Screen.ArscTypes> {
+            ArscTypesScreen(
                 service = service,
-                onBack = { backStack.pop() },
-                onOpenType = { type -> backStack.push(Screen.ArscEntries(type)) },
+                onBack = { navigator.pop() },
+                onOpenType = { type -> navigator.push(Screen.ArscEntries(type)) },
             )
-            is Screen.ArscEntries -> ArscEntriesScreen(
+        }
+        entry<Screen.ArscEntries> { screen ->
+            ArscEntriesScreen(
                 type = screen.type,
                 service = service,
-                onBack = { backStack.pop() },
+                onBack = { navigator.pop() },
             )
-            is Screen.XmlFiles -> XmlFilesScreen(
+        }
+        entry<Screen.XmlFiles> {
+            XmlFilesScreen(
                 service = service,
-                onBack = { backStack.pop() },
-                onOpenFile = { path -> backStack.push(Screen.XmlEdit(path)) },
+                onBack = { navigator.pop() },
+                onOpenFile = { path -> navigator.push(Screen.XmlEdit(path)) },
             )
-            is Screen.XmlEdit -> TextEditorScreen(
+        }
+        entry<Screen.XmlEdit> { screen ->
+            TextEditorScreen(
                 title = screen.path.substringAfterLast("/"),
                 subtitle = screen.path,
                 load = { service.readXmlFile(screen.path) },
                 save = { text -> service.saveXmlFile(screen.path, text) },
-                onBack = { backStack.pop() },
+                onBack = { navigator.pop() },
             )
-            is Screen.About -> AboutScreen(onBack = { backStack.pop() })
-            is Screen.UiSettings -> UiSettingsScreen(onBack = { backStack.pop() })
+        }
+        entry<Screen.About> {
+            AboutScreen(onBack = { navigator.pop() })
+        }
+        entry<Screen.UiSettings> {
+            UiSettingsScreen(onBack = { navigator.pop() })
         }
     }
 }
 
 /** 设置 tab 的 NavDisplay */
 @Composable
-private fun SettingsNavDisplay(backStack: NavBackStack<Screen>) {
+private fun SettingsNavDisplay(
+    backStack: NavBackStack,
+    navigator: Navigator,
+) {
     NavDisplay(
         backStack = backStack,
-    ) { entry ->
-        when (val screen = entry.key) {
-            is Screen.Home -> SettingsScreen(
-                onOpenAbout = { backStack.push(Screen.About) },
-                onOpenUiSettings = { backStack.push(Screen.UiSettings) },
+        onBack = { navigator.pop() },
+    ) {
+        entry<Screen.Home> {
+            SettingsScreen(
+                onOpenAbout = { navigator.push(Screen.About) },
+                onOpenUiSettings = { navigator.push(Screen.UiSettings) },
             )
-            is Screen.About -> AboutScreen(onBack = { backStack.pop() })
-            is Screen.UiSettings -> UiSettingsScreen(onBack = { backStack.pop() })
-            else -> SettingsScreen(
-                onOpenAbout = { backStack.push(Screen.About) },
-                onOpenUiSettings = { backStack.push(Screen.UiSettings) },
-            )
+        }
+        entry<Screen.About> {
+            AboutScreen(onBack = { navigator.pop() })
+        }
+        entry<Screen.UiSettings> {
+            UiSettingsScreen(onBack = { navigator.pop() })
         }
     }
 }
 
 /** 简单的 Navigator 包装 */
-class Navigator(val backStack: NavBackStack<Screen>) {
-    fun push(route: Screen) {
-        backStack.push(route)
+class Navigator(val backStack: NavBackStack) {
+    fun push(route: NavKey) {
+        backStack.add(route)
     }
     fun pop() {
-        if (backStack.size > 1) backStack.pop()
+        if (backStack.size > 1) backStack.removeAt(backStack.size - 1)
     }
 }
 

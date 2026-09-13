@@ -26,10 +26,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.ResourceEntryInfo
+import com.apkeditor.miuix.data.ResourceVariant
 import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ErrorBox
 import com.apkeditor.miuix.ui.components.InfoRow
-import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.LoadingBox
 import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.components.TextField
@@ -41,8 +41,10 @@ import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * NP 管理器风格资源条目列表：
- * 顶部搜索栏，下面是资源列表（名称+值），点条目弹出编辑对话框。
+ * auto-editapks 风格手动修改 ARSC：
+ * 1. 输入资源名搜索
+ * 2. 显示所有匹配变体（不同 values-xxx）
+ * 3. 点变体直接编辑
  */
 @Composable
 fun ArscEntriesScreen(
@@ -54,7 +56,7 @@ fun ArscEntriesScreen(
     var entries by remember { mutableStateOf<List<ResourceEntryInfo>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var filter by remember { mutableStateOf("") }
-    var editing by remember { mutableStateOf<ResourceEntryInfo?>(null) }
+    var editing by remember { mutableStateOf<Pair<ResourceEntryInfo, ResourceVariant>?>(null) }
     var editValue by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var tip by remember { mutableStateOf<String?>(null) }
@@ -90,11 +92,11 @@ fun ArscEntriesScreen(
             TextField(
                 value = filter,
                 onValueChange = { filter = it },
-                label = "搜索资源名",
+                label = "输入资源名搜索",
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             )
             Text(
-                "共 ${visible.size} 项",
+                "共 ${visible.size} 个匹配",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 style = MiuixTheme.textStyles.subtitle,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
@@ -105,19 +107,25 @@ fun ArscEntriesScreen(
                 })
                 entries == null -> LoadingBox("读取资源条目…")
                 else -> LazyColumn(Modifier.fillMaxSize()) {
-                    items(visible) { e ->
-                        // color 类型显示色块
-                        val showColorBlock = type == "color" && e.value.startsWith("#")
+                    // 平铺所有变体值
+                    val flatVariants = mutableListOf<Triple<ResourceEntryInfo, ResourceVariant, Int>>()
+                    visible.forEach { e ->
+                        e.variants.forEachIndexed { idx, v ->
+                            flatVariants.add(Triple(e, v, idx))
+                        }
+                    }
+                    items(flatVariants) { (e, v, _) ->
+                        val showColorBlock = type == "color" && v.displayValue.startsWith("#")
                         Row(
                             Modifier.fillMaxWidth().clickable {
-                                editing = e
-                                editValue = e.value
-                            }.padding(horizontal = 16.dp, vertical = 12.dp),
+                                editing = e to v
+                                editValue = v.displayValue
+                            }.padding(horizontal = 20.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             if (showColorBlock) {
                                 val color = runCatching {
-                                    androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(e.value))
+                                    androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(v.displayValue))
                                 }.getOrNull()
                                 if (color != null) {
                                     Spacer(Modifier.width(4.dp))
@@ -132,15 +140,16 @@ fun ArscEntriesScreen(
                             Column(Modifier.weight(1f)) {
                                 Text(e.name, style = MiuixTheme.textStyles.main)
                                 Spacer(Modifier.height(2.dp))
-                                // array 类型列表里不显示长值，弹窗里看
-                                val displayValue = if (type.contains("array", true)) "<数组>"
-                                else e.value.ifEmpty { "<空>" }
                                 Text(
-                                    displayValue,
+                                    "${v.qualifiers.ifBlank { "default" }} · ${v.displayValue.ifEmpty { "<空>" }}",
                                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                     style = MiuixTheme.textStyles.subtitle,
                                 )
                             }
+                            Text("›",
+                                color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                                style = MiuixTheme.textStyles.subtitle,
+                            )
                         }
                         HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
                     }
@@ -150,12 +159,14 @@ fun ArscEntriesScreen(
         }
     }
 
-    editing?.let { entry ->
+    editing?.let { (entry, variant) ->
         MiuixDialog(
-            title = entry.name,
+            title = "${entry.name} · ${variant.qualifiers.ifBlank { "default" }}",
             onDismiss = { editing = null },
         ) {
             InfoRow("资源 ID", entry.hexId)
+            InfoRow("配置", variant.qualifiers.ifBlank { "default" })
+            InfoRow("类型", variant.valueType)
             Spacer(Modifier.height(8.dp))
             Text("值",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -165,7 +176,7 @@ fun ArscEntriesScreen(
             TextField(
                 value = editValue,
                 onValueChange = { editValue = it },
-                label = "值",
+                label = "新值",
                 modifier = Modifier.fillMaxWidth(),
             )
             DialogActions(
@@ -173,7 +184,7 @@ fun ArscEntriesScreen(
                 onConfirm = {
                     saving = true
                     scope.launch {
-                        service.saveResourceValue(entry.id, null, editValue)
+                        service.saveResourceValue(entry.id, variant.qualifiers.ifBlank { null }, editValue)
                             .onSuccess { tip = "已保存" }
                             .onFailure { tip = "保存失败：${it.message}" }
                         saving = false

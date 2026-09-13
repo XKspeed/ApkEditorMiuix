@@ -174,13 +174,16 @@ fun App(service: ApkDataService? = null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
         ) {
-            when (tab) {
-                0 -> HomeContent(current, goBack, navigate, svc)
-                1 -> SavedApksScreen()
-                2 -> SettingsScreen()
+            Box(
+                modifier = Modifier.padding(innerPadding),
+            ) {
+                when (tab) {
+                    0 -> HomeContent(current, goBack, navigate, svc)
+                    1 -> SavedApksScreen()
+                    2 -> SettingsScreen()
+                }
             }
         }
     }

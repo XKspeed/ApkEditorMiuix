@@ -16,6 +16,9 @@ interface ApkDataService {
     /** 将指定 DEX 反汇编为 smali 文件列表（相对路径） */
     suspend fun listSmaliFiles(dexName: String): Result<List<String>>
 
+    /** 列出多个 DEX 的 smali 目录树（按 dexName 分组） */
+    suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>>
+
     /** 读取 smali 文件文本 */
     suspend fun readSmaliFile(dexName: String, filePath: String): Result<String>
 
@@ -30,6 +33,9 @@ interface ApkDataService {
 
     /** 列出指定类型的资源条目 */
     suspend fun listResources(type: String): Result<List<ResourceEntryInfo>>
+
+    /** 搜索资源（按类型可选过滤，按关键字匹配名称） */
+    suspend fun searchResources(type: String?, keyword: String, maxResults: Int): Result<List<ResourceEntryInfo>>
 
     /** 修改资源字符串值 */
     suspend fun saveResourceValue(id: Int, qualifiers: String?, newValue: String): Result<Unit>

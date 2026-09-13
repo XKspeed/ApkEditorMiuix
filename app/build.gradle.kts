@@ -1,5 +1,6 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
@@ -65,4 +66,7 @@ dependencies {
 
     // kotlinx-serialization（miuix-nav 需要）
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
+    // Compose Multiplatform Resources（painterResource 需要）
+    implementation("org.jetbrains.compose.components:components-resources:1.7.3")
 }

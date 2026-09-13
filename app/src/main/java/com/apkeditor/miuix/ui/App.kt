@@ -118,7 +118,7 @@ fun App(service: ApkDataService? = null) {
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
     CompositionLocalProvider(
-        LocalSquircleEnabled provides UiConfigState.enableSquircle,
+        LocalSquircleEnabled provides true,
     ) {
         MainPage(
             stack = stack,
@@ -223,7 +223,7 @@ private fun MainPage(
     Scaffold(
         bottomBar = {
             AnimatedVisibility(
-                visible = UiConfigState.showNavigationBar,
+                visible = true,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically(),
             ) {
@@ -259,7 +259,7 @@ private fun MainPage(
 
             // 顶栏
             AnimatedVisibility(
-                visible = UiConfigState.showTopAppBar,
+                visible = true,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically(),
             ) {

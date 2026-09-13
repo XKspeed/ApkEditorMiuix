@@ -68,6 +68,26 @@ class MockApkDataService : ApkDataService {
         )
     }
 
+    override suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>> {
+        mockDelay()
+        val rootNode = SmaliTreeNode(
+            name = "smali",
+            path = "classes.dex",
+            isDir = true,
+            dex = "classes.dex",
+            children = listOf(
+                SmaliTreeNode("com", "smali/com", true, "classes.dex", listOf(
+                    SmaliTreeNode("example", "smali/com/example", true, "classes.dex", listOf(
+                        SmaliTreeNode("demoapp", "smali/com/example/demoapp", true, "classes.dex", listOf(
+                            SmaliTreeNode("MainActivity.smali", "smali/com/example/demoapp/MainActivity.smali", false, "classes.dex"),
+                        )),
+                    )),
+                )),
+            ),
+        )
+        return Result.success(mapOf("classes.dex" to listOf(rootNode)))
+    }
+
     override suspend fun readSmaliFile(dexName: String, filePath: String): Result<String> {
         mockDelay()
         val className = filePath.substringAfterLast("/").removeSuffix(".smali")
@@ -157,6 +177,11 @@ class MockApkDataService : ApkDataService {
         }
         mockDelay()
         return Result.success(entries)
+    }
+
+    override suspend fun searchResources(type: String?, keyword: String, maxResults: Int): Result<List<ResourceEntryInfo>> {
+        mockDelay()
+        return Result.success(emptyList())
     }
 
     override suspend fun saveResourceValue(id: Int, qualifiers: String?, newValue: String): Result<Unit> {

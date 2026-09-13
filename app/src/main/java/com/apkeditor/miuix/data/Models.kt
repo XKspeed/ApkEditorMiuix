@@ -57,3 +57,12 @@ data class BuildResult(
     /** 产物位置：SAF content Uri 或本地文件绝对路径 */
     val outputPath: String = "",
 )
+
+/** Smali 目录树节点 */
+data class SmaliTreeNode(
+    val name: String,
+    val path: String,
+    val isDir: Boolean,
+    val dex: String,
+    val children: List<SmaliTreeNode> = emptyList(),
+)

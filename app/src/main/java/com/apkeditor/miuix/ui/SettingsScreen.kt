@@ -39,14 +39,10 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色")
 
 /** 底部导航：设置 */
 @Composable
-fun SettingsScreen() {
-    var showUiSettings by remember { mutableStateOf(false) }
-
-    if (showUiSettings) {
-        UiSettingsScreen(onBack = { showUiSettings = false })
-        return
-    }
-
+fun SettingsScreen(
+    onOpenAbout: () -> Unit = {},
+    onOpenUiSettings: () -> Unit = {},
+) {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { TopAppBar(title = "设置") },
@@ -73,7 +69,7 @@ fun SettingsScreen() {
                     )
                     // UI 修改入口
                     Column(Modifier
-                        .clickable { showUiSettings = true }
+                        .clickable { onOpenUiSettings() }
                         .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {
                         Text("UI 修改", style = MiuixTheme.textStyles.main)
@@ -117,11 +113,15 @@ fun SettingsScreen() {
             }
             item {
                 Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Column(
+                        Modifier
+                            .clickable { onOpenAbout() }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                    ) {
                         Text("ApkEditor·Miuix", style = MiuixTheme.textStyles.main)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "版本 0.1（可靠重打包版）\n仿 MT 管理器的 APK 编辑工具\nUI：Miuix（HyperOS 风格）\n最低系统：Android 15",
+                            "版本 0.1 · 查看开源许可与鸣谢",
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             style = MiuixTheme.textStyles.subtitle,
                         )

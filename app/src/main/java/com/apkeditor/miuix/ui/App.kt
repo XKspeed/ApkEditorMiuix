@@ -89,15 +89,10 @@ fun App(service: ApkDataService? = null) {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
             bottomBar = {
                 if (UiConfigState.useFloatingNavigationBar) {
                     // 悬浮底栏
@@ -180,6 +175,7 @@ fun App(service: ApkDataService? = null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier)
                     .padding(innerPadding),
             ) {
                 when (tab) {

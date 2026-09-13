@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -58,7 +57,6 @@ dependencies {
     implementation("top.yukonga.miuix.kmp:miuix-icons-android:0.9.3")
     implementation("top.yukonga.miuix.kmp:miuix-blur-android:0.9.3")
     implementation("top.yukonga.miuix.kmp:miuix-squircle-android:0.9.3")
-    implementation("top.yukonga.miuix.kmp:miuix-nav-android:0.9.4-rc01")
 
     // miuix 0.9.3 的 MiuixPopupHost 依赖此库（runtime scope 传递，需显式声明才能编译访问）
     // 提供 LocalNavigationEventDispatcherOwner，否则展开任意 Overlay 弹窗会闪退
@@ -89,7 +87,4 @@ dependencies {
         exclude(group = "androidx.vectordrawable", module = "vectordrawable")
         exclude(group = "androidx.vectordrawable", module = "vectordrawable-animated")
     }
-
-    // kotlinx-serialization（miuix-nav 需要）
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }

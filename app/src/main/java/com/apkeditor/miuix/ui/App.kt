@@ -90,7 +90,9 @@ fun App(service: ApkDataService? = null) {
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
@@ -172,9 +174,7 @@ fun App(service: ApkDataService? = null) {
         },
     ) { innerPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
+            modifier = Modifier.fillMaxSize(),
         ) {
             Box(
                 modifier = Modifier.padding(innerPadding),

@@ -72,11 +72,13 @@ fun App(service: ApkDataService? = null) {
     // 加载 UI 配置
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
-    // 模糊背景层（最外层创建，只实例化一次）
+    // 模糊背景层（官方方式：rememberBlurBackdrop）
+    val blurActive = UiConfigState.enableBlur && isRuntimeShaderSupported()
+    val surfaceColor = MiuixTheme.colorScheme.surface
     val backdrop = rememberLayerBackdrop {
+        drawRect(surfaceColor)
         drawContent()
     }
-    val blurActive = UiConfigState.enableBlur && isRuntimeShaderSupported()
 
     val goBack = { if (stack.size > 1) stack.removeLast() }
     val navigate: (Screen) -> Unit = { stack.add(it) }

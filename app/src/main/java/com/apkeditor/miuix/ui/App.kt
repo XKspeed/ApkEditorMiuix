@@ -67,6 +67,7 @@ import top.yukonga.miuix.kmp.basic.NavigationRail
 import top.yukonga.miuix.kmp.basic.NavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.ScrollBehavior
 import top.yukonga.miuix.kmp.basic.rememberNavigationRailState
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
@@ -268,13 +269,34 @@ private fun MainPage(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically(),
             ) {
-                val title = when (selectedIndex) {
-                    0 -> BottomTab.HOME.title
-                    1 -> BottomTab.SAVED.title
-                    2 -> BottomTab.SETTINGS.title
-                    else -> "ApkEditor Miuix"
+                // 自动切换标题：根据当前页面栈的最顶层页面
+                val title = when (current) {
+                    is Screen.Home -> BottomTab.HOME.title
+                    is Screen.ApkInfo -> "APK 信息"
+                    is Screen.SmaliTree -> "Smali 浏览"
+                    is Screen.SmaliEdit -> "Smali 编辑"
+                    is Screen.ArscTypes -> "资源类型"
+                    is Screen.ArscEntries -> "资源条目"
+                    is Screen.XmlFiles -> "XML 文件"
+                    is Screen.XmlEdit -> "XML 编辑"
+                    is Screen.About -> BottomTab.ABOUT.title
+                    is Screen.UiSettings -> "UI 修改"
                 }
-                TopAppBar(title = title)
+                TopAppBar(
+                    title = title,
+                    navigationIcon = if (stack.size > 1) {
+                        {
+                            Text(
+                                text = "返回",
+                                color = MiuixTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    .clickable(onClick = goBack),
+                            )
+                        }
+                    } else null,
+                    blurBehavior = top.yukonga.miuix.kmp.basic.ScrollBehavior.Progressive,
+                )
             }
         }
     }

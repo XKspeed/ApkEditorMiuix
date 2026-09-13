@@ -147,7 +147,13 @@ private fun CompactScreenLayout(
         containerColor = Color.Transparent,
         topBar = {
             AnimatedVisibility(visible = showTopAppBar) {
-                TopAppBar(title = "ApkEditor Miuix")
+                val title = when (tab) {
+                    0 -> BottomTab.HOME.title
+                    1 -> BottomTab.SAVED.title
+                    2 -> BottomTab.SETTINGS.title
+                    else -> "ApkEditor Miuix"
+                }
+                TopAppBar(title = title)
             }
         },
         bottomBar = {

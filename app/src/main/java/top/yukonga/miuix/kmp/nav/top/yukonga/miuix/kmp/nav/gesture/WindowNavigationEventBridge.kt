@@ -4,39 +4,53 @@
 package top.yukonga.miuix.kmp.nav.gesture
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalView
 import androidx.navigationevent.DirectNavigationEventInput
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import androidx.navigationevent.findViewTreeNavigationEventDispatcherOwner
 
 /**
  * Forwards this platform window's back events to an explicitly inherited navigation dispatcher.
  *
  * This is an interoperability fallback for separate-window components that inherit a provided
  * `LocalNavigationEventDispatcherOwner` but register their own back handler before caller content
- * can rebind the dispatcher to the new window. On Android, call this once from the component's
- * window content. The complete predictive-back sequence is forwarded only when the inherited
- * dispatcher differs from the dispatcher attached to the current window.
- *
- * The bridge must be composed **inside** the separate window's content so it can resolve that
- * window's dispatcher. For example, with a third-party modal bottom sheet:
- *
- * ```kotlin
- * ModalBottomSheet(onDismissRequest = onDismissRequest) {
- *     WindowNavigationEventBridge()
- *     SheetContent()
- * }
- * ```
- *
- * Add only one bridge per window. It automatically unregisters when the window content leaves the
- * composition. Calling it outside the separate window does not bridge that window's events.
- *
- * Components that control their window composition root should instead provide that window's own
- * dispatcher there. Miuix Window* components already do this and do not need the bridge. On Skiko
- * platforms this is a no-op because dialogs share the host window.
+ * can rebind the dispatcher to the new window.
  */
 @Composable
-expect fun WindowNavigationEventBridge()
+fun WindowNavigationEventBridge() {
+    val inheritedDispatcher =
+        LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher ?: return
+    val view = LocalView.current
+    val windowDispatcher = remember(view) {
+        view.findViewTreeNavigationEventDispatcherOwner()?.navigationEventDispatcher
+    } ?: return
+    if (windowDispatcher === inheritedDispatcher) return
+
+    val forwardingInput = remember(inheritedDispatcher) { DirectNavigationEventInput() }
+    val forwardingHandler = remember(windowDispatcher, forwardingInput) {
+        ForwardingNavigationEventHandler(forwardingInput)
+    }
+
+    DisposableEffect(inheritedDispatcher, forwardingInput) {
+        inheritedDispatcher.addInput(forwardingInput)
+        onDispose {
+            try {
+                inheritedDispatcher.removeInput(forwardingInput)
+            } catch (_: IllegalStateException) {
+                // The owning nav hierarchy already disposed this descendant dispatcher.
+            }
+        }
+    }
+    DisposableEffect(windowDispatcher, forwardingHandler) {
+        windowDispatcher.addHandler(forwardingHandler)
+        onDispose { forwardingHandler.remove() }
+    }
+}
 
 internal class ForwardingNavigationEventHandler(
     private val input: DirectNavigationEventInput,

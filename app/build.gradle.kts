@@ -62,6 +62,11 @@ dependencies {
     // 提供 LocalNavigationEventDispatcherOwner，否则展开任意 Overlay 弹窗会闪退
     implementation("androidx.navigationevent:navigationevent-compose-android:1.1.2")
 
+    // miuix-nav 依赖
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+
     // ==== 真实反编译引擎（v0.1 功能层）====
     // ARSCLib：纯 Java 直改二进制 resources.arsc 与 AXML（弃用 apktool+aapt2，规避 Android17 arsc 回编译问题）
     implementation("com.github.REAndroid:ARSCLib:V1.4.0")

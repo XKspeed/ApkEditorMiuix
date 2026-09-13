@@ -71,6 +71,9 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     /** smali 目录树缓存：按 dexNames 分组，切换界面回来直接复用，不重建 */
     private val smaliTreeCache = HashMap<String, List<SmaliTreeNode>>()
 
+    /** 当前 APK 的 minSdk（用于 baksmali 设置正确的 Opcodes，同 NP 管理器） */
+    private var currentMinSdk: Int = 35
+
     init {
         activeInstance = this
         ApkCacheManager.registerMemoryCleaner {
@@ -128,6 +131,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 val versionCode = runCatching { manifest.versionCode }.getOrNull() ?: 0
                 val minSdk = runCatching { manifest.minSdkVersion }.getOrNull() ?: 35
                 val targetSdk = runCatching { manifest.targetSdkVersion }.getOrNull() ?: 37
+                currentMinSdk = minSdk
                 val permissions = runCatching { manifest.usesPermissions }.getOrElse { emptyList() }
                 val mainActivity = runCatching { manifest.mainActivityClassName }.getOrNull() ?: ""
                 val dexNames = listDexNamesFromZip(input)
@@ -248,7 +252,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                         if (!smaliDir.exists()) {
                             smaliDir.mkdirs()
                             val dexFileObj = DexFileFactory.loadDexFile(
-                                File(dir, dex), Opcodes.getDefault(),
+                                File(dir, dex), Opcodes.forApi(currentMinSdk),
                             )
                             val threadCount = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
                             Baksmali.disassembleDexFile(dexFileObj, smaliDir, threadCount, BaksmaliOptions())

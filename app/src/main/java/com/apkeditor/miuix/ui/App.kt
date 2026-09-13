@@ -6,12 +6,14 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -23,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -89,60 +90,174 @@ fun App(service: ApkDataService? = null) {
     CompositionLocalProvider(
         LocalSquircleEnabled provides UiConfigState.enableSquircle,
     ) {
-        val surfaceColor = MiuixTheme.colorScheme.surface
-        val blurActive = UiConfigState.enableBlur && isRuntimeShaderSupported()
-        val backdrop: LayerBackdrop? = rememberLayerBackdrop {
-            drawRect(surfaceColor)
-            drawContent()
-        }
-
-        val goBack = { if (stack.size > 1) stack.removeLast() }
-        val navigate: (Screen) -> Unit = { stack.add(it) }
-
-        BackHandler {
-            when {
-                tab != 0 -> tab = 0
-                stack.size > 1 -> goBack()
-            }
-        }
-
-        val navigationItems = remember {
-            listOf(
-                NavigationItem(BottomTab.HOME.title, MiuixIcons.Home),
-                NavigationItem(BottomTab.SAVED.title, MiuixIcons.Download),
-                NavigationItem(BottomTab.SETTINGS.title, MiuixIcons.Settings),
-            )
-        }
-
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            containerColor = Color.Transparent,
-            topBar = {
-                AnimatedVisibility(visible = UiConfigState.showTopAppBar) {
-                    TopAppBar(title = "ApkEditor Miuix")
-                }
-            },
-            bottomBar = {
-                AppNavigationBar(
-                    navigationItems = navigationItems,
-                    selectedTab = tab,
-                    onTabSelected = { tab = it },
-                    backdrop = backdrop,
-                    blurActive = blurActive,
-                )
-            },
+        // 完全照搬官方示例：backdrop 在 CompactScreenLayout 级别创建
+        CompactScreenLayout(
+            tab = tab,
+            onTabSelected = { tab = it },
+            showTopAppBar = UiConfigState.showTopAppBar,
         ) { innerPadding ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (blurActive && backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                     .padding(innerPadding),
             ) {
                 when (tab) {
-                    0 -> HomeContent(current, goBack, navigate, svc)
+                    0 -> HomeContent(current, { if (stack.size > 1) stack.removeLast() }, { stack.add(it) }, svc)
                     1 -> SavedApksScreen()
-                    2 -> SettingsContent(current, goBack, navigate)
+                    2 -> SettingsContent(current, { if (stack.size > 1) stack.removeLast() }, { stack.add(it) })
+                }
+            }
+        }
+
+        BackHandler {
+            when {
+                tab != 0 -> tab = 0
+                stack.size > 1 -> stack.removeLast()
+            }
+        }
+    }
+}
+
+/** 完全照搬官方示例的 CompactScreenLayout */
+@Composable
+private fun CompactScreenLayout(
+    tab: Int,
+    onTabSelected: (Int) -> Unit,
+    showTopAppBar: Boolean,
+    content: @Composable (androidx.compose.foundation.layout.PaddingValues) -> Unit,
+) {
+    val surfaceColor = MiuixTheme.colorScheme.surface
+    val backdrop = rememberLayerBackdrop {
+        drawRect(surfaceColor)
+        drawContent()
+    }
+    val blurActive = UiConfigState.enableBlur && backdrop != null && isRuntimeShaderSupported()
+
+    val navigationItems = remember {
+        listOf(
+            NavigationItem(BottomTab.HOME.title, MiuixIcons.Home),
+            NavigationItem(BottomTab.SAVED.title, MiuixIcons.Download),
+            NavigationItem(BottomTab.SETTINGS.title, MiuixIcons.Settings),
+        )
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = Color.Transparent,
+        topBar = {
+            AnimatedVisibility(visible = showTopAppBar) {
+                TopAppBar(title = "ApkEditor Miuix")
+            }
+        },
+        bottomBar = {
+            AppNavigationBar(
+                navigationItems = navigationItems,
+                selectedTab = tab,
+                onTabSelected = onTabSelected,
+                backdrop = backdrop,
+                blurActive = blurActive,
+            )
+        },
+    ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+            content(innerPadding)
+        }
+    }
+}
+
+/** 完全照搬官方示例的 NavigationBar 组件 */
+@Composable
+private fun AppNavigationBar(
+    navigationItems: List<NavigationItem>,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    backdrop: LayerBackdrop?,
+    blurActive: Boolean,
+) {
+    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
+    val floatingBarColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer
+    val floatingBarShape = RoundedCornerShape(28.dp)
+
+    AnimatedVisibility(
+        visible = UiConfigState.showNavigationBar,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
+    ) {
+        AnimatedVisibility(
+            visible = !UiConfigState.useFloatingNavigationBar,
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+        ) {
+            Box(
+                modifier = Modifier
+                    .then(
+                        if (blurActive) {
+                            Modifier.textureBlur(
+                                backdrop = backdrop,
+                                shape = RectangleShape,
+                                blurRadius = UiConfigState.blurRadius,
+                                colors = BlurDefaults.blurColors(
+                                    blendColors = listOf(
+                                        BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(0.8f)),
+                                    ),
+                                ),
+                            )
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .background(barColor)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+            ) {
+                NavigationBar(
+                    color = barColor,
+                    mode = NavigationBarDisplayMode.IconAndText,
+                ) {
+                    navigationItems.forEachIndexed { index, item ->
+                        NavigationBarItem(
+                            selected = selectedTab == index,
+                            onClick = { onTabSelected(index) },
+                            icon = item.icon,
+                            label = item.label,
+                        )
+                    }
+                }
+            }
+        }
+
+        if (UiConfigState.useFloatingNavigationBar) {
+            Box {
+                FloatingNavigationBar(
+                    modifier = if (blurActive) {
+                        Modifier.textureBlur(
+                            backdrop = backdrop,
+                            shape = floatingBarShape,
+                            blurRadius = UiConfigState.blurRadius,
+                            colors = BlurDefaults.blurColors(
+                                blendColors = listOf(
+                                    BlendColorEntry(color = MiuixTheme.colorScheme.surfaceContainer.copy(0.6f)),
+                                ),
+                            ),
+                        )
+                    } else {
+                        Modifier
+                    },
+                    color = floatingBarColor,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    navigationItems.forEachIndexed { index, item ->
+                        FloatingNavigationBarItem(
+                            selected = selectedTab == index,
+                            onClick = { onTabSelected(index) },
+                            icon = item.icon,
+                            label = item.label,
+                        )
+                    }
                 }
             }
         }
@@ -229,103 +344,5 @@ private fun SettingsContent(
             onOpenAbout = { navigate(Screen.About) },
             onOpenUiSettings = { navigate(Screen.UiSettings) },
         )
-    }
-}
-
-/** 完全照搬官方示例的底栏写法 */
-@Composable
-private fun AppNavigationBar(
-    navigationItems: List<NavigationItem>,
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit,
-    backdrop: LayerBackdrop?,
-    blurActive: Boolean,
-) {
-    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
-    val floatingBarColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer
-    val floatingBarShape = RoundedCornerShape(28.dp)
-
-    AnimatedVisibility(
-        visible = UiConfigState.showNavigationBar,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically(),
-    ) {
-        AnimatedVisibility(
-            visible = !UiConfigState.useFloatingNavigationBar,
-            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
-        ) {
-            Box(
-                modifier = Modifier
-                    .then(
-                        if (blurActive && backdrop != null) {
-                            Modifier.textureBlur(
-                                backdrop = backdrop,
-                                shape = androidx.compose.ui.graphics.RectangleShape,
-                                blurRadius = UiConfigState.blurRadius,
-                                colors = BlurDefaults.blurColors(
-                                    blendColors = listOf(
-                                        BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(0.8f)),
-                                    ),
-                                ),
-                            )
-                        } else {
-                            Modifier
-                        },
-                    )
-                    .drawBehind { drawRect(barColor) }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {},
-                    ),
-            ) {
-                NavigationBar(
-                    color = barColor,
-                    mode = NavigationBarDisplayMode.IconAndText,
-                ) {
-                    navigationItems.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = { onTabSelected(index) },
-                            icon = item.icon,
-                            label = item.label,
-                        )
-                    }
-                }
-            }
-        }
-
-        if (UiConfigState.useFloatingNavigationBar) {
-            Box {
-                FloatingNavigationBar(
-                    modifier = if (blurActive && backdrop != null) {
-                        Modifier.textureBlur(
-                            backdrop = backdrop,
-                            shape = floatingBarShape,
-                            blurRadius = UiConfigState.blurRadius,
-                            colors = BlurDefaults.blurColors(
-                                blendColors = listOf(
-                                    BlendColorEntry(color = MiuixTheme.colorScheme.surfaceContainer.copy(0.6f)),
-                                ),
-                            ),
-                        )
-                    } else {
-                        Modifier
-                    },
-                    color = floatingBarColor,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    navigationItems.forEachIndexed { index, item ->
-                        FloatingNavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = { onTabSelected(index) },
-                            icon = item.icon,
-                            label = item.label,
-                        )
-                    }
-                }
-            }
-        }
     }
 }

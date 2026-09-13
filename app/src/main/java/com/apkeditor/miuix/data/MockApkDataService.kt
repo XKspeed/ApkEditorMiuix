@@ -59,13 +59,33 @@ class MockApkDataService : ApkDataService {
                 "$root/com/example/demoapp/data/ApiClient.smali",
                 "$root/com/example/demoapp/ui/HomeFragment.smali",
                 "$root/com/example/demoapp/ui/SettingsActivity.smali",
-                "$root/com/example/demoapp/utils/TimeUtils.smali",
-                "$root/com/example/demoapp/utils/AppPrefs.smali",
+                "$root/com/example/demoapp/utils/TimeUtils.smali",                "$root/com/example/demoapp/utils/AppPrefs.smali",
                 "$root/com/example/demoapp/BuildConfig.smali",
                 "$root/android/support/v4/content/ContextCompat.smali",
                 "$root/android/support/v4/app/Fragment.smali",
             )
         )
+    }
+
+    override suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>> {
+        mockDelay()
+        val map = LinkedHashMap<String, List<SmaliTreeNode>>()
+        dexNames.forEach { dex ->
+            val files = listSmaliFiles(dex).getOrThrow()
+            map[dex] = listOf(
+                SmaliTreeNode(name = "smali", path = dex, isDir = true, dex = dex,
+                    children = files.map { f ->
+                        SmaliTreeNode(name = f.substringAfterLast("/"), path = f, isDir = false, dex = dex)
+                    }
+                )
+            )
+        }
+        return Result.success(map)
+    }
+
+    override suspend fun searchResources(type: String?, keyword: String, maxResults: Int): Result<List<ResourceEntryInfo>> {
+        mockDelay()
+        return Result.success(emptyList())
     }
 
     override suspend fun readSmaliFile(dexName: String, filePath: String): Result<String> {
@@ -106,6 +126,16 @@ class MockApkDataService : ApkDataService {
     }
 
     override suspend fun saveSmaliFile(dexName: String, filePath: String, content: String): Result<Unit> {
+        mockDelay()
+        return Result.success(Unit)
+    }
+
+    override suspend fun renameSmaliFile(dexName: String, filePath: String, newClassName: String): Result<Unit> {
+        mockDelay()
+        return Result.success(Unit)
+    }
+
+    override suspend fun deleteSmaliFile(dexName: String, filePath: String): Result<Unit> {
         mockDelay()
         return Result.success(Unit)
     }

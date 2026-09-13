@@ -22,14 +22,28 @@ interface ApkDataService {
     /** 保存 smali 文件文本 */
     suspend fun saveSmaliFile(dexName: String, filePath: String, content: String): Result<Unit>
 
+    /** 重命名 smali 类文件（文件名 + 内部 .class 声明同步改） */
+    suspend fun renameSmaliFile(dexName: String, filePath: String, newClassName: String): Result<Unit>
+
+    /** 删除 smali 类文件 */
+    suspend fun deleteSmaliFile(dexName: String, filePath: String): Result<Unit>
+
     /** 将修改后的 smali 汇编回 DEX 并替换到 APK */
     suspend fun assembleDex(dexName: String): Result<Unit>
 
     /** 列出 ARSC 资源类型 */
     suspend fun listResourceTypes(): Result<List<ResourceTypeInfo>>
 
+    /**
+     * 列出指定 DEX 的 smali 目录树（构建一次后缓存，切换界面回来直接复用）。
+     */
+    suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>>
+
     /** 列出指定类型的资源条目 */
     suspend fun listResources(type: String): Result<List<ResourceEntryInfo>>
+
+    /** 按名称关键词模糊搜索资源 */
+    suspend fun searchResources(type: String?, keyword: String, maxResults: Int = 500): Result<List<ResourceEntryInfo>>
 
     /** 修改资源字符串值 */
     suspend fun saveResourceValue(id: Int, qualifiers: String?, newValue: String): Result<Unit>

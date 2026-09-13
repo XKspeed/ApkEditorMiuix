@@ -349,6 +349,38 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             }
         }
 
+    override suspend fun renameSmaliFile(dexName: String, filePath: String, newClassName: String): Result<Unit> =
+        runCatching {
+            val oldFile = File(workDir(), "$dexName/$filePath")
+            if (!oldFile.exists()) error("文件不存在：$filePath")
+            // 包路径保持不变，只改类名
+            val dir = oldFile.parentFile!!
+            val newFile = File(dir, "$newClassName.smali")
+            // 读内容，替换 .class 声明里的类名
+            val oldContent = oldFile.readText()
+            val oldClassName = filePath.substringAfterLast("/").removeSuffix(".smali")
+            val newContent = oldContent.replace(
+                ".class public L$oldClassName;",
+                ".class public L$newClassName;"
+            ).replace(
+                ".class final L$oldClassName;",
+                ".class final L$newClassName;"
+            )
+            newFile.writeText(newContent)
+            oldFile.delete()
+            // 清缓存让树重建
+            smaliCache.remove(dexName)
+            smaliTreeCache.clear()
+        }
+
+    override suspend fun deleteSmaliFile(dexName: String, filePath: String): Result<Unit> = runCatching {
+        val f = File(workDir(), "$dexName/$filePath")
+        if (!f.exists()) error("文件不存在：$filePath")
+        f.delete()
+        smaliCache.remove(dexName)
+        smaliTreeCache.clear()
+    }
+
     override suspend fun assembleDex(dexName: String): Result<Unit> = runCatching {
         val dir = dexWorkDir(dexName)
         val smaliDir = File(dir, smaliDirName(dexName))

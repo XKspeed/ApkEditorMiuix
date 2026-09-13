@@ -47,7 +47,7 @@ fun ArscTypesScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = "ARSC 资源",
+                title = "资源",
                 navigationIcon = {
                     Text(
                         "返回",

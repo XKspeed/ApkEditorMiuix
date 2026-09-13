@@ -30,10 +30,12 @@ import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -53,15 +55,10 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
         ) {
             item {
-                Text(
-                    "外观",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.subtitle,
-                )
+                SmallTitle("外观")
             }
             item {
-                Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                Card(modifier = Modifier.padding(horizontal = 12.dp)) {
                     // 主题切换（分组下拉）
                     OverlayDropdownPreference(
                         title = "主题",
@@ -79,64 +76,35 @@ fun SettingsScreen(
                         collapseOnSelection = true,
                     )
                     // UI 修改入口
-                    Column(Modifier
-                        .clickable { onOpenUiSettings() }
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                    ) {
-                        Text("UI 修改", style = MiuixTheme.textStyles.main)
-                        Text(
-                            "底栏模糊 · 悬浮底栏 · 液态玻璃",
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            style = MiuixTheme.textStyles.subtitle,
-                        )
-                    }
+                    ArrowPreference(
+                        title = "UI 修改",
+                        summary = "底栏模糊 · 悬浮底栏 · 液态玻璃",
+                        onClick = onOpenUiSettings,
+                    )
                 }
             }
             item {
-                Text(
-                    "存储",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.subtitle,
-                )
+                SmallTitle("存储")
             }
             item {
                 CachePreference()
             }
             item {
-                Text(
-                    "输出",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.subtitle,
-                )
+                SmallTitle("输出")
             }
             item {
                 OutputDirectoryPreference()
             }
             item {
-                Text(
-                    "关于",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.subtitle,
-                )
+                SmallTitle("其他")
             }
             item {
-                Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    Column(
-                        Modifier
-                            .clickable { onOpenAbout() }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                    ) {
-                        Text("ApkEditor·Miuix", style = MiuixTheme.textStyles.main)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "版本 0.1 · 查看开源许可与鸣谢",
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            style = MiuixTheme.textStyles.subtitle,
-                        )
-                    }
+                Card(modifier = Modifier.padding(horizontal = 12.dp)) {
+                    ArrowPreference(
+                        title = "关于",
+                        summary = "版本 0.1 · 查看开源许可与鸣谢",
+                        onClick = onOpenAbout,
+                    )
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }

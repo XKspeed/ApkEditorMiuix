@@ -47,6 +47,8 @@ sealed interface Screen {
     data class ArscEntries(val type: String) : Screen
     data object XmlFiles : Screen
     data class XmlEdit(val path: String) : Screen
+    data object About : Screen
+    data object UiSettings : Screen
 }
 
 /** 底部导航 tab */
@@ -181,7 +183,7 @@ fun App(service: ApkDataService? = null) {
                 when (tab) {
                     0 -> HomeContent(current, goBack, navigate, svc)
                     1 -> SavedApksScreen()
-                    2 -> SettingsScreen()
+                    2 -> SettingsContent(current, goBack, navigate)
                 }
             }
         }
@@ -256,6 +258,27 @@ private fun HomeContent(
             load = { service.readXmlFile(current.path) },
             save = { text -> service.saveXmlFile(current.path, text) },
             onBack = goBack,
+        )
+    }
+}
+
+/** 设置 tab 内容（含子页面导航栈） */
+@Composable
+private fun SettingsContent(
+    current: Screen,
+    goBack: () -> Unit,
+    navigate: (Screen) -> Unit,
+) {
+    when (current) {
+        is Screen.Home -> SettingsScreen(
+            onOpenAbout = { navigate(Screen.About) },
+            onOpenUiSettings = { navigate(Screen.UiSettings) },
+        )
+        is Screen.About -> AboutScreen(onBack = goBack)
+        is Screen.UiSettings -> UiSettingsScreen(onBack = goBack)
+        else -> SettingsScreen(
+            onOpenAbout = { navigate(Screen.About) },
+            onOpenUiSettings = { navigate(Screen.UiSettings) },
         )
     }
 }

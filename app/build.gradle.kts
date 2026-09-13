@@ -41,6 +41,12 @@ kotlin {
     }
 }
 
+// 强制解决旧版vectordrawable namespace冲突
+configurations.all {
+    exclude(group = "androidx.vectordrawable", module = "vectordrawable")
+    exclude(group = "androidx.vectordrawable", module = "vectordrawable-animated")
+}
+
 dependencies {
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")

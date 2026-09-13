@@ -3,7 +3,9 @@
     <!--
       亮/暗模式由 Miuix ThemeController 跟随系统处理；
       Android 15 起系统强制 edge-to-edge，状态栏图标颜色自动适配，
-      此处不写死任何窗口背景色或系统栏图标颜色。
+      窗口背景设为透明，避免遮挡模糊效果。
     -->
-    <style name="Theme.ApkEditorMiuix" parent="android:Theme.Material.NoActionBar" />
+    <style name="Theme.ApkEditorMiuix" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
 </resources>

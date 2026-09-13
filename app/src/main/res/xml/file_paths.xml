@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <!-- 默认输出目录：App 私有外部存储 files/output -->
-    <external-files-path name="output" path="output/" />
-    <cache-path name="cache" path="." />
-</paths>

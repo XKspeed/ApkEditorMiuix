@@ -60,8 +60,23 @@ fun SmaliTreeScreen(
         error = null
         service.listSmaliTree(dexNames)
             .onSuccess { perDex ->
-                topNodes = perDex.values.flatten()
-                perDex.keys.firstOrNull()?.let { expanded[it] = true }
+                // 合并所有 DEX 的树到一个根节点（NP 风格：不区分 classes1/2/3）
+                val mergedChildren = mutableListOf<SmaliTreeNode>()
+                perDex.values.forEach { dexRoots ->
+                    dexRoots.forEach { dexRoot ->
+                        mergedChildren.addAll(dexRoot.children)
+                    }
+                }
+                topNodes = listOf(
+                    SmaliTreeNode(
+                        name = "smali",
+                        path = "merged",
+                        isDir = true,
+                        dex = "",
+                        children = mergedChildren,
+                    )
+                )
+                expanded["merged"] = true
             }
             .onFailure { error = it.message ?: "反汇编失败" }
     }
@@ -75,7 +90,7 @@ fun SmaliTreeScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = "Smali · ${dexNames.first()}",
+                title = "Smali",
                 navigationIcon = {
                     Text("返回",
                         color = MiuixTheme.colorScheme.primary,
@@ -91,9 +106,13 @@ fun SmaliTreeScreen(
                             .clickable(enabled = !assembling) {
                                 assembling = true
                                 scope.launch {
-                                    service.assembleDex(dexNames.first())
-                                        .onSuccess { assembleResult = "汇编完成" }
-                                        .onFailure { assembleResult = "汇编失败：${it.message}" }
+                                    val errs = mutableListOf<String>()
+                                    dexNames.forEach { dex ->
+                                        service.assembleDex(dex)
+                                            .onFailure { errs.add("$dex: ${it.message}") }
+                                    }
+                                    assembleResult = if (errs.isEmpty()) "已汇编 ${dexNames.size} 个 DEX"
+                                    else "部分失败：${errs.joinToString("；")}"
                                     assembling = false
                                 }
                             },

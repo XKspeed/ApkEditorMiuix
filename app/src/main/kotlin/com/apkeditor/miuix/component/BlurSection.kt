@@ -30,10 +30,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import component.blend.ColorBlendToken
-import component.effect.BgEffectBackground
-import component.highlight.HighlightConfig
-import component.highlight.rememberContainerHighlight
+import com.apkeditor.miuix.component.blend.ColorBlendToken
+import com.apkeditor.miuix.component.effect.BgEffectBackground
+import com.apkeditor.miuix.component.highlight.HighlightConfig
+import com.apkeditor.miuix.component.highlight.rememberContainerHighlight
 import org.jetbrains.compose.resources.painterResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
@@ -54,7 +54,7 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.shared.generated.resources.Res
 import top.yukonga.miuix.kmp.shared.generated.resources.blur_test
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import ui.isInDarkTheme
+import com.apkeditor.miuix.theme.isInDarkTheme
 import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 
 fun LazyListScope.blurSection() {

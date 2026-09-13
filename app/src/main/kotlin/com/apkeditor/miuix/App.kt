@@ -14,8 +14,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.drop
 import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
-import ui.AppTheme
-import ui.keyColorFor
+import com.apkeditor.miuix.theme.AppTheme
+import com.apkeditor.miuix.theme.keyColorFor
 
 @Composable
 fun App(

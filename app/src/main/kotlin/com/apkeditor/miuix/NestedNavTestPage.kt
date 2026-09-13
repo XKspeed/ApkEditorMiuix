@@ -23,9 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import component.BackNavigationIcon
+import com.apkeditor.miuix.component.BackNavigationIcon
 import kotlinx.serialization.Serializable
-import navigation.Route
+import com.apkeditor.miuix.navigation.Route
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -42,10 +42,10 @@ import top.yukonga.miuix.kmp.nav.core.NavKey
 import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import utils.AdaptiveTopAppBar
-import utils.BlurredBar
-import utils.pageContentPadding
-import utils.pageScrollModifiers
+import com.apkeditor.miuix.utils.AdaptiveTopAppBar
+import com.apkeditor.miuix.utils.BlurredBar
+import com.apkeditor.miuix.utils.pageContentPadding
+import com.apkeditor.miuix.utils.pageScrollModifiers
 import kotlin.random.Random
 
 @Serializable

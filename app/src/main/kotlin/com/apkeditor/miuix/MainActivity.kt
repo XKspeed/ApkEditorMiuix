@@ -3,7 +3,7 @@
 
 package com.apkeditor.miuix
 
-import App
+import com.apkeditor.miuix.App
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle

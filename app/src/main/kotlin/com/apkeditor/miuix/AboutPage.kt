@@ -45,11 +45,11 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import component.BackNavigationIcon
-import component.blend.ColorBlendToken
-import component.effect.BgEffectBackground
-import misc.VersionInfo
-import navigation.Route
+import com.apkeditor.miuix.component.BackNavigationIcon
+import com.apkeditor.miuix.component.blend.ColorBlendToken
+import com.apkeditor.miuix.component.effect.BgEffectBackground
+import com.apkeditor.miuix.misc.VersionInfo
+import com.apkeditor.miuix.navigation.Route
 import org.jetbrains.compose.resources.painterResource
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
@@ -74,11 +74,11 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.shared.generated.resources.Res
 import top.yukonga.miuix.kmp.shared.generated.resources.ic_launcher
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import ui.isInDarkTheme
-import utils.BlurredBar
-import utils.pageContentPadding
-import utils.pageScrollModifiers
-import utils.rememberBlurBackdrop
+import com.apkeditor.miuix.theme.isInDarkTheme
+import com.apkeditor.miuix.utils.BlurredBar
+import com.apkeditor.miuix.utils.pageContentPadding
+import com.apkeditor.miuix.utils.pageScrollModifiers
+import com.apkeditor.miuix.utils.rememberBlurBackdrop
 import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 
 @Composable

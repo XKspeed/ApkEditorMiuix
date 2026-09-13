@@ -73,8 +73,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import component.animation.DampedDragAnimation
-import component.animation.InteractiveHighlight
+import com.apkeditor.miuix.component.animation.DampedDragAnimation
+import com.apkeditor.miuix.component.animation.InteractiveHighlight
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BadgedBox
 import top.yukonga.miuix.kmp.basic.Icon
@@ -94,7 +94,7 @@ import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.Platform
 import top.yukonga.miuix.kmp.utils.platform
-import ui.isInDarkTheme
+import com.apkeditor.miuix.theme.isInDarkTheme
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2

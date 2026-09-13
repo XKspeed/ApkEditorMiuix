@@ -296,7 +296,7 @@ private fun MainPage(
                             )
                         }
                     },
-                    scrollBehavior = remember { top.yukonga.miuix.kmp.basic.MiuixScrollBehavior() },
+                    scrollBehavior = top.yukonga.miuix.kmp.basic.MiuixScrollBehavior(),
                 )
             }
         }

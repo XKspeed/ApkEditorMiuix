@@ -40,6 +40,13 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色")
 /** 底部导航：设置 */
 @Composable
 fun SettingsScreen() {
+    var showUiSettings by remember { mutableStateOf(false) }
+
+    if (showUiSettings) {
+        UiSettingsScreen(onBack = { showUiSettings = false })
+        return
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { TopAppBar(title = "设置") },
@@ -57,14 +64,25 @@ fun SettingsScreen() {
             }
             item {
                 Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    // 主题切换：参考 miuix 官方示例 SettingsPage 的 OverlayDropdownPreference 用法
-                    // （弹窗展开依赖 LocalNavigationEventDispatcherOwner，已在 MainActivity 全局提供）
+                    // 主题切换
                     OverlayDropdownPreference(
                         title = "主题",
                         items = THEME_OPTIONS,
                         selectedIndex = ThemeState.mode,
                         onSelectedIndexChange = { ThemeState.mode = it },
                     )
+                    // UI 修改入口
+                    Column(Modifier
+                        .clickable { showUiSettings = true }
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        Text("UI 修改", style = MiuixTheme.textStyles.main)
+                        Text(
+                            "底栏模糊 · 悬浮底栏 · 液态玻璃",
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            style = MiuixTheme.textStyles.subtitle,
+                        )
+                    }
                 }
             }
             item {

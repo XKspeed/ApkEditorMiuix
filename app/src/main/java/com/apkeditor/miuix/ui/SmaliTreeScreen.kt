@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,12 +35,15 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * NP 管理器风格 Smali 目录树：
  * 未搜索：树形包结构（▸/▾ 折叠）
  * 搜索时：自动切扁平匹配文件列表
+ * 性能优化：derivedStateOf 缓存 + 搜索后台线程
  */
 @Composable
 fun SmaliTreeScreen(
@@ -54,6 +58,8 @@ fun SmaliTreeScreen(
     var assembling by remember { mutableStateOf(false) }
     var assembleResult by remember { mutableStateOf<String?>(null) }
     var progressText by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    var searching by remember { mutableStateOf(false) }
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
     val scope = rememberCoroutineScope()
 
@@ -82,10 +88,38 @@ fun SmaliTreeScreen(
             .onFailure { error = it.message ?: "反汇编失败" }
     }
 
+    // 后台搜索 + debounce（输入停止 300ms 才执行）
+    LaunchedEffect(filter, topNodes) {
+        val kw = filter.trim()
+        if (kw.isEmpty() || topNodes == null) {
+            searchResults = emptyList()
+            searching = false
+            return@LaunchedEffect
+        }
+        searching = true
+        kotlinx.coroutines.delay(300) // debounce
+        searchResults = withContext(Dispatchers.IO) {
+            searchFiles(topNodes!!, kw)
+        }
+        searching = false
+    }
+
+    // derivedStateOf 缓存可见节点（只有 expanded 变化时才重新计算）
+    val visibleNodes by remember(topNodes, expanded) {
+        derivedStateOf {
+            if (topNodes == null) emptyList()
+            else topNodes!!.flatMap { buildVisible(it, expanded) }
+        }
+    }
+
+    // derivedStateOf 缓存文件计数
+    val fileCount by remember(topNodes) {
+        derivedStateOf {
+            if (topNodes == null) 0 else countFiles(topNodes!!)
+        }
+    }
+
     val isSearching = filter.isNotBlank()
-    val flatResults = if (isSearching) {
-        topNodes?.let { searchFiles(it, filter) } ?: emptyList()
-    } else emptyList()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -130,8 +164,11 @@ fun SmaliTreeScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             )
             Text(
-                if (isSearching) "找到 ${flatResults.size} 个匹配"
-                else "共 ${countFiles(topNodes ?: emptyList())} 个类",
+                when {
+                    searching -> "搜索中…"
+                    isSearching -> "找到 ${searchResults.size} 个匹配"
+                    else -> "共 $fileCount 个类"
+                },
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 style = MiuixTheme.textStyles.subtitle,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
@@ -142,7 +179,7 @@ fun SmaliTreeScreen(
                 isSearching -> {
                     // 搜索模式：扁平列表
                     LazyColumn(Modifier.fillMaxSize()) {
-                        items(flatResults) { (dex, path) ->
+                        items(searchResults, key = { it.second }) { (dex, path) ->
                             val className = path.removePrefix("smali/")
                                 .substringBeforeLast(".smali").replace("/", ".")
                             ListItemRow(
@@ -159,20 +196,9 @@ fun SmaliTreeScreen(
                 else -> {
                     // 树形模式
                     LazyColumn(Modifier.fillMaxSize()) {
-                        topNodes!!.forEach { dexNode ->
-                            item(key = dexNode.path) {
-                                DexHeaderRow(dexNode, expanded[dexNode.path] == true) {
-                                    toggle(expanded, dexNode.path)
-                                }
-                            }
-                            if (expanded[dexNode.path] == true) {
-                                dexNode.children.forEach { child ->
-                                    items(buildVisible(child, expanded)) { n ->
-                                        TreeRow(n, expanded, onOpenFile)
-                                    }
-                                }
-                            }
-                            item { HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine) }
+                        items(visibleNodes, key = { keyOf(it) }) { n ->
+                            TreeRow(n, expanded, onOpenFile)
+                            HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
                         }
                         item { Spacer(Modifier.height(24.dp)) }
                     }
@@ -201,11 +227,9 @@ private fun mergeTrees(nodes: List<SmaliTreeNode>): List<SmaliTreeNode> {
         if (existing == null) {
             map[node.name] = node
         } else if (existing.isDir && node.isDir) {
-            // 同名文件夹：递归合并子节点
             val mergedChildren = mergeTrees(existing.children + node.children)
             map[node.name] = existing.copy(children = mergedChildren)
         }
-        // 文件同名的话保留两个（不同 DEX 可能有同名类）
     }
     return map.values.toList()
 }
@@ -240,31 +264,6 @@ private fun buildVisible(root: SmaliTreeNode, expanded: MutableMap<String, Boole
     if (expanded[keyOf(root)] != true) return out
     root.children.forEach { c -> out.addAll(buildVisible(c, expanded)) }
     return out
-}
-
-@Composable
-private fun DexHeaderRow(
-    node: SmaliTreeNode,
-    isExpanded: Boolean,
-    onClick: () -> Unit,
-) {
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(if (isExpanded) "▾" else "▸",
-            color = MiuixTheme.colorScheme.onSurfaceVariantActions,
-            style = MiuixTheme.textStyles.subtitle,
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(node.name, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-        Spacer(Modifier.width(8.dp))
-        Text("(${countFiles(node.children)} 文件)",
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            style = MiuixTheme.textStyles.subtitle,
-        )
-    }
 }
 
 @Composable

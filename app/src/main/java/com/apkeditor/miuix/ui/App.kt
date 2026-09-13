@@ -218,7 +218,6 @@ private fun MainScreen(
     }
 
     Scaffold(
-        popupHost = { },
         bottomBar = {
             AnimatedVisibility(
                 visible = UiConfigState.showNavigationBar,

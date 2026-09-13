@@ -67,6 +67,7 @@ import top.yukonga.miuix.kmp.basic.NavigationRail
 import top.yukonga.miuix.kmp.basic.NavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.ScrollBehavior
 import top.yukonga.miuix.kmp.basic.rememberNavigationRailState
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
@@ -284,8 +285,8 @@ private fun MainPage(
                 }
                 TopAppBar(
                     title = title,
-                    navigationIcon = if (stack.size > 1) {
-                        {
+                    navigationIcon = {
+                        if (stack.size > 1) {
                             Text(
                                 text = "返回",
                                 color = MiuixTheme.colorScheme.primary,
@@ -294,8 +295,8 @@ private fun MainPage(
                                     .clickable(onClick = goBack),
                             )
                         }
-                    } else null,
-                    blurBehavior = top.yukonga.miuix.kmp.basic.ScrollBehavior.Progressive,
+                    },
+                    scrollBehavior = remember { top.yukonga.miuix.kmp.basic.MiuixScrollBehavior() },
                 )
             }
         }

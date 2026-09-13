@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -192,7 +192,7 @@ private fun AppNavigationBar(
             Box(
                 modifier = Modifier
                     .then(
-                        if (blurActive) {
+                        if (blurActive && backdrop != null) {
                             Modifier.textureBlur(
                                 backdrop = backdrop,
                                 shape = RectangleShape,
@@ -233,7 +233,7 @@ private fun AppNavigationBar(
         if (UiConfigState.useFloatingNavigationBar) {
             Box {
                 FloatingNavigationBar(
-                    modifier = if (blurActive) {
+                    modifier = if (blurActive && backdrop != null) {
                         Modifier.textureBlur(
                             backdrop = backdrop,
                             shape = floatingBarShape,

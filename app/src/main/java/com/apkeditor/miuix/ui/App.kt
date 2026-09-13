@@ -109,7 +109,9 @@ fun App(service: ApkDataService? = null) {
             // 悬浮底栏（放 Box 里，悬浮在内容上面，不占位）
             if (UiConfigState.useFloatingNavigationBar) {
                 FloatingNavigationBar(
-                    modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
+                    modifier = Modifier
+                        .align(androidx.compose.ui.Alignment.BottomCenter)
+                        .padding(bottom = UiConfigState.floatingElevation.dp),
                 ) {
                     BottomTab.entries.forEachIndexed { index, item ->
                         FloatingNavigationBarItem(

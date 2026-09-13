@@ -95,7 +95,24 @@ fun App(service: ApkDataService? = null) {
         bottomBar = {
             if (UiConfigState.useFloatingNavigationBar) {
                 // 悬浮底栏（放 Scaffold bottomBar 里，官方推荐）
-                FloatingNavigationBar {
+                FloatingNavigationBar(
+                    color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
+                            else MiuixTheme.colorScheme.surfaceContainer,
+                    modifier = if (blurActive) {
+                        Modifier.textureBlur(
+                            backdrop = backdrop,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                            blurRadius = UiConfigState.blurRadius,
+                            colors = top.yukonga.miuix.kmp.blur.BlurDefaults.blurColors(
+                                blendColors = listOf(
+                                    top.yukonga.miuix.kmp.blur.BlendColorEntry(
+                                        color = MiuixTheme.colorScheme.surface.copy(0.6f)
+                                    ),
+                                ),
+                            ),
+                        )
+                    } else Modifier,
+                ) {
                     BottomTab.entries.forEachIndexed { index, item ->
                         FloatingNavigationBarItem(
                             selected = tab == index,
@@ -111,7 +128,24 @@ fun App(service: ApkDataService? = null) {
                 }
             } else {
                 // 普通底栏
-                NavigationBar {
+                NavigationBar(
+                    color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
+                            else MiuixTheme.colorScheme.surface,
+                    modifier = if (blurActive) {
+                        Modifier.textureBlur(
+                            backdrop = backdrop,
+                            shape = androidx.compose.ui.graphics.RectangleShape,
+                            blurRadius = UiConfigState.blurRadius,
+                            colors = top.yukonga.miuix.kmp.blur.BlurDefaults.blurColors(
+                                blendColors = listOf(
+                                    top.yukonga.miuix.kmp.blur.BlendColorEntry(
+                                        color = MiuixTheme.colorScheme.surface.copy(0.8f)
+                                    ),
+                                ),
+                            ),
+                        )
+                    } else Modifier,
+                ) {
                     BottomTab.entries.forEachIndexed { index, item ->
                         NavigationBarItem(
                             selected = tab == index,
@@ -131,7 +165,8 @@ fun App(service: ApkDataService? = null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
         ) {
             when (tab) {
                 0 -> HomeContent(current, goBack, navigate, svc)

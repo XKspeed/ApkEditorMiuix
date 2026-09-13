@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,6 +42,7 @@ import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
+import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.TopAppBar
@@ -85,62 +87,66 @@ fun App(service: ApkDataService? = null) {
 
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
-    // 完全按照官方示例的 backdrop 写法
-    val surfaceColor = MiuixTheme.colorScheme.surface
-    val blurActive = UiConfigState.enableBlur && isRuntimeShaderSupported()
-    val backdrop: LayerBackdrop? = rememberLayerBackdrop {
-        drawRect(surfaceColor)
-        drawContent()
-    }
-
-    val goBack = { if (stack.size > 1) stack.removeLast() }
-    val navigate: (Screen) -> Unit = { stack.add(it) }
-
-    BackHandler {
-        when {
-            tab != 0 -> tab = 0
-            stack.size > 1 -> goBack()
+    CompositionLocalProvider(
+        LocalSquircleEnabled provides UiConfigState.enableSquircle,
+    ) {
+        // 完全按照官方示例的 backdrop 写法
+        val surfaceColor = MiuixTheme.colorScheme.surface
+        val blurActive = UiConfigState.enableBlur && isRuntimeShaderSupported()
+        val backdrop: LayerBackdrop? = rememberLayerBackdrop {
+            drawRect(surfaceColor)
+            drawContent()
         }
-    }
 
-    // 导航项列表
-    val navigationItems = remember {
-        listOf(
-            NavigationItem(BottomTab.HOME.title, MiuixIcons.Home),
-            NavigationItem(BottomTab.SAVED.title, MiuixIcons.Download),
-            NavigationItem(BottomTab.SETTINGS.title, MiuixIcons.Settings),
-        )
-    }
+        val goBack = { if (stack.size > 1) stack.removeLast() }
+        val navigate: (Screen) -> Unit = { stack.add(it) }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = Color.Transparent,
-        topBar = {
-            AnimatedVisibility(visible = UiConfigState.showTopAppBar) {
-                TopAppBar(title = "ApkEditor Miuix")
+        BackHandler {
+            when {
+                tab != 0 -> tab = 0
+                stack.size > 1 -> goBack()
             }
-        },
-        bottomBar = {
-            AppNavigationBar(
-                navigationItems = navigationItems,
-                selectedTab = tab,
-                onTabSelected = { tab = it },
-                backdrop = backdrop,
-                blurActive = blurActive,
+        }
+
+        // 导航项列表
+        val navigationItems = remember {
+            listOf(
+                NavigationItem(BottomTab.HOME.title, MiuixIcons.Home),
+                NavigationItem(BottomTab.SAVED.title, MiuixIcons.Download),
+                NavigationItem(BottomTab.SETTINGS.title, MiuixIcons.Settings),
             )
-        },
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (blurActive && backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
-                .padding(innerPadding),
-        ) {
-            when (tab) {
-                0 -> HomeContent(current, goBack, navigate, svc)
-                1 -> SavedApksScreen()
-                2 -> SettingsContent(current, goBack, navigate)
+        }
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            containerColor = Color.Transparent,
+            topBar = {
+                AnimatedVisibility(visible = UiConfigState.showTopAppBar) {
+                    TopAppBar(title = "ApkEditor Miuix")
+                }
+            },
+            bottomBar = {
+                AppNavigationBar(
+                    navigationItems = navigationItems,
+                    selectedTab = tab,
+                    onTabSelected = { tab = it },
+                    backdrop = backdrop,
+                    blurActive = blurActive,
+                )
+            },
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (blurActive && backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
+                    .padding(innerPadding),
+            ) {
+                when (tab) {
+                    0 -> HomeContent(current, goBack, navigate, svc)
+                    1 -> SavedApksScreen()
+                    2 -> SettingsContent(current, goBack, navigate)
+                }
             }
         }
     }

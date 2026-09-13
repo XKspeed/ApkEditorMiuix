@@ -1,5 +1,6 @@
 package com.apkeditor.miuix.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -101,15 +102,42 @@ fun ArscEntriesScreen(
                 entries == null -> LoadingBox("读取资源条目…")
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(visible) { e ->
-                        ListItemRow(
-                            title = e.name,
-                            subtitle = e.hexId,
-                            trailing = e.value.ifEmpty { "<空>" },
-                            onClick = {
+                        // color 类型显示色块
+                        val showColorBlock = type == "color" && e.value.startsWith("#")
+                        Row(
+                            Modifier.fillMaxWidth().clickable {
                                 editing = e
                                 editValue = e.value
-                            },
-                        )
+                            }.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (showColorBlock) {
+                                val color = runCatching {
+                                    androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(e.value))
+                                }.getOrNull()
+                                if (color != null) {
+                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(
+                                        Modifier.width(18.dp).height(18.dp)
+                                            .clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(color)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(e.name, style = MiuixTheme.textStyles.main)
+                                Spacer(Modifier.height(2.dp))
+                                // array 类型列表里不显示长值，弹窗里看
+                                val displayValue = if (type.contains("array", true)) "<数组>"
+                                else e.value.ifEmpty { "<空>" }
+                                Text(
+                                    displayValue,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                    style = MiuixTheme.textStyles.subtitle,
+                                )
+                            }
+                        }
                         HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
                     }
                     item { Spacer(Modifier.height(24.dp)) }

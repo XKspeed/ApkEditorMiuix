@@ -295,6 +295,16 @@ private fun buildFileEntries(info: ApkInfo, contents: List<ApkEntry>?): List<Fil
             action = EntryAction.Arsc,
         )
     )
+    // 资源 XML 编辑（NP 风格：反编译成 values/*.xml 编辑）
+    list.add(
+        FileEntry(
+            icon = MiuixIcons.File,
+            name = "资源 XML 编辑",
+            size = "",
+            isFolder = false,
+            action = EntryAction.Res,
+        )
+    )
     // 顶层目录（res/ assets/ lib/ META-INF/ 等），聚合条目数与总大小
     val dirs = LinkedHashMap<String, MutableList<ApkEntry>>()
     contents?.forEach { e ->

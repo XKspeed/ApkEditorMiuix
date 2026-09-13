@@ -76,7 +76,7 @@ fun App(service: ApkDataService? = null) {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (UiConfigState.showNavigationBar && !UiConfigState.useFloatingNavigationBar) {
+            if (!UiConfigState.useFloatingNavigationBar) {
                 // 普通底栏（放 Scaffold bottomBar，占位）
                 NavigationBar {
                     BottomTab.entries.forEachIndexed { index, item ->
@@ -107,7 +107,7 @@ fun App(service: ApkDataService? = null) {
             }
 
             // 悬浮底栏（放 Box 里，悬浮在内容上面，不占位）
-            if (UiConfigState.showNavigationBar && UiConfigState.useFloatingNavigationBar) {
+            if (UiConfigState.useFloatingNavigationBar) {
                 FloatingNavigationBar(
                     modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
                 ) {

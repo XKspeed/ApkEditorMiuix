@@ -78,6 +78,7 @@ import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Download
 import top.yukonga.miuix.kmp.icon.extended.Home
+import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -102,6 +103,7 @@ private enum class BottomTab(val title: String) {
     HOME("主页"),
     SAVED("保存的APK"),
     SETTINGS("设置"),
+    ABOUT("关于"),
 }
 
 @Composable
@@ -142,7 +144,7 @@ private fun MainPage(
     navigate: (Screen) -> Unit,
     service: ApkDataService,
 ) {
-    val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerState = rememberPagerState(pageCount = { 4 })
     var selectedIndex by remember { mutableIntStateOf(0) }
     var isNavigating by remember { mutableStateOf(false) }
     var navJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
@@ -152,11 +154,13 @@ private fun MainPage(
         BottomTab.HOME.title,
         BottomTab.SAVED.title,
         BottomTab.SETTINGS.title,
+        BottomTab.ABOUT.title,
     )
     val icons = listOf(
         MiuixIcons.Home,
         MiuixIcons.Download,
         MiuixIcons.Settings,
+        MiuixIcons.Info,
     )
 
     LaunchedEffect(pagerState.currentPage) {
@@ -254,6 +258,7 @@ private fun MainPage(
                     0 -> HomeContent(current, goBack, navigate, service)
                     1 -> SavedApksPage()
                     2 -> SettingsContent(current, goBack, navigate)
+                    3 -> AboutPage(onBack = {})
                 }
             }
 

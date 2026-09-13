@@ -359,12 +359,7 @@ private fun AboutContent(
                         ArrowPreference(
                             title = "查看源码",
                             summary = "GitHub",
-                            onClick = { uriHandler.openUri("https://github.com/HyperNavBar/HyperNavBar") },
-                        )
-                        ArrowPreference(
-                            title = "Telegram 群组",
-                            summary = "加入讨论",
-                            onClick = { uriHandler.openUri("https://t.me/HyperNavBar") },
+                            onClick = { uriHandler.openUri("https://github.com/XKspeed/ApkEditorMiuix") },
                         )
                     }
                     Card(

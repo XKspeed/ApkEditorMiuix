@@ -32,6 +32,8 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -60,12 +62,21 @@ fun SettingsScreen(
             }
             item {
                 Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    // 主题切换
+                    // 主题切换（分组下拉）
                     OverlayDropdownPreference(
                         title = "主题",
-                        items = THEME_OPTIONS,
-                        selectedIndex = ThemeState.mode,
-                        onSelectedIndexChange = { ThemeState.mode = it },
+                        entries = listOf(
+                            DropdownEntry(
+                                items = listOf("跟随系统", "浅色", "深色").mapIndexed { index, text ->
+                                    DropdownItem(
+                                        text = text,
+                                        selected = ThemeState.mode == index,
+                                        onClick = { ThemeState.mode = index },
+                                    )
+                                },
+                            ),
+                        ),
+                        collapseOnSelection = true,
                     )
                     // UI 修改入口
                     Column(Modifier

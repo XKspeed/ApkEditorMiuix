@@ -30,10 +30,13 @@ import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色")
@@ -41,10 +44,8 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色")
 /** 底部导航：设置 */
 @Composable
 fun SettingsScreen(
-    blurEnabled: Boolean = true,
-    onBlurChange: (Boolean) -> Unit = {},
-    floatingNavigationBar: Boolean = false,
-    onFloatingNavigationBarChange: (Boolean) -> Unit = {},
+    onOpenAbout: () -> Unit = {},
+    onOpenUiSettings: () -> Unit = {},
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -54,77 +55,56 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
         ) {
             item {
-                Text(
-                    "外观",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.subtitle,
-                )
+                SmallTitle("外观")
             }
             item {
-                Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    // 主题切换
+                Card(modifier = Modifier.padding(horizontal = 12.dp)) {
+                    // 主题切换（分组下拉）
                     OverlayDropdownPreference(
                         title = "主题",
-                        items = THEME_OPTIONS,
-                        selectedIndex = ThemeState.mode,
-                        onSelectedIndexChange = { ThemeState.mode = it },
+                        entries = listOf(
+                            DropdownEntry(
+                                items = listOf("跟随系统", "浅色", "深色").mapIndexed { index, text ->
+                                    DropdownItem(
+                                        text = text,
+                                        selected = ThemeState.mode == index,
+                                        onClick = { ThemeState.mode = index },
+                                    )
+                                },
+                            ),
+                        ),
+                        collapseOnSelection = true,
                     )
-                    // 模糊效果开关
-                    SwitchPreference(
-                        title = "启用模糊效果",
-                        checked = blurEnabled,
-                        onCheckedChange = onBlurChange,
-                    )
-                    // 悬浮底栏开关
-                    SwitchPreference(
-                        title = "悬浮底栏",
-                        checked = floatingNavigationBar,
-                        onCheckedChange = onFloatingNavigationBarChange,
+                    // UI 修改入口
+                    ArrowPreference(
+                        title = "UI 修改",
+                        summary = "底栏模糊 · 悬浮底栏 · 液态玻璃",
+                        onClick = onOpenUiSettings,
                     )
                 }
             }
             item {
-                Text(
-                    "存储",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.subtitle,
-                )
+                SmallTitle("存储")
             }
             item {
                 CachePreference()
             }
             item {
-                Text(
-                    "输出",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.subtitle,
-                )
+                SmallTitle("输出")
             }
             item {
                 OutputDirectoryPreference()
             }
             item {
-                Text(
-                    "关于",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.subtitle,
-                )
+                SmallTitle("其他")
             }
             item {
-                Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                        Text("ApkEditor·Miuix", style = MiuixTheme.textStyles.main)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "版本 0.1（可靠重打包版）\n仿 MT 管理器的 APK 编辑工具\nUI：Miuix（HyperOS 风格）\n最低系统：Android 15",
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            style = MiuixTheme.textStyles.subtitle,
-                        )
-                    }
+                Card(modifier = Modifier.padding(horizontal = 12.dp)) {
+                    ArrowPreference(
+                        title = "关于",
+                        summary = "版本 0.1 · 查看开源许可与鸣谢",
+                        onClick = onOpenAbout,
+                    )
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }

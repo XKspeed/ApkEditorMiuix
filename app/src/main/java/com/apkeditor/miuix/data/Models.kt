@@ -39,7 +39,7 @@ data class ResourceEntryInfo(
     val variants: List<ResourceVariant> = emptyList(),
 )
 
-/** ARSC 资源变体（不同配置） */
+/** ARSC 资源配置变体（default / -L / -R / night / hdpi 等） */
 data class ResourceVariant(
     val qualifiers: String,
     val valueType: String,
@@ -59,19 +59,19 @@ data class ApkEntry(
     val size: Long,
 )
 
+/** smali 目录树节点（NP 管理器风格） */
+data class SmaliTreeNode(
+    val name: String,
+    val path: String,
+    val isDir: Boolean,
+    val dex: String = "",
+    val children: List<SmaliTreeNode> = emptyList(),
+)
+
 /** 打包结果 */
 data class BuildResult(
     val outputName: String,
     val signed: Boolean,
     /** 产物位置：SAF content Uri 或本地文件绝对路径 */
     val outputPath: String = "",
-)
-
-/** Smali 目录树节点 */
-data class SmaliTreeNode(
-    val name: String,
-    val path: String,
-    val isDir: Boolean,
-    val dex: String,
-    val children: List<SmaliTreeNode> = emptyList(),
 )

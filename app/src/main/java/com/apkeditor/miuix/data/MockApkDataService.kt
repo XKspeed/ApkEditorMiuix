@@ -59,8 +59,7 @@ class MockApkDataService : ApkDataService {
                 "$root/com/example/demoapp/data/ApiClient.smali",
                 "$root/com/example/demoapp/ui/HomeFragment.smali",
                 "$root/com/example/demoapp/ui/SettingsActivity.smali",
-                "$root/com/example/demoapp/utils/TimeUtils.smali",
-                "$root/com/example/demoapp/utils/AppPrefs.smali",
+                "$root/com/example/demoapp/utils/TimeUtils.smali",                "$root/com/example/demoapp/utils/AppPrefs.smali",
                 "$root/com/example/demoapp/BuildConfig.smali",
                 "$root/android/support/v4/content/ContextCompat.smali",
                 "$root/android/support/v4/app/Fragment.smali",
@@ -68,24 +67,30 @@ class MockApkDataService : ApkDataService {
         )
     }
 
-    override suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>> {
+    override suspend fun listSmaliTree(
+        dexNames: List<String>,
+        onProgress: ((Int, Int) -> Unit)?,
+    ): Result<Map<String, List<SmaliTreeNode>>> {
         mockDelay()
-        val rootNode = SmaliTreeNode(
-            name = "smali",
-            path = "classes.dex",
-            isDir = true,
-            dex = "classes.dex",
-            children = listOf(
-                SmaliTreeNode("com", "smali/com", true, "classes.dex", listOf(
-                    SmaliTreeNode("example", "smali/com/example", true, "classes.dex", listOf(
-                        SmaliTreeNode("demoapp", "smali/com/example/demoapp", true, "classes.dex", listOf(
-                            SmaliTreeNode("MainActivity.smali", "smali/com/example/demoapp/MainActivity.smali", false, "classes.dex"),
-                        )),
-                    )),
-                )),
-            ),
-        )
-        return Result.success(mapOf("classes.dex" to listOf(rootNode)))
+        val map = LinkedHashMap<String, List<SmaliTreeNode>>()
+        dexNames.forEachIndexed { index, dex ->
+            onProgress?.invoke(index, dexNames.size)
+            val files = listSmaliFiles(dex).getOrThrow()
+            map[dex] = listOf(
+                SmaliTreeNode(name = "smali", path = dex, isDir = true, dex = dex,
+                    children = files.map { f ->
+                        SmaliTreeNode(name = f.substringAfterLast("/"), path = f, isDir = false, dex = dex)
+                    }
+                )
+            )
+        }
+        onProgress?.invoke(dexNames.size, dexNames.size)
+        return Result.success(map)
+    }
+
+    override suspend fun searchResources(type: String?, keyword: String, maxResults: Int): Result<List<ResourceEntryInfo>> {
+        mockDelay()
+        return Result.success(emptyList())
     }
 
     override suspend fun readSmaliFile(dexName: String, filePath: String): Result<String> {
@@ -126,6 +131,16 @@ class MockApkDataService : ApkDataService {
     }
 
     override suspend fun saveSmaliFile(dexName: String, filePath: String, content: String): Result<Unit> {
+        mockDelay()
+        return Result.success(Unit)
+    }
+
+    override suspend fun renameSmaliFile(dexName: String, filePath: String, newClassName: String): Result<Unit> {
+        mockDelay()
+        return Result.success(Unit)
+    }
+
+    override suspend fun deleteSmaliFile(dexName: String, filePath: String): Result<Unit> {
         mockDelay()
         return Result.success(Unit)
     }
@@ -177,11 +192,6 @@ class MockApkDataService : ApkDataService {
         }
         mockDelay()
         return Result.success(entries)
-    }
-
-    override suspend fun searchResources(type: String?, keyword: String, maxResults: Int): Result<List<ResourceEntryInfo>> {
-        mockDelay()
-        return Result.success(emptyList())
     }
 
     override suspend fun saveResourceValue(id: Int, qualifiers: String?, newValue: String): Result<Unit> {

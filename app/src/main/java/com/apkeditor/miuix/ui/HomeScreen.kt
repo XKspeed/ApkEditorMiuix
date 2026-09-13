@@ -1,21 +1,20 @@
 package com.apkeditor.miuix.ui
 
-import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
+import android.os.Environment
+import android.provider.Settings
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,112 +25,138 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.apkeditor.miuix.ui.components.SectionCard
+import com.apkeditor.miuix.ui.components.DialogActions
+import com.apkeditor.miuix.ui.components.ListItemRow
+import com.apkeditor.miuix.ui.components.MiuixDialog
 import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.compose.foundation.layout.WindowInsets
+import java.io.File
 
+/**
+ * NP 管理器风格主页（纯 miuix 组件）：
+ * 文件浏览器，浏览手机存储，点文件夹进入，点 .apk 弹出操作菜单（安装/反编译）。
+ */
 @Composable
 fun HomeScreen(onPickApk: (String) -> Unit) {
     val context = LocalContext.current
+    var currentDir by remember { mutableStateOf(Environment.getExternalStorageDirectory()) }
+    var selectedApk by remember { mutableStateOf<File?>(null) }
+    var needPermission by remember {
+        mutableStateOf(!Environment.isExternalStorageManager())
+    }
 
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val uri: Uri? = result.data?.data
-            if (uri != null) {
-                onPickApk(uri.toString())
-            }
+    if (needPermission) {
+        MiuixDialog(
+            title = "需要存储权限",
+            onDismiss = { needPermission = false },
+        ) {
+            Text(
+                "NP 管理器风格主页需要\"所有文件访问\"权限才能浏览手机存储。",
+                color = MiuixTheme.colorScheme.onSurface,
+            )
+            DialogActions(
+                confirmText = "去设置",
+                onConfirm = {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    context.startActivity(intent)
+                    needPermission = false
+                },
+                cancelText = "跳过",
+                onCancel = { needPermission = false },
+            )
         }
+        return
+    }
+
+    val files = remember(currentDir) {
+        currentDir.listFiles()?.toList()?.sortedWith(
+            compareBy({ !it.isDirectory }, { it.name.lowercase() })
+        ) ?: emptyList()
     }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(title = "ApkEditor·Miuix")
-        }
+        topBar = { TopAppBar(title = currentDir.absolutePath) }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-        ) {
-            // 欢迎卡片
-            SectionCard {
-                Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    Text(
-                        "APK 反编译编辑工具",
-                        style = MiuixTheme.textStyles.title2,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        "支持 DEX / Smali 代码编辑、ARSC 资源编辑、二进制 XML 编辑，" +
-                            "修改后可重新打包并签名。",
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        style = MiuixTheme.textStyles.subtitle,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // 功能说明
-            SectionCard {
-                Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    FeatureDot("DEX 编辑", "反汇编为 Smali 代码，逐文件编辑后汇编回 DEX")
-                    FeatureDot("ARSC 编辑", "浏览资源表，修改字符串值与资源名称")
-                    FeatureDot("XML 编辑", "二进制 XML 解码为文本，修改后编码回写")
-                    FeatureDot("打包签名", "重新打包 APK 并自动签名")
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // 选择 APK
-            Button(
-                onClick = {
-                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "application/vnd.android.package-archive"
-                    }
-                    launcher.launch(intent)
-                },
-                modifier = Modifier.fillMaxWidth(),
+        Column(Modifier.fillMaxSize().padding(innerPadding)) {
+            // 上级目录
+            Row(
+                Modifier.fillMaxWidth().clickable {
+                    currentDir.parentFile?.let { if (it.canRead()) currentDir = it }
+                }.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("选择 APK 文件")
+                Text("..", fontWeight = FontWeight.Medium)
             }
+            HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
 
-            Spacer(Modifier.height(10.dp))
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(files) { file ->
+                    val isApk = file.extension.equals("apk", true)
+                    ListItemRow(
+                        title = (if (file.isDirectory) "📁 " else "") + file.name,
+                        subtitle = if (file.isDirectory) "${file.list()?.size ?: 0} 项"
+                        else formatSize(file.length()),
+                        trailing = "›",
+                        onClick = {
+                    when {
+                        file.isDirectory -> currentDir = file
+                        isApk -> selectedApk = file
+                    }
+                        },
+                    )
+                    HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
+                }
+            }
+        }
+    }
 
-            Text(
-                "提示：仅支持 Android 15+ 设备 · 目标为未加固 APK",
+    // APK 操作菜单
+    selectedApk?.let { apk ->
+        MiuixDialog(
+            title = apk.name,
+            onDismiss = { selectedApk = null },
+        ) {
+            Text("大小: ${formatSize(apk.length())}",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                style = MiuixTheme.textStyles.footnote2,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MiuixTheme.textStyles.subtitle,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text("路径: ${apk.absolutePath}",
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.subtitle,
+            )
+            DialogActions(
+                confirmText = "反编译",
+                onConfirm = {
+                    onPickApk(Uri.fromFile(apk).toString())
+                    selectedApk = null
+                },
+                cancelText = "安装",
+                onCancel = {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(Uri.fromFile(apk), "application/vnd.android.package-archive")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                    selectedApk = null
+                },
             )
         }
     }
 }
 
-@Composable
-private fun FeatureDot(title: String, desc: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Spacer(Modifier.width(4.dp))
-        Column {
-            Text(title, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(2.dp))
-            Text(
-                desc,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                style = MiuixTheme.textStyles.subtitle,
-            )
-        }
+private fun formatSize(bytes: Long): String {
+    val kb = bytes / 1024.0
+    return when {
+        bytes < 1024 -> "$bytes B"
+        kb < 1024 -> String.format("%.1f KB", kb)
+        else -> String.format("%.1f MB", kb / 1024.0)
     }
 }

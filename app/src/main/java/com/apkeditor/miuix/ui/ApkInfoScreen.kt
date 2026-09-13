@@ -53,8 +53,9 @@ import top.yukonga.miuix.kmp.icon.extended.Folder
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * APK 内容页：仿 MT 管理器打开 APK 的界面（单排文件列表）。
- * 顶部为 APK 概览，下方列出 APK 内部文件/目录，点击进入对应编辑功能。
+ * APK 内容页（NP 管理器风格）：
+ * 顶部为 APK 概览（图标/名称/版本/包名/权限），下方列出 APK 内部文件，
+ * 点击 AndroidManifest.xml / classes.dex / resources.arsc / res/ 进入对应编辑功能。
  */
 @Composable
 fun ApkInfoScreen(
@@ -292,6 +293,16 @@ private fun buildFileEntries(info: ApkInfo, contents: List<ApkEntry>?): List<Fil
             size = sizeStr(arsc),
             isFolder = false,
             action = EntryAction.Arsc,
+        )
+    )
+    // 资源 XML 编辑（NP 风格：反编译成 values/*.xml 编辑）
+    list.add(
+        FileEntry(
+            icon = MiuixIcons.File,
+            name = "资源 XML 编辑",
+            size = "",
+            isFolder = false,
+            action = EntryAction.Res,
         )
     )
     // 顶层目录（res/ assets/ lib/ META-INF/ 等），聚合条目数与总大小

@@ -21,6 +21,14 @@ import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
+import top.yukonga.miuix.kmp.blur.BlendColorEntry
+import top.yukonga.miuix.kmp.blur.BlurDefaults
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.textureBlur
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Download
@@ -64,6 +72,15 @@ fun App(service: ApkDataService? = null) {
     // 加载 UI 配置
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
+    // 模糊背景层（照搬官方示例）
+    val backdrop: LayerBackdrop? = if (UiConfigState.enableBlur && isRuntimeShaderSupported()) {
+        rememberLayerBackdrop {
+            drawRect(MiuixTheme.colorScheme.surface)
+            drawContent()
+        }
+    } else null
+    val blurActive = backdrop != null
+
     val goBack = { if (stack.size > 1) stack.removeLast() }
     val navigate: (Screen) -> Unit = { stack.add(it) }
 
@@ -79,18 +96,32 @@ fun App(service: ApkDataService? = null) {
         bottomBar = {
             if (!UiConfigState.useFloatingNavigationBar) {
                 // 普通底栏（放 Scaffold bottomBar，占位）
-                NavigationBar {
-                    BottomTab.entries.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            selected = tab == index,
-                            onClick = { tab = index },
-                            icon = when (item) {
-                                BottomTab.HOME -> MiuixIcons.Home
-                                BottomTab.SAVED -> MiuixIcons.Download
-                                BottomTab.SETTINGS -> MiuixIcons.Settings
-                            },
-                            label = item.title,
+                androidx.compose.foundation.layout.Box(
+                    modifier = if (blurActive) {
+                        Modifier.textureBlur(
+                            backdrop = backdrop!!,
+                            blurRadius = UiConfigState.blurRadius,
+                            colors = BlurDefaults.blurColors(
+                                blendColors = listOf(
+                                    BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(0.8f)),
+                                ),
+                            ),
                         )
+                    } else Modifier,
+                ) {
+                    NavigationBar {
+                        BottomTab.entries.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                selected = tab == index,
+                                onClick = { tab = index },
+                                icon = when (item) {
+                                    BottomTab.HOME -> MiuixIcons.Home
+                                    BottomTab.SAVED -> MiuixIcons.Download
+                                    BottomTab.SETTINGS -> MiuixIcons.Settings
+                                },
+                                label = item.title,
+                            )
+                        }
                     }
                 }
             }
@@ -99,7 +130,8 @@ fun App(service: ApkDataService? = null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .then(if (blurActive) Modifier.layerBackdrop(backdrop!!) else Modifier),
         ) {
             when (tab) {
                 0 -> HomeContent(current, goBack, navigate, svc)
@@ -110,6 +142,17 @@ fun App(service: ApkDataService? = null) {
             // 悬浮底栏（放 Box 里，悬浮在内容上面，不占位）
             if (UiConfigState.useFloatingNavigationBar) {
                 FloatingNavigationBar(
+                    modifier = if (blurActive) {
+                        Modifier.textureBlur(
+                            backdrop = backdrop!!,
+                            blurRadius = UiConfigState.blurRadius,
+                            colors = BlurDefaults.blurColors(
+                                blendColors = listOf(
+                                    BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(0.6f)),
+                                ),
+                            ),
+                        )
+                    } else Modifier,
                     horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                 ) {
                     BottomTab.entries.forEachIndexed { index, item ->

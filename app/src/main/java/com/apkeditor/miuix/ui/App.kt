@@ -89,100 +89,108 @@ fun App(service: ApkDataService? = null) {
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        bottomBar = {
-            if (UiConfigState.useFloatingNavigationBar) {
-                // 悬浮底栏（放 Scaffold bottomBar 里，官方推荐）
-                FloatingNavigationBar(
-                    color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
-                            else MiuixTheme.colorScheme.surfaceContainer,
-                    shadowElevation = 0.dp,
-                    showDivider = true,
-                    modifier = if (blurActive) {
-                        Modifier
-                            .textureBlur(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            bottomBar = {
+                // 普通底栏（仅在不开启悬浮底栏时渲染）
+                if (!UiConfigState.useFloatingNavigationBar) {
+                    NavigationBar(
+                        color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
+                                else MiuixTheme.colorScheme.surface,
+                        modifier = if (blurActive) {
+                            Modifier.textureBlur(
                                 backdrop = backdrop,
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                                shape = androidx.compose.ui.graphics.RectangleShape,
                                 blurRadius = UiConfigState.blurRadius,
-                                colors = top.yukonga.miuix.kmp.blur.BlurDefaults.blurColors(
+                                colors = BlurDefaults.blurColors(
                                     blendColors = listOf(
-                                        top.yukonga.miuix.kmp.blur.BlendColorEntry(
-                                            color = MiuixTheme.colorScheme.surface.copy(0.6f)
+                                        BlendColorEntry(
+                                            color = MiuixTheme.colorScheme.surface.copy(0.8f)
                                         ),
                                     ),
                                 ),
                             )
-                            .border(
-                                width = 1.dp,
-                                color = MiuixTheme.colorScheme.onSurface.copy(0.1f),
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                        } else Modifier,
+                    ) {
+                        BottomTab.entries.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                selected = tab == index,
+                                onClick = { tab = index },
+                                icon = when (item) {
+                                    BottomTab.HOME -> MiuixIcons.Home
+                                    BottomTab.SAVED -> MiuixIcons.Download
+                                    BottomTab.SETTINGS -> MiuixIcons.Settings
+                                },
+                                label = item.title,
                             )
-                    } else Modifier,
-                ) {
-                    BottomTab.entries.forEachIndexed { index, item ->
-                        FloatingNavigationBarItem(
-                            selected = tab == index,
-                            onClick = { tab = index },
-                            icon = when (item) {
-                                BottomTab.HOME -> MiuixIcons.Home
-                                BottomTab.SAVED -> MiuixIcons.Download
-                                BottomTab.SETTINGS -> MiuixIcons.Settings
-                            },
-                            label = item.title,
-                        )
+                        }
                     }
                 }
-            } else {
-                // 普通底栏
-                NavigationBar(
-                    color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
-                            else MiuixTheme.colorScheme.surface,
-                    modifier = if (blurActive) {
-                        Modifier.textureBlur(
-                            backdrop = backdrop,
-                            shape = androidx.compose.ui.graphics.RectangleShape,
-                            blurRadius = UiConfigState.blurRadius,
-                            colors = top.yukonga.miuix.kmp.blur.BlurDefaults.blurColors(
-                                blendColors = listOf(
-                                    top.yukonga.miuix.kmp.blur.BlendColorEntry(
-                                        color = MiuixTheme.colorScheme.surface.copy(0.8f)
-                                    ),
-                                ),
-                            ),
-                        )
-                    } else Modifier,
-                ) {
-                    BottomTab.entries.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            selected = tab == index,
-                            onClick = { tab = index },
-                            icon = when (item) {
-                                BottomTab.HOME -> MiuixIcons.Home
-                                BottomTab.SAVED -> MiuixIcons.Download
-                                BottomTab.SETTINGS -> MiuixIcons.Settings
-                            },
-                            label = item.title,
-                        )
-                    }
-                }
-            }
-        },
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
-        ) {
+            },
+        ) { innerPadding ->
+            // 主内容区域：layerBackdrop 先挂载，再 padding，确保 backdrop 捕获完整画面
             Box(
-                modifier = Modifier.padding(innerPadding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier)
+                    .padding(innerPadding),
             ) {
                 when (tab) {
                     0 -> HomeContent(current, goBack, navigate, svc)
                     1 -> SavedApksScreen()
                     2 -> SettingsScreen()
+                }
+            }
+        }
+
+        // 悬浮底栏（独立 Overlay，放在外层 Box 上层，不占用 Scaffold 底部空间）
+        if (UiConfigState.useFloatingNavigationBar) {
+            FloatingNavigationBar(
+                color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
+                        else MiuixTheme.colorScheme.surfaceContainer,
+                shadowElevation = 0.dp,
+                showDivider = false,
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .align(androidx.compose.ui.Alignment.BottomCenter)
+                    .padding(bottom = 24.dp)
+                    .then(
+                        if (blurActive) {
+                            Modifier
+                                .textureBlur(
+                                    backdrop = backdrop,
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                                    blurRadius = UiConfigState.blurRadius,
+                                    colors = BlurDefaults.blurColors(
+                                        blendColors = listOf(
+                                            BlendColorEntry(
+                                                color = MiuixTheme.colorScheme.surface.copy(0.6f)
+                                            ),
+                                        ),
+                                    ),
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = MiuixTheme.colorScheme.onSurface.copy(0.1f),
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                                )
+                        } else Modifier,
+                    ),
+            ) {
+                BottomTab.entries.forEachIndexed { index, item ->
+                    FloatingNavigationBarItem(
+                        selected = tab == index,
+                        onClick = { tab = index },
+                        icon = when (item) {
+                            BottomTab.HOME -> MiuixIcons.Home
+                            BottomTab.SAVED -> MiuixIcons.Download
+                            BottomTab.SETTINGS -> MiuixIcons.Settings
+                        },
+                        label = item.title,
+                    )
                 }
             }
         }

@@ -1,6 +1,7 @@
 package com.apkeditor.miuix.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -89,6 +90,9 @@ fun App(service: ApkDataService? = null) {
     }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
@@ -98,20 +102,26 @@ fun App(service: ApkDataService? = null) {
                     color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
                             else MiuixTheme.colorScheme.surfaceContainer,
                     shadowElevation = 0.dp,
-                    showDivider = false,
+                    showDivider = true,
                     modifier = if (blurActive) {
-                        Modifier.textureBlur(
-                            backdrop = backdrop,
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-                            blurRadius = UiConfigState.blurRadius,
-                            colors = top.yukonga.miuix.kmp.blur.BlurDefaults.blurColors(
-                                blendColors = listOf(
-                                    top.yukonga.miuix.kmp.blur.BlendColorEntry(
-                                        color = MiuixTheme.colorScheme.surface.copy(0.6f)
+                        Modifier
+                            .textureBlur(
+                                backdrop = backdrop,
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                                blurRadius = UiConfigState.blurRadius,
+                                colors = top.yukonga.miuix.kmp.blur.BlurDefaults.blurColors(
+                                    blendColors = listOf(
+                                        top.yukonga.miuix.kmp.blur.BlendColorEntry(
+                                            color = MiuixTheme.colorScheme.surface.copy(0.6f)
+                                        ),
                                     ),
                                 ),
-                            ),
-                        )
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = MiuixTheme.colorScheme.onSurface.copy(0.1f),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                            )
                     } else Modifier,
                 ) {
                     BottomTab.entries.forEachIndexed { index, item ->
@@ -166,8 +176,7 @@ fun App(service: ApkDataService? = null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
+                .padding(innerPadding),
         ) {
             when (tab) {
                 0 -> HomeContent(current, goBack, navigate, svc)

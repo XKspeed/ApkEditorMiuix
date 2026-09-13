@@ -1,11 +1,19 @@
 package com.apkeditor.miuix.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.border
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RectangleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,7 +21,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
@@ -21,7 +32,9 @@ import com.apkeditor.miuix.data.RealApkDataService
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationBar
+import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
+import top.yukonga.miuix.kmp.basic.NavigationItem
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -60,7 +73,6 @@ private enum class BottomTab(val title: String) {
 
 @Composable
 fun App(service: ApkDataService? = null) {
-    // 默认使用真实反编译引擎（ARSCLib + smali/baksmali + apksig）
     val ctx = LocalContext.current
     val svc: ApkDataService = if (service != null) {
         service
@@ -68,16 +80,16 @@ fun App(service: ApkDataService? = null) {
         remember { RealApkDataService(ctx) }
     }
     var tab by remember { mutableIntStateOf(0) }
-    // 主页 tab 的页面栈（子页面导航）
     val stack = remember { mutableStateListOf<Screen>(Screen.Home) }
     val current = stack.last()
 
-    // 加载 UI 配置
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
-    // 模糊背景层（只捕获内容，不加背景）
+    // 完全按照官方示例的 backdrop 写法
+    val surfaceColor = MiuixTheme.colorScheme.surface
     val blurActive = UiConfigState.enableBlur && isRuntimeShaderSupported()
-    val backdrop = rememberLayerBackdrop {
+    val backdrop: LayerBackdrop? = rememberLayerBackdrop {
+        drawRect(surfaceColor)
         drawContent()
     }
 
@@ -91,103 +103,140 @@ fun App(service: ApkDataService? = null) {
         }
     }
 
+    // 导航项列表
+    val navigationItems = remember {
+        listOf(
+            NavigationItem(BottomTab.HOME.title, MiuixIcons.Home),
+            NavigationItem(BottomTab.SAVED.title, MiuixIcons.Download),
+            NavigationItem(BottomTab.SETTINGS.title, MiuixIcons.Settings),
+        )
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-            bottomBar = {
-                if (UiConfigState.useFloatingNavigationBar) {
-                    // 悬浮底栏
-                    FloatingNavigationBar(
-                        color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
-                                else MiuixTheme.colorScheme.surfaceContainer,
-                        shadowElevation = 0.dp,
-                        showDivider = false,
-                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                        modifier = if (blurActive) {
-                            Modifier
-                                .textureBlur(
-                                    backdrop = backdrop,
-                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-                                    blurRadius = UiConfigState.blurRadius,
-                                    colors = BlurDefaults.blurColors(
-                                        blendColors = listOf(
-                                            BlendColorEntry(
-                                                color = MiuixTheme.colorScheme.surface.copy(0.6f)
-                                            ),
-                                        ),
-                                    ),
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = MiuixTheme.colorScheme.onSurface.copy(0.1f),
-                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-                                )
-                        } else Modifier,
-                    ) {
-                        BottomTab.entries.forEachIndexed { index, item ->
-                            FloatingNavigationBarItem(
-                                selected = tab == index,
-                                onClick = { tab = index },
-                                icon = when (item) {
-                                    BottomTab.HOME -> MiuixIcons.Home
-                                    BottomTab.SAVED -> MiuixIcons.Download
-                                    BottomTab.SETTINGS -> MiuixIcons.Settings
-                                },
-                                label = item.title,
-                            )
-                        }
-                    }
-                } else {
-                    // 普通底栏
-                    NavigationBar(
-                        color = if (blurActive) androidx.compose.ui.graphics.Color.Transparent
-                                else MiuixTheme.colorScheme.surface,
-                        modifier = if (blurActive) {
+        containerColor = Color.Transparent,
+        bottomBar = {
+            AppNavigationBar(
+                navigationItems = navigationItems,
+                selectedTab = tab,
+                onTabSelected = { tab = it },
+                backdrop = backdrop,
+                blurActive = blurActive,
+            )
+        },
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier)
+                .padding(innerPadding),
+        ) {
+            when (tab) {
+                0 -> HomeContent(current, goBack, navigate, svc)
+                1 -> SavedApksScreen()
+                2 -> SettingsContent(current, goBack, navigate)
+            }
+        }
+    }
+}
+
+/** 完全按照官方示例的底栏写法 */
+@Composable
+private fun AppNavigationBar(
+    navigationItems: List<NavigationItem>,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    backdrop: LayerBackdrop?,
+    blurActive: Boolean,
+) {
+    val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
+    val floatingBarColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer
+
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
+    ) {
+        AnimatedVisibility(
+            visible = !UiConfigState.useFloatingNavigationBar,
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+        ) {
+            Box(
+                modifier = Modifier
+                    .then(
+                        if (blurActive && backdrop != null) {
                             Modifier.textureBlur(
                                 backdrop = backdrop,
-                                shape = androidx.compose.ui.graphics.RectangleShape,
+                                shape = RectangleShape,
                                 blurRadius = UiConfigState.blurRadius,
                                 colors = BlurDefaults.blurColors(
                                     blendColors = listOf(
-                                        BlendColorEntry(
-                                            color = MiuixTheme.colorScheme.surface.copy(0.8f)
-                                        ),
+                                        BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(0.8f)),
                                     ),
                                 ),
                             )
-                        } else Modifier,
-                    ) {
-                        BottomTab.entries.forEachIndexed { index, item ->
-                            NavigationBarItem(
-                                selected = tab == index,
-                                onClick = { tab = index },
-                                icon = when (item) {
-                                    BottomTab.HOME -> MiuixIcons.Home
-                                    BottomTab.SAVED -> MiuixIcons.Download
-                                    BottomTab.SETTINGS -> MiuixIcons.Settings
-                                },
-                                label = item.title,
-                            )
-                        }
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .drawBehind { drawRect(barColor) }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+            ) {
+                NavigationBar(
+                    color = barColor,
+                    mode = NavigationBarDisplayMode.Fixed,
+                ) {
+                    navigationItems.forEachIndexed { index, item ->
+                        NavigationBarItem(
+                            selected = selectedTab == index,
+                            onClick = { onTabSelected(index) },
+                            icon = item.icon,
+                            label = item.label,
+                        )
                     }
                 }
-            },
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier)
-                    .padding(innerPadding),
-            ) {
-                when (tab) {
-                    0 -> HomeContent(current, goBack, navigate, svc)
-                    1 -> SavedApksScreen()
-                    2 -> SettingsContent(current, goBack, navigate)
+            }
+        }
+
+        if (UiConfigState.useFloatingNavigationBar) {
+            Box {
+                FloatingNavigationBar(
+                    modifier = if (blurActive && backdrop != null) {
+                        Modifier.textureBlur(
+                            backdrop = backdrop,
+                            shape = RoundedCornerShape(28.dp),
+                            blurRadius = UiConfigState.blurRadius,
+                            colors = BlurDefaults.blurColors(
+                                blendColors = listOf(
+                                    BlendColorEntry(color = MiuixTheme.colorScheme.surfaceContainer.copy(0.6f)),
+                                ),
+                            ),
+                        )
+                    } else {
+                        Modifier
+                    },
+                    color = floatingBarColor,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    navigationItems.forEachIndexed { index, item ->
+                        FloatingNavigationBarItem(
+                            selected = selectedTab == index,
+                            onClick = { onTabSelected(index) },
+                            icon = item.icon,
+                            label = item.label,
+                        )
+                    }
                 }
             }
         }
     }
+}
 
 /** 主页 tab 内容（含子页面导航栈） */
 @Composable

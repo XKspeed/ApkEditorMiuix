@@ -53,8 +53,9 @@ import top.yukonga.miuix.kmp.icon.extended.Folder
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * APK 内容页：仿 MT 管理器打开 APK 的界面（单排文件列表）。
- * 顶部为 APK 概览，下方列出 APK 内部文件/目录，点击进入对应编辑功能。
+ * APK 内容页（NP 管理器风格）：
+ * 顶部为 APK 概览（图标/名称/版本/包名/权限），下方列出 APK 内部文件，
+ * 点击 AndroidManifest.xml / classes.dex / resources.arsc / res/ 进入对应编辑功能。
  */
 @Composable
 fun ApkInfoScreen(

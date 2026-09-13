@@ -36,6 +36,15 @@ data class ResourceEntryInfo(
     val type: String,
     val value: String,
     val configs: List<String>,
+    val variants: List<ResourceVariant> = emptyList(),
+)
+
+/** ARSC 资源配置变体（default / -L / -R / night / hdpi 等） */
+data class ResourceVariant(
+    val qualifiers: String,
+    val valueType: String,
+    val displayValue: String,
+    val rawData: Int,
 )
 
 /** APK 内的 XML 文件 */
@@ -48,6 +57,15 @@ data class XmlFileInfo(
 data class ApkEntry(
     val path: String,
     val size: Long,
+)
+
+/** smali 目录树节点（NP 管理器风格） */
+data class SmaliTreeNode(
+    val name: String,
+    val path: String,
+    val isDir: Boolean,
+    val dex: String = "",
+    val children: List<SmaliTreeNode> = emptyList(),
 )
 
 /** 打包结果 */

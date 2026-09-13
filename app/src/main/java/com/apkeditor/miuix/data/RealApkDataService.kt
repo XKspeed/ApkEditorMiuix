@@ -546,23 +546,10 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         if (valueType.isInteger()) {
             return "integer" to resValue.data.toString()
         }
-        // array 类型：尝试读取所有元素
+        // array 类型：直接显示类型名
         val typeName = runCatching { r.type }.getOrNull() ?: ""
         if (typeName.contains("array", ignoreCase = true)) {
-            val items = mutableListOf<String>()
-            runCatching {
-                e.iterator().forEach { itemEntry ->
-                    val itemValue = runCatching { itemEntry.resValue }.getOrNull()
-                    val itemType = runCatching { itemValue?.valueType }.getOrNull()
-                    val itemStr = when {
-                        itemType == ValueType.STRING -> runCatching { itemEntry.valueAsString }.getOrNull() ?: ""
-                        itemType?.isInteger() == true -> itemValue?.data.toString()
-                        else -> runCatching { itemEntry.valueAsString }.getOrNull() ?: ""
-                    }
-                    items.add(itemStr)
-                }
-            }
-            return "array" to items.joinToString(", ")
+            return "array" to "数组资源"
         }
         val s = runCatching { e.valueAsString }.getOrNull()
         return if (s != null) (valueType.typeName.ifBlank { "value" }) to s

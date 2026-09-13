@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -42,27 +41,7 @@ kotlin {
     }
 }
 
-// 强制解决旧版vectordrawable namespace冲突
-configurations.all {
-    exclude(group = "androidx.vectordrawable", module = "vectordrawable")
-    exclude(group = "androidx.vectordrawable", module = "vectordrawable-animated")
-}
-
 dependencies {
+    implementation(project(":shared"))
     implementation("androidx.activity:activity-compose:1.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
-
-    // Miuix - Xiaomi HyperOS style UI
-    implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.3")
-    implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.3")
-    implementation("top.yukonga.miuix.kmp:miuix-icons-android:0.9.3")
-    implementation("top.yukonga.miuix.kmp:miuix-blur-android:0.9.3")
-    implementation("top.yukonga.miuix.kmp:miuix-squircle-android:0.9.3")
-    implementation("top.yukonga.miuix.kmp:miuix-nav-android:0.9.4-rc01")
-
-    // miuix 0.9.3 的 MiuixPopupHost 依赖此库（runtime scope 传递，需显式声明才能编译访问）
-    implementation("androidx.navigationevent:navigationevent-compose-android:1.1.2")
-
-    // kotlinx-serialization（miuix-nav 需要）
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }

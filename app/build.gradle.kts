@@ -66,8 +66,4 @@ dependencies {
     // BouncyCastle：Android 上生成自签名证书（签名密钥）
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
-
-    // sora-editor：NP 管理器同款代码编辑器（语法高亮、行号、自动缩进）
-    implementation("io.github.Rosemoe.sora-editor:editor:0.23.6")
-    implementation("io.github.Rosemoe.sora-editor:language-java:0.23.6")
 }

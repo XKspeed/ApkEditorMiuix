@@ -133,7 +133,6 @@ fun App(service: ApkDataService? = null) {
                 modifier = Modifier
                     .align(androidx.compose.ui.Alignment.BottomCenter)
                     .padding(bottom = UiConfigState.floatingElevation.dp),
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             ) {
                 BottomTab.entries.forEachIndexed { index, item ->
                     FloatingNavigationBarItem(

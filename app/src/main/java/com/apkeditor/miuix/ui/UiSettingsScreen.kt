@@ -26,17 +26,34 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * MIUI X UI 配置（参考官方示例 AppState 模式）
+ * 全局 UI 配置（类似 ThemeState）
  */
-data class UiConfig(
-    val enableBlur: Boolean = true,          // 模糊效果
-    val enableSquircle: Boolean = true,      // 液态玻璃
-    val showNavigationBar: Boolean = true,   // 显示导航栏
-    val useFloatingNavigationBar: Boolean = false, // 悬浮底栏
-)
+object UiConfigState {
+    var enableBlur by mutableStateOf(true)
+    var enableSquircle by mutableStateOf(true)
+    var showNavigationBar by mutableStateOf(true)
+    var useFloatingNavigationBar by mutableStateOf(false)
+
+    fun load(context: Context) {
+        val prefs = context.getSharedPreferences("ui_config", Context.MODE_PRIVATE)
+        enableBlur = prefs.getBoolean("enable_blur", true)
+        enableSquircle = prefs.getBoolean("enable_squircle", true)
+        showNavigationBar = prefs.getBoolean("show_navbar", true)
+        useFloatingNavigationBar = prefs.getBoolean("use_floating_navbar", false)
+    }
+
+    fun save(context: Context) {
+        context.getSharedPreferences("ui_config", Context.MODE_PRIVATE).edit().apply {
+            putBoolean("enable_blur", enableBlur)
+            putBoolean("enable_squircle", enableSquircle)
+            putBoolean("show_navbar", showNavigationBar)
+            putBoolean("use_floating_navbar", useFloatingNavigationBar)
+        }.apply()
+    }
+}
 
 /**
- * MIUI X UI 修改设置页（参考官方示例 SettingsPage）
+ * MIUI X UI 修改设置页
  */
 @Composable
 fun UiSettingsScreen(onBack: () -> Unit) {
@@ -44,30 +61,6 @@ fun UiSettingsScreen(onBack: () -> Unit) {
     androidx.activity.compose.BackHandler { onBack() }
 
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("ui_config", Context.MODE_PRIVATE) }
-
-    // 用 mutableStateOf 包装整个配置，修改时 copy 新配置触发重组
-    var config by remember {
-        mutableStateOf(
-            UiConfig(
-                enableBlur = prefs.getBoolean("enable_blur", true),
-                enableSquircle = prefs.getBoolean("enable_squircle", true),
-                showNavigationBar = prefs.getBoolean("show_navbar", true),
-                useFloatingNavigationBar = prefs.getBoolean("use_floating_navbar", false),
-            )
-        )
-    }
-
-    fun update(transform: (UiConfig) -> UiConfig) {
-        config = transform(config)
-        // 持久化
-        prefs.edit().apply {
-            putBoolean("enable_blur", config.enableBlur)
-            putBoolean("enable_squircle", config.enableSquircle)
-            putBoolean("show_navbar", config.showNavigationBar)
-            putBoolean("use_floating_navbar", config.useFloatingNavigationBar)
-        }.apply()
-    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -93,17 +86,22 @@ fun UiSettingsScreen(onBack: () -> Unit) {
                     SwitchPreference(
                         title = "底栏模糊",
                         summary = "开启底部导航栏模糊效果",
-                        checked = config.enableBlur,
-                        onCheckedChange = { update { c -> c.copy(enableBlur = it) } },
+                        checked = UiConfigState.enableBlur,
+                        onCheckedChange = {
+                            UiConfigState.enableBlur = it
+                            UiConfigState.save(context)
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    // 液态玻璃（RuntimeShader 支持时才显示）
                     if (isRuntimeShaderSupported()) {
                         SwitchPreference(
                             title = "液态玻璃",
                             summary = "启用 Squircle 液态玻璃效果",
-                            checked = config.enableSquircle,
-                            onCheckedChange = { update { c -> c.copy(enableSquircle = it) } },
+                            checked = UiConfigState.enableSquircle,
+                            onCheckedChange = {
+                                UiConfigState.enableSquircle = it
+                                UiConfigState.save(context)
+                            },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -115,15 +113,21 @@ fun UiSettingsScreen(onBack: () -> Unit) {
                     SwitchPreference(
                         title = "显示导航栏",
                         summary = "显示或隐藏底部导航栏",
-                        checked = config.showNavigationBar,
-                        onCheckedChange = { update { c -> c.copy(showNavigationBar = it) } },
+                        checked = UiConfigState.showNavigationBar,
+                        onCheckedChange = {
+                            UiConfigState.showNavigationBar = it
+                            UiConfigState.save(context)
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     SwitchPreference(
                         title = "悬浮底栏",
                         summary = "使用悬浮式导航底栏",
-                        checked = config.useFloatingNavigationBar,
-                        onCheckedChange = { update { c -> c.copy(useFloatingNavigationBar = it) } },
+                        checked = UiConfigState.useFloatingNavigationBar,
+                        onCheckedChange = {
+                            UiConfigState.useFloatingNavigationBar = it
+                            UiConfigState.save(context)
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

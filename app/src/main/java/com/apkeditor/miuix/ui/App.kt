@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.RealApkDataService
+import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -57,6 +58,9 @@ fun App(service: ApkDataService? = null) {
     val stack = remember { mutableStateListOf<Screen>(Screen.Home) }
     val current = stack.last()
 
+    // 加载 UI 配置
+    LaunchedEffect(Unit) { UiConfigState.load(ctx) }
+
     val goBack = { if (stack.size > 1) stack.removeLast() }
     val navigate: (Screen) -> Unit = { stack.add(it) }
 
@@ -70,18 +74,39 @@ fun App(service: ApkDataService? = null) {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            NavigationBar {
-                BottomTab.entries.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        selected = tab == index,
-                        onClick = { tab = index },
-                        icon = when (item) {
-                            BottomTab.HOME -> MiuixIcons.Home
-                            BottomTab.SAVED -> MiuixIcons.Download
-                            BottomTab.SETTINGS -> MiuixIcons.Settings
-                        },
-                        label = item.title,
-                    )
+            if (UiConfigState.showNavigationBar) {
+                if (UiConfigState.useFloatingNavigationBar) {
+                    // 悬浮底栏
+                    FloatingNavigationBar {
+                        BottomTab.entries.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                selected = tab == index,
+                                onClick = { tab = index },
+                                icon = when (item) {
+                                    BottomTab.HOME -> MiuixIcons.Home
+                                    BottomTab.SAVED -> MiuixIcons.Download
+                                    BottomTab.SETTINGS -> MiuixIcons.Settings
+                                },
+                                label = item.title,
+                            )
+                        }
+                    }
+                } else {
+                    // 普通底栏
+                    NavigationBar {
+                        BottomTab.entries.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                selected = tab == index,
+                                onClick = { tab = index },
+                                icon = when (item) {
+                                    BottomTab.HOME -> MiuixIcons.Home
+                                    BottomTab.SAVED -> MiuixIcons.Download
+                                    BottomTab.SETTINGS -> MiuixIcons.Settings
+                                },
+                                label = item.title,
+                            )
+                        }
+                    }
                 }
             }
         },

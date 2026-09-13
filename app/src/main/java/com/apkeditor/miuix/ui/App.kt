@@ -73,12 +73,14 @@ fun App(service: ApkDataService? = null) {
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
     // 模糊背景层（照搬官方示例）
-    val backdrop: LayerBackdrop? = if (UiConfigState.enableBlur && isRuntimeShaderSupported()) {
-        rememberLayerBackdrop {
-            drawRect(MiuixTheme.colorScheme.surface)
-            drawContent()
-        }
-    } else null
+    val backdrop: LayerBackdrop? = remember {
+        if (UiConfigState.enableBlur && isRuntimeShaderSupported()) {
+            rememberLayerBackdrop {
+                drawRect(MiuixTheme.colorScheme.surface)
+                drawContent()
+            }
+        } else null
+    }
     val blurActive = backdrop != null
 
     val goBack = { if (stack.size > 1) stack.removeLast() }
@@ -100,6 +102,7 @@ fun App(service: ApkDataService? = null) {
                     modifier = if (blurActive) {
                         Modifier.textureBlur(
                             backdrop = backdrop!!,
+                            shape = androidx.compose.ui.graphics.RectangleShape,
                             blurRadius = UiConfigState.blurRadius,
                             colors = BlurDefaults.blurColors(
                                 blendColors = listOf(
@@ -145,6 +148,7 @@ fun App(service: ApkDataService? = null) {
                     modifier = if (blurActive) {
                         Modifier.textureBlur(
                             backdrop = backdrop!!,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
                             blurRadius = UiConfigState.blurRadius,
                             colors = BlurDefaults.blurColors(
                                 blendColors = listOf(

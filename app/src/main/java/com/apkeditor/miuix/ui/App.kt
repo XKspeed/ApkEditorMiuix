@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -129,7 +128,7 @@ fun App(service: ApkDataService? = null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier)
+                .then(if (blurActive && backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                 .padding(innerPadding),
         ) {
             when (tab) {
@@ -169,7 +168,7 @@ private fun AppNavigationBar(
                         if (blurActive && backdrop != null) {
                             Modifier.textureBlur(
                                 backdrop = backdrop,
-                                shape = RectangleShape,
+                                shape = androidx.compose.ui.graphics.RectangleShape,
                                 blurRadius = UiConfigState.blurRadius,
                                 colors = BlurDefaults.blurColors(
                                     blendColors = listOf(
@@ -190,7 +189,7 @@ private fun AppNavigationBar(
             ) {
                 NavigationBar(
                     color = barColor,
-                    mode = NavigationBarDisplayMode.Fixed,
+                    mode = NavigationBarDisplayMode.IconAndText,
                 ) {
                     navigationItems.forEachIndexed { index, item ->
                         NavigationBarItem(

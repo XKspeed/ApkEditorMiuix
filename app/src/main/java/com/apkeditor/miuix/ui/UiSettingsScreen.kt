@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -25,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -38,6 +38,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  */
 @Composable
 fun UiSettingsScreen(onBack: () -> Unit) {
+    // 返回键处理
+    androidx.activity.compose.BackHandler { onBack() }
+
     // 开关状态
     var bottomBarBlur by remember { mutableStateOf(UiSettingsState.bottomBarBlur) }
     var floatingBar by remember { mutableStateOf(UiSettingsState.floatingBar) }

@@ -87,4 +87,7 @@ dependencies {
         exclude(group = "androidx.vectordrawable", module = "vectordrawable")
         exclude(group = "androidx.vectordrawable", module = "vectordrawable-animated")
     }
+
+    // Haze：毛玻璃模糊效果
+    implementation("dev.chrisbanes.haze:haze:1.7.3")
 }

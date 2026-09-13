@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -30,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.RealApkDataService
+import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationBar
@@ -37,6 +39,9 @@ import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationItem
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -100,9 +105,9 @@ fun App(service: ApkDataService? = null) {
                     .padding(innerPadding),
             ) {
                 when (tab) {
-                    0 -> HomeContent(current, { if (stack.size > 1) stack.removeLast() }, { stack.add(it) }, svc)
-                    1 -> SavedApksScreen()
-                    2 -> SettingsContent(current, { if (stack.size > 1) stack.removeLast() }, { stack.add(it) })
+                    0 -> HomeTestScreen()
+                    1 -> SavedTestScreen()
+                    2 -> SettingsTestScreen()
                 }
             }
         }
@@ -316,23 +321,62 @@ private fun HomeContent(
     }
 }
 
-/** 设置 tab 内容 */
+/** 主页测试界面 */
 @Composable
-private fun SettingsContent(
-    current: Screen,
-    goBack: () -> Unit,
-    navigate: (Screen) -> Unit,
-) {
-    when (current) {
-        is Screen.Home -> SettingsScreen(
-            onOpenAbout = { navigate(Screen.About) },
-            onOpenUiSettings = { navigate(Screen.UiSettings) },
-        )
-        is Screen.About -> AboutScreen(onBack = goBack)
-        is Screen.UiSettings -> UiSettingsScreen(onBack = goBack)
-        else -> SettingsScreen(
-            onOpenAbout = { navigate(Screen.About) },
-            onOpenUiSettings = { navigate(Screen.UiSettings) },
-        )
+private fun HomeTestScreen() {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        item {
+            SmallTitle("主页测试")
+        }
+        item {
+            Card(modifier = Modifier.padding(horizontal = 12.dp)) {
+                Text("这是主页测试界面", modifier = Modifier.padding(16.dp))
+            }
+        }
+    }
+}
+
+/** 保存的 APK 测试界面 */
+@Composable
+private fun SavedTestScreen() {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        item {
+            SmallTitle("保存的 APK 测试")
+        }
+        item {
+            Card(modifier = Modifier.padding(horizontal = 12.dp)) {
+                Text("这是保存的 APK 测试界面", modifier = Modifier.padding(16.dp))
+            }
+        }
+    }
+}
+
+/** 设置测试界面 */
+@Composable
+private fun SettingsTestScreen() {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        item {
+            SmallTitle("设置测试")
+        }
+        item {
+            Card(modifier = Modifier.padding(horizontal = 12.dp)) {
+                ArrowPreference(
+                    title = "UI 设置",
+                    summary = "底栏模糊 · 悬浮底栏 · 液态玻璃",
+                    onClick = { /* TODO */ },
+                )
+                ArrowPreference(
+                    title = "关于",
+                    summary = "版本 0.1 · 查看开源许可与鸣谢",
+                    onClick = { /* TODO */ },
+                )
+            }
+        }
     }
 }

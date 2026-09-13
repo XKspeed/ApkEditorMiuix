@@ -16,12 +16,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ThemeState
+import com.apkeditor.miuix.data.ApkCacheManager
 import com.apkeditor.miuix.data.OutputConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -53,8 +58,6 @@ fun SettingsScreen() {
             item {
                 Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                     // 主题切换：参考 miuix 官方示例 SettingsPage 的 OverlayDropdownPreference 用法
-                    // ⚠️ 必须 renderInRootScaffold=false：本 App 是双层 Scaffold（外层底栏+内层页面），
-                    // 主题切换：参考 miuix 官方示例 SettingsPage 的 OverlayDropdownPreference 用法
                     // （弹窗展开依赖 LocalNavigationEventDispatcherOwner，已在 MainActivity 全局提供）
                     OverlayDropdownPreference(
                         title = "主题",
@@ -63,6 +66,17 @@ fun SettingsScreen() {
                         onSelectedIndexChange = { ThemeState.mode = it },
                     )
                 }
+            }
+            item {
+                Text(
+                    "存储",
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.subtitle,
+                )
+            }
+            item {
+                CachePreference()
             }
             item {
                 Text(
@@ -89,7 +103,7 @@ fun SettingsScreen() {
                         Text("ApkEditor·Miuix", style = MiuixTheme.textStyles.main)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "版本 0.2.0（UI 预览）\n仿 MT 管理器的 APK 编辑工具\nUI：Miuix（HyperOS 风格）\n最低系统：Android 15",
+                            "版本 0.1（可靠重打包版）\n仿 MT 管理器的 APK 编辑工具\nUI：Miuix（HyperOS 风格）\n最低系统：Android 15",
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             style = MiuixTheme.textStyles.subtitle,
                         )
@@ -97,6 +111,49 @@ fun SettingsScreen() {
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }
+        }
+    }
+}
+
+/** 缓存管理：显示缓存占用 + 清除缓存（磁盘反编译产物 + 内存树） */
+@Composable
+private fun CachePreference() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val cacheMgr = remember { ApkCacheManager(context) }
+    var sizeText by remember { mutableStateOf("—") }
+    var clearing by remember { mutableStateOf(false) }
+
+    // 进入设置页时异步算一次缓存大小
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        sizeText = withContext(Dispatchers.IO) { cacheMgr.totalSizeText() }
+    }
+
+    Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            Text("清除缓存", style = MiuixTheme.textStyles.main, modifier = Modifier.padding(vertical = 10.dp))
+            Text(
+                "当前缓存占用：$sizeText\n清除反编译产生的 smali / 解码产物，下次打开同一 APK 会重新反编译。",
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.subtitle,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (clearing) "正在清除…" else "立即清除缓存",
+                color = MiuixTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.main,
+                modifier = Modifier
+                    .clickable(enabled = !clearing) {
+                        clearing = true
+                        scope.launch {
+                            withContext(Dispatchers.IO) { cacheMgr.clearAll() }
+                            sizeText = withContext(Dispatchers.IO) { cacheMgr.totalSizeText() }
+                            clearing = false
+                        }
+                    }
+                    .padding(vertical = 8.dp),
+            )
+            Spacer(Modifier.height(6.dp))
         }
     }
 }

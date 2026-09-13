@@ -6,7 +6,10 @@ import com.apkeditor.miuix.SavedApkStore
 import com.android.apksig.ApkSigner
 import com.reandroid.apk.ApkModule
 import com.reandroid.apk.xmlencoder.XMLEncodeSource
+import com.reandroid.arsc.coder.ComplexUtil
 import com.reandroid.arsc.model.ResourceEntry
+import com.reandroid.arsc.value.Entry
+import com.reandroid.arsc.value.ValueType
 import com.reandroid.xml.XMLFactory
 import com.reandroid.xml.source.XMLFileParserSource
 import kotlinx.coroutines.Dispatchers
@@ -49,7 +52,7 @@ import java.util.zip.ZipOutputStream
  */
 class RealApkDataService(private val context: Context) : ApkDataService {
 
-    private val mutex = Mutex()
+    private val mutex = Mutex(); private val cacheMgr = ApkCacheManager(context); private var cacheEntry: ApkCacheEntry? = null
     private var module: ApkModule? = null
     private var apkFileName: String = "input.apk"
     /** 原始 APK 文件路径（zip 拷贝重打包的数据源） */
@@ -65,12 +68,27 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     /** smali 反编译缓存：返回时不重复反编译（首次反编译后复用） */
     private val smaliCache = HashMap<String, List<String>>()
+    /** smali 目录树缓存：按 dexNames 分组，切换界面回来直接复用，不重建 */
+    private val smaliTreeCache = HashMap<String, List<SmaliTreeNode>>()
+
+    init {
+        activeInstance = this
+        ApkCacheManager.registerMemoryCleaner {
+            runCatching { activeInstance?.clearMemoryCache() }
+        }
+    }
+
+    /** 清理内存中的 smali 缓存与目录树缓存（供清除缓存调用） */
+    private fun clearMemoryCache() {
+        smaliCache.clear()
+        smaliTreeCache.clear()
+    }
 
     // ---------- 基础 ----------
 
     private fun cacheDir() = context.cacheDir
 
-    private fun workDir(): File = File(cacheDir(), "work")
+    private fun workDir(): File { val e = cacheEntry; return if (e != null) cacheMgr.workDir(e) else File(cacheDir(), "work").apply { mkdirs() } }
 
     /** 在 IO 线程 + 锁内操作已打开的模块 */
     private suspend fun <T> locked(block: (ApkModule) -> T): T = withContext(Dispatchers.IO) {
@@ -92,13 +110,14 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     override suspend fun loadApk(uri: String): Result<ApkInfo> = withContext(Dispatchers.IO) {
         runCatching {
             mutex.withLock {
-                val input = File(cacheDir(), "apk/input.apk")
-                copyUriToCache(uri, input)
-                val m = ApkModule.loadApkFile(input)
+                val tmpInput = File(cacheDir(), "apk/tmp.apk")
+                copyUriToCache(uri, tmpInput)
+                val entry = cacheMgr.prepare(tmpInput); val input = entry.inputApk; val hashChanged = cacheEntry?.hash != entry.hash; cacheEntry = entry; val m = ApkModule.loadApkFile(input)
                 module = m
                 rawApkFile = input
-                apkFileName = input.name
-                smaliCache.clear()
+                apkFileName = Uri.parse(uri).lastPathSegment ?: "input.apk"
+                if (hashChanged) smaliCache.clear()
+                if (hashChanged) smaliTreeCache.clear()
                 modifiedDex.clear()
                 modifiedXml.clear()
                 modifiedArsc = false
@@ -115,7 +134,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 val resourceCount = runCatching { countResources(m) }.getOrElse { 0 }
 
                 ApkInfo(
-                    fileName = "input.apk",
+                    fileName = apkFileName,
                     label = label,
                     packageName = manifest.packageName,
                     versionName = runCatching { manifest.versionName }.getOrNull() ?: "?",
@@ -190,7 +209,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     }
 
     private fun dexWorkDir(dexName: String): File {
-        val d = File(workDir(), "$apkFileName/$dexName")
+        val d = File(workDir(), dexName)
         d.mkdirs()
         return d
     }
@@ -262,13 +281,69 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         r
     }
 
+    override suspend fun listSmaliTree(dexNames: List<String>): Result<Map<String, List<SmaliTreeNode>>> = runCatching {
+        val key = dexNames.joinToString(",")
+        smaliTreeCache[key]?.let { cached ->
+            // 缓存的是各 dex 顶层节点列表，按 dexName 分组返回
+            return@runCatching cached.groupBy { it.dex }
+        }
+        // 复用 listSmaliFiles 的反编译缓存，不重复 baksmali
+        val topNodes = mutableListOf<SmaliTreeNode>()
+        dexNames.forEach { dex ->
+            val files = listSmaliFiles(dex).getOrThrow()
+            topNodes.add(buildDexNode(dex, files))
+        }
+        smaliTreeCache[key] = topNodes
+        topNodes.groupBy { it.dex }
+    }
+
+    /** 由 (dex, 文件相对路径) 构建一个 dex 顶层目录节点 */
+    private fun buildDexNode(dex: String, files: List<String>): SmaliTreeNode {
+        val rootName = if (dex == "classes.dex") "smali" else "smali_" + dex.removeSuffix(".dex")
+        val rootChildren = mutableListOf<SmaliTreeNode>()
+        files.sorted().forEach { file ->
+            // file 形如 smali/com/apkeditor/miuix/MainActivity.smali（含 smali 前缀）
+            val parts = file.split("/")
+            val rel = parts.drop(1) // 去掉 smali 前缀
+            insertPath(rootChildren, rel, file, dex, "")
+        }
+        return SmaliTreeNode(name = rootName, path = dex, isDir = true, dex = dex, children = rootChildren)
+    }
+
+    private fun insertPath(
+        children: MutableList<SmaliTreeNode>,
+        parts: List<String>,
+        fullPath: String,
+        dex: String,
+        parentPath: String,
+    ) {
+        if (parts.isEmpty()) return
+        val head = parts.first()
+        val dirPath = if (parentPath.isEmpty()) head else "$parentPath/$head"
+        if (parts.size == 1) {
+            children.add(SmaliTreeNode(name = head, path = fullPath, isDir = false, dex = dex))
+            return
+        }
+        var dir = children.firstOrNull { it.name == head && it.isDir }
+        if (dir == null) {
+            dir = SmaliTreeNode(name = head, path = dirPath, isDir = true, dex = dex)
+            children.add(dir)
+        }
+        val mutable = dir.children.toMutableList()
+        insertPath(mutable, parts.drop(1), fullPath, dex, dirPath)
+        val updated = dir.copy(children = mutable)
+        children[children.indexOf(dir)] = updated
+    }
+
     override suspend fun readSmaliFile(dexName: String, filePath: String): Result<String> = runCatching {
-        File(workDir(), "$apkFileName/$dexName/$filePath").readText()
+        val f = File(workDir(), "$dexName/$filePath")
+        if (!f.exists()) error("smali 文件不存在：${f.relativeToOrNull(workDir()) ?: f.path}")
+        f.readText()
     }
 
     override suspend fun saveSmaliFile(dexName: String, filePath: String, content: String): Result<Unit> =
         runCatching {
-            File(workDir(), "$apkFileName/$dexName/$filePath").apply {
+            File(workDir(), "$dexName/$filePath").apply {
                 parentFile?.mkdirs()
                 writeText(content)
             }
@@ -304,41 +379,155 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             val list = mutableListOf<ResourceEntryInfo>()
             m.tableBlock.resources.forEach { r ->
                 if ((runCatching { r.type }.getOrNull() ?: "?") != type) return@forEach
-                val entry = r
-                list.add(
-                    ResourceEntryInfo(
-                        id = entry.resourceId,
-                        hexId = entry.hexId,
-                        name = runCatching { entry.name }.getOrNull() ?: "",
-                        type = type,
-                        value = firstValue(entry),
-                        configs = collectConfigs(entry),
-                    )
-                )
+                list.add(buildResourceEntryInfo(r))
             }
             list
         }
     }
 
-    private fun firstValue(entry: ResourceEntry): String {
-        runCatching {
-            entry.iterator().forEach { e ->
-                val v = runCatching { e.valueAsString }.getOrNull()
-                if (!v.isNullOrBlank()) return v
+    override suspend fun searchResources(
+        type: String?,
+        keyword: String,
+        maxResults: Int,
+    ): Result<List<ResourceEntryInfo>> = runCatching {
+        locked { m ->
+            val kw = keyword.trim().lowercase()
+            val list = mutableListOf<ResourceEntryInfo>()
+            m.tableBlock.resources.forEach { r ->
+                if (list.size >= maxResults) return@forEach
+                val t = runCatching { r.type }.getOrNull() ?: "?"
+                if (type != null && t != type) return@forEach
+                if (kw.isNotEmpty()) {
+                    val name = runCatching { r.name }.getOrNull() ?: ""
+                    if (!name.lowercase().contains(kw)) return@forEach
+                }
+                list.add(buildResourceEntryInfo(r))
             }
+            list
         }
-        return ""
     }
 
-    private fun collectConfigs(entry: ResourceEntry): List<String> {
-        val list = mutableListOf<String>()
+    /** 把 ARSCLib 的 ResourceEntry 转成 UI 模型：收集全部 config 变体，按值类型正确解码 */
+    private fun buildResourceEntryInfo(r: ResourceEntry): ResourceEntryInfo {
+        val name = runCatching { r.name }.getOrNull() ?: ""
+        val type = runCatching { r.type }.getOrNull() ?: "?"
+        val variants = collectVariants(r)
+        // 默认值：取 default 变体，否则取第一个非空变体
+        val defaultVariant = variants.firstOrNull { it.qualifiers.isEmpty() }
+            ?: variants.firstOrNull { it.displayValue.isNotEmpty() }
+        val value = defaultVariant?.displayValue ?: ""
+        return ResourceEntryInfo(
+            id = r.resourceId,
+            hexId = r.hexId,
+            name = name,
+            type = type,
+            value = value,
+            configs = variants.map { it.qualifiers }.distinct(),
+            variants = variants,
+        )
+    }
+
+    /**
+     * 收集一个资源的全部配置变体（-L / -R / night / dpi / land 等）。
+     * 每个变体按 [ValueType] 正确解码：
+     *  - string → 原文
+     *  - integer / hex → 数值字符串
+     *  - bool → true/false
+     *  - float → 浮点字符串
+     *  - dimension → ComplexUtil.decodeComplex（支持负数，如 -330dp）
+     *  - color → AndroidColor.toHexString（如 #FF223344）
+     *  - reference → 递归解析引用（深度限制防循环），解析失败则输出 @type/name
+     */
+    private fun collectVariants(r: ResourceEntry): List<ResourceVariant> {
+        val result = mutableListOf<ResourceVariant>()
         runCatching {
-            entry.iterator().forEach { e ->
-                val cfg = runCatching { e.resConfig?.qualifiers }.getOrNull() ?: "default"
-                list.add(if (cfg.isBlank()) "default" else cfg)
+            r.iterator().forEach { e: Entry ->
+                val cfg = runCatching { e.resConfig?.qualifiers }.getOrNull() ?: ""
+                val qualifiers = if (cfg.isNullOrBlank()) "" else cfg
+                val v = decodeEntryValue(r, e)
+                result.add(
+                    ResourceVariant(
+                        qualifiers = qualifiers,
+                        valueType = v.first,
+                        displayValue = v.second,
+                        rawData = runCatching { e.resValue?.data }.getOrNull() ?: 0,
+                    )
+                )
             }
         }
-        return list.distinct()
+        return result
+    }
+
+    /** 解码单个 Entry 值；返回 (值类型名, 显示字符串) */
+    private fun decodeEntryValue(r: ResourceEntry, e: Entry): Pair<String, String> {
+        val resValue = runCatching { e.resValue }.getOrNull()
+        if (resValue == null) return "unknown" to ""
+        val valueType = runCatching { resValue.valueType }.getOrNull() ?: ValueType.NULL
+        if (valueType.isReference()) return decodeReference(r, resValue.data)
+        if (valueType.isColor()) {
+            val color = runCatching<com.reandroid.graphics.AndroidColor> { e.valueAsColor }.getOrNull()
+            return if (color != null) "color" to color.toHexString()
+            else "color" to String.format("#%08X", resValue.data)
+        }
+        if (valueType == ValueType.DIMENSION) {
+            return "dimension" to (runCatching { ComplexUtil.decodeComplex(false, resValue.data) }.getOrNull()
+                ?: "0dp")
+        }
+        if (valueType == ValueType.FRACTION) {
+            return "fraction" to (runCatching { ComplexUtil.decodeComplex(true, resValue.data) }.getOrNull()
+                ?: "0%")
+        }
+        if (valueType == ValueType.STRING) {
+            val s = runCatching { e.valueAsString }.getOrNull() ?: ""
+            return "string" to s
+        }
+        if (valueType == ValueType.BOOLEAN) {
+            val b = runCatching { e.valueAsBoolean }.getOrNull()
+            return "bool" to (b?.toString() ?: "")
+        }
+        if (valueType == ValueType.FLOAT) {
+            val f = runCatching { e.valueAsFloat }.getOrNull()
+            return "float" to (f?.toString() ?: "")
+        }
+        if (valueType.isInteger()) {
+            return "integer" to resValue.data.toString()
+        }
+        val s = runCatching { e.valueAsString }.getOrNull()
+        return if (s != null) (valueType.typeName.ifBlank { "value" }) to s
+        else valueType.typeName.ifBlank { "value" } to String.format("0x%08X", resValue.data)
+    }
+
+    /** 递归解析资源引用；深度上限 6 防循环引用 */
+    private fun decodeReference(r: ResourceEntry, data: Int): Pair<String, String> {
+        var depth = 0
+        var current: ResourceEntry = r
+        var id = data
+        while (depth < 6) {
+            val target = runCatching { current.packageBlock.getResource(id) }.getOrNull()
+                ?: runCatching {
+                    current.packageBlock.tableBlock.getResource(id)
+                }.getOrNull()
+            if (target == null) {
+                // 解析不到目标资源 → 输出引用形式
+                val ref = runCatching {
+                    current.buildReference(current.packageBlock, ValueType.REFERENCE)
+                }.getOrNull()
+                val refText = ref ?: String.format("@0x%08X", id)
+                return "reference" to refText
+            }
+            val tv = runCatching { target.any()?.resValue }.getOrNull()
+            if (tv == null) return "reference" to String.format("@0x%08X", id)
+            val tt = runCatching { tv.valueType }.getOrNull() ?: ValueType.NULL
+            if (!tt.isReference()) {
+                // 目标不是引用 → 递归解码目标值（标注来源）
+                val decoded = decodeEntryValue(target, target.any())
+                return decoded.first to "@${target.type}/${target.name} → ${decoded.second}"
+            }
+            current = target
+            id = tv.data
+            depth++
+        }
+        return "reference" to String.format("@0x%08X", id)
     }
 
     override suspend fun saveResourceValue(id: Int, qualifiers: String?, newValue: String): Result<Unit> =
@@ -346,17 +535,55 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             locked { m ->
                 m.tableBlock.resources.forEach { r ->
                     if (r.resourceId != id) return@forEach
+                    // qualifiers 为空 = 只改 default 变体；非空 = 精确改指定限定符变体
                     r.iterator().forEach { e ->
-                        val cfg = runCatching { e.resConfig?.qualifiers }.getOrNull() ?: "default"
-                        val match = qualifiers.isNullOrBlank() || cfg == qualifiers || cfg == "default"
+                        val cfg = runCatching { e.resConfig?.qualifiers }.getOrNull() ?: ""
+                        val cfgNorm = cfg ?: ""
+                        val qNorm = qualifiers ?: ""
+                        val isDefault = cfgNorm.isEmpty() || cfgNorm == "default"
+                        val match = if (qNorm.isEmpty()) isDefault else cfgNorm == qNorm
                         if (match) {
-                            e.setValueAsString(newValue)
+                            setEntryValueAuto(e, newValue)
                         }
                     }
                 }
                 modifiedArsc = true
             }
         }
+
+    /**
+     * 按文本自动编码写入条目值：
+     *  - "@type/name" / "@0x..." → 引用
+     *  - "#RRGGBB" / "#AARRGGBB" → color
+     *  - "-330dp"/"16sp"/"0.5" → dimension / float
+     *  - "true"/"false" → bool
+     *  - "123" → integer
+     *  - 其他 → string
+     */
+    private fun setEntryValueAuto(e: Entry, text: String) {
+        val resValue = runCatching { e.resValue }.getOrNull() ?: return
+        // 引用优先
+        val trimmed = text.trim()
+        if (trimmed.startsWith("@")) {
+            val ref = runCatching {
+                com.reandroid.arsc.coder.ValueCoder.encodeReference(e.packageBlock, trimmed)
+            }.getOrNull()
+            if (ref != null && !ref.isError) {
+                resValue.setValue(ref)
+                return
+            }
+        }
+        // 通用自动编码
+        val encoded = runCatching {
+            com.reandroid.arsc.coder.ValueCoder.encode(trimmed)
+        }.getOrNull()
+        if (encoded != null && !encoded.isError) {
+            resValue.setValue(encoded)
+        } else {
+            // 兜底按字符串写
+            runCatching { e.setValueAsString(trimmed) }
+        }
+    }
 
     override suspend fun renameResource(id: Int, newName: String): Result<Unit> = runCatching {
         locked { m ->
@@ -386,7 +613,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     override suspend fun readXmlFile(path: String): Result<String> = runCatching {
         locked { m ->
             val doc = m.decodeXMLFile(path)
-            val out = File(workDir(), "$apkFileName/tmp/${path.substringAfterLast('/')}.xml.txt")
+            val out = File(workDir(), "tmp/${path.substringAfterLast('/')}.xml.txt")
             out.parentFile?.mkdirs()
             val serializer = XMLFactory.newSerializer(out)
             doc.serialize(serializer)
@@ -397,7 +624,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     override suspend fun saveXmlFile(path: String, content: String): Result<Unit> = runCatching {
         locked { m ->
-            val tmp = File(workDir(), "$apkFileName/tmp/${path.substringAfterLast('/')}.xml")
+            val tmp = File(workDir(), "tmp/${path.substringAfterLast('/')}.xml")
             tmp.parentFile?.mkdirs()
             tmp.writeText(content)
             val pkg = m.tableBlock.packages.asSequence().first()
@@ -550,6 +777,10 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     }
 
     private companion object {
+        /** 当前活跃的服务实例（清除缓存时用它清内存树） */
+        @Volatile
+        var activeInstance: RealApkDataService? = null
+
         val KS_PASS = charArrayOf('a', 'p', 'k', 'e', 'd', 'i', 't', 'o', 'r')
         const val KS_ALIAS = "apkeditor"
     }

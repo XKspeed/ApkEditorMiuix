@@ -73,15 +73,11 @@ fun App(service: ApkDataService? = null) {
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
     // 模糊背景层（照搬官方示例）
-    val backdrop: LayerBackdrop? = remember {
-        if (UiConfigState.enableBlur && isRuntimeShaderSupported()) {
-            rememberLayerBackdrop {
-                drawRect(MiuixTheme.colorScheme.surface)
-                drawContent()
-            }
-        } else null
+    val backdrop = rememberLayerBackdrop {
+        drawRect(MiuixTheme.colorScheme.surface)
+        drawContent()
     }
-    val blurActive = backdrop != null
+    val blurActive = UiConfigState.enableBlur && isRuntimeShaderSupported()
 
     val goBack = { if (stack.size > 1) stack.removeLast() }
     val navigate: (Screen) -> Unit = { stack.add(it) }
@@ -101,7 +97,7 @@ fun App(service: ApkDataService? = null) {
                 androidx.compose.foundation.layout.Box(
                     modifier = if (blurActive) {
                         Modifier.textureBlur(
-                            backdrop = backdrop!!,
+                            backdrop = backdrop,
                             shape = androidx.compose.ui.graphics.RectangleShape,
                             blurRadius = UiConfigState.blurRadius,
                             colors = BlurDefaults.blurColors(
@@ -134,7 +130,7 @@ fun App(service: ApkDataService? = null) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .then(if (blurActive) Modifier.layerBackdrop(backdrop!!) else Modifier),
+                .then(if (blurActive) Modifier.layerBackdrop(backdrop) else Modifier),
         ) {
             when (tab) {
                 0 -> HomeContent(current, goBack, navigate, svc)
@@ -147,7 +143,7 @@ fun App(service: ApkDataService? = null) {
                 FloatingNavigationBar(
                     modifier = if (blurActive) {
                         Modifier.textureBlur(
-                            backdrop = backdrop!!,
+                            backdrop = backdrop,
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
                             blurRadius = UiConfigState.blurRadius,
                             colors = BlurDefaults.blurColors(

@@ -32,7 +32,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.WindowInsets
 
 @Composable
-fun XmlFilesScreen(
+fun XmlFilesPage(
     service: ApkDataService,
     onBack: () -> Unit,
     onOpenFile: (String) -> Unit,

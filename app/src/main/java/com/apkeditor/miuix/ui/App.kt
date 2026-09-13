@@ -115,7 +115,7 @@ fun App(service: ApkDataService? = null) {
     CompositionLocalProvider(
         LocalSquircleEnabled provides UiConfigState.enableSquircle,
     ) {
-        MainScreen(
+        MainPage(
             stack = stack,
             current = current,
             goBack = { if (stack.size > 1) stack.removeLast() },
@@ -132,7 +132,7 @@ fun App(service: ApkDataService? = null) {
 }
 
 @Composable
-private fun MainScreen(
+private fun MainPage(
     stack: MutableList<Screen>,
     current: Screen,
     goBack: () -> Unit,
@@ -249,7 +249,7 @@ private fun MainScreen(
             ) { page ->
                 when (page) {
                     0 -> HomeContent(current, goBack, navigate, service)
-                    1 -> SavedApksScreen()
+                    1 -> SavedApksPage()
                     2 -> SettingsContent(current, goBack, navigate)
                 }
             }
@@ -394,10 +394,10 @@ private fun HomeContent(
     service: ApkDataService,
 ) {
     when (current) {
-        is Screen.Home -> HomeScreen(
+        is Screen.Home -> HomePage(
             onPickApk = { uri -> navigate(Screen.ApkInfo(uri)) },
         )
-        is Screen.ApkInfo -> ApkInfoScreen(
+        is Screen.ApkInfo -> ApkInfoPage(
             uri = current.uri,
             service = service,
             onBack = goBack,
@@ -407,35 +407,35 @@ private fun HomeContent(
             onOpenArsc = { navigate(Screen.ArscTypes) },
             onOpenRes = { navigate(Screen.XmlFiles) },
         )
-        is Screen.SmaliTree -> SmaliTreeScreen(
+        is Screen.SmaliTree -> SmaliTreePage(
             dexNames = current.dexNames,
             service = service,
             onBack = goBack,
             onOpenFile = { dex, path -> navigate(Screen.SmaliEdit(dex, path)) },
         )
-        is Screen.SmaliEdit -> TextEditorScreen(
+        is Screen.SmaliEdit -> TextEditorPage(
             title = current.filePath.substringAfterLast("/"),
             subtitle = current.filePath,
             load = { service.readSmaliFile(current.dexName, current.filePath) },
             save = { text -> service.saveSmaliFile(current.dexName, current.filePath, text) },
             onBack = goBack,
         )
-        is Screen.ArscTypes -> ArscTypesScreen(
+        is Screen.ArscTypes -> ArscTypesPage(
             service = service,
             onBack = goBack,
             onOpenType = { type -> navigate(Screen.ArscEntries(type)) },
         )
-        is Screen.ArscEntries -> ArscEntriesScreen(
+        is Screen.ArscEntries -> ArscEntriesPage(
             type = current.type,
             service = service,
             onBack = goBack,
         )
-        is Screen.XmlFiles -> XmlFilesScreen(
+        is Screen.XmlFiles -> XmlFilesPage(
             service = service,
             onBack = goBack,
             onOpenFile = { path -> navigate(Screen.XmlEdit(path)) },
         )
-        is Screen.XmlEdit -> TextEditorScreen(
+        is Screen.XmlEdit -> TextEditorPage(
             title = current.path.substringAfterLast("/"),
             subtitle = current.path,
             load = { service.readXmlFile(current.path) },
@@ -454,9 +454,9 @@ private fun SettingsContent(
     navigate: (Screen) -> Unit,
 ) {
     when (current) {
-        is Screen.UiSettings -> UiSettingsScreen(onBack = goBack)
-        is Screen.About -> AboutScreen(onBack = goBack)
-        else -> SettingsScreen(
+        is Screen.UiSettings -> UiSettingsPage(onBack = goBack)
+        is Screen.About -> AboutPage(onBack = goBack)
+        else -> SettingsPage(
             onOpenUiSettings = { navigate(Screen.UiSettings) },
             onOpenAbout = { navigate(Screen.About) },
         )

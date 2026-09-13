@@ -37,7 +37,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** 关于页（复刻 miuix 官方 AboutPage 结构 + foreground blur） */
 @Composable
-fun AboutScreen(onBack: () -> Unit) {
+fun AboutPage(onBack: () -> Unit) {
     val context = LocalContext.current
     var showLicense by remember { mutableStateOf(false) }
 
@@ -172,7 +172,7 @@ fun AboutScreen(onBack: () -> Unit) {
 
 /** 第三方开源许可页 */
 @Composable
-private fun LicenseScreen(onBack: () -> Unit) {
+private fun LicensePage(onBack: () -> Unit) {
     val context = LocalContext.current
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),

@@ -43,7 +43,7 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色")
 
 /** 底部导航：设置 */
 @Composable
-fun SettingsScreen(
+fun SettingsPage(
     onOpenAbout: () -> Unit = {},
     onOpenUiSettings: () -> Unit = {},
 ) {

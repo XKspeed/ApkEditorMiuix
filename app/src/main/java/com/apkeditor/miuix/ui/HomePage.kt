@@ -41,7 +41,7 @@ import java.io.File
  * 文件浏览器，浏览手机存储，点文件夹进入，点 .apk 弹出操作菜单（安装/反编译）。
  */
 @Composable
-fun HomeScreen(onPickApk: (String) -> Unit) {
+fun HomePage(onPickApk: (String) -> Unit) {
     val context = LocalContext.current
     var currentDir by remember { mutableStateOf(Environment.getExternalStorageDirectory()) }
     var selectedApk by remember { mutableStateOf<File?>(null) }

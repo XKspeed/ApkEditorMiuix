@@ -39,7 +39,7 @@ import java.util.Locale
 
 /** 底部导航：保存的 APK */
 @Composable
-fun SavedApksScreen() {
+fun SavedApksPage() {
     val context = LocalContext.current
     var records by remember { mutableStateOf(SavedApkStore.list()) }
 

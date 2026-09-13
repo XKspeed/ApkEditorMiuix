@@ -46,6 +46,9 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
+    // Material3（Slider/Switch 基础组件）
+    implementation("androidx.compose.material3:material3:1.3.1")
+
     // Miuix - Xiaomi HyperOS style UI
     implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.3")
     implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.3")

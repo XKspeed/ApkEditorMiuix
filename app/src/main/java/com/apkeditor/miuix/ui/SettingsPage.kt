@@ -144,6 +144,15 @@ fun SettingsPage(
                                         )
                                     },
                                 ),
+                                DropdownEntry(
+                                    items = listOf("莫奈跟随系统", "莫奈浅色", "莫奈深色").mapIndexed { index, text ->
+                                        DropdownItem(
+                                            text = text,
+                                            selected = ThemeState.mode == (index + 3),
+                                            onClick = { ThemeState.mode = index + 3 },
+                                        )
+                                    },
+                                ),
                             ),
                             collapseOnSelection = true,
                         )

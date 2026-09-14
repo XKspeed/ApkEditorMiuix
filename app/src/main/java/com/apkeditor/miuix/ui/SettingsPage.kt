@@ -5,34 +5,53 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ThemeState
 import com.apkeditor.miuix.data.ApkCacheManager
 import com.apkeditor.miuix.data.OutputConfig
+import com.apkeditor.miuix.ui.util.BlurredBar
+import com.apkeditor.miuix.ui.util.blurSource
+import com.apkeditor.miuix.ui.util.pageContentPadding
+import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.preference.ArrowPreference
@@ -46,61 +65,113 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色", "莫奈�
 fun SettingsPage(
     onOpenUiSettings: () -> Unit = {},
 ) {
+    val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val lazyListState = rememberLazyListState()
+
+    val scrollProgress by remember {
+        derivedStateOf {
+            when {
+                lazyListState.firstVisibleItemIndex > 0 -> 1f
+                else -> 0f
+            }
+        }
+    }
+
+    val hazeState = rememberBlurState()
+    val collapsed by remember { derivedStateOf { scrollProgress == 1f } }
+    val blurActive by remember(hazeState) { derivedStateOf { hazeState != null && scrollProgress == 1f } }
+
     Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(
-            title = "设置",
-            scrollBehavior = top.yukonga.miuix.kmp.basic.MiuixScrollBehavior(),
-        ) },
+        topBar = {
+            val barColor = if (blurActive) {
+                Color.Transparent
+            } else {
+                if (collapsed) MiuixTheme.colorScheme.surface else Color.Transparent
+            }
+            val titleColor = MiuixTheme.colorScheme.onSurface.copy(
+                alpha = ((scrollProgress - 0.35f) / 0.65f).coerceIn(0f, 1f),
+            )
+            BlurredBar(hazeState, blurActive) {
+                SmallTopAppBar(
+                    title = "设置",
+                    scrollBehavior = topAppBarScrollBehavior,
+                    color = barColor,
+                    titleColor = titleColor,
+                    defaultWindowInsetsPadding = false,
+                )
+            }
+        },
+        contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
-        ) {
-            item {
-                SmallTitle("外观")
-            }
-            item {
-                Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                    // 主题切换（分组下拉）
-                    OverlayDropdownPreference(
-                        title = "主题",
-                        entries = listOf(
-                            DropdownEntry(
-                                items = listOf("跟随系统", "浅色", "深色").mapIndexed { index, text ->
-                                    DropdownItem(
-                                        text = text,
-                                        selected = ThemeState.mode == index,
-                                        onClick = { ThemeState.mode = index },
-                                    )
-                                },
-                            ),
-                        ),
-                        collapseOnSelection = true,
-                    )
-                    // UI 修改入口
-                    ArrowPreference(
-                        title = "UI 修改",
-                        summary = "底栏模糊 · 悬浮底栏 · 液态玻璃",
-                        onClick = onOpenUiSettings,
-                    )
+        Box(modifier = Modifier.blurSource(hazeState)) {
+            val scrollPadding = pageContentPadding(
+                innerPadding,
+                innerPadding,
+                false,
+                extraStart = WindowInsets.displayCutout.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr),
+                extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),
+            )
+
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pageScrollModifiers(
+                        showTopAppBar = true,
+                        topAppBarScrollBehavior = topAppBarScrollBehavior,
+                    ),
+                contentPadding = PaddingValues(
+                    top = scrollPadding.calculateTopPadding(),
+                    start = scrollPadding.calculateLeftPadding(LayoutDirection.Ltr),
+                    end = scrollPadding.calculateRightPadding(LayoutDirection.Ltr),
+                ),
+            ) {
+                item {
+                    SmallTitle("外观")
                 }
+                item {
+                    Card(modifier = Modifier.padding(horizontal = 12.dp)) {
+                        // 主题切换（分组下拉）
+                        OverlayDropdownPreference(
+                            title = "主题",
+                            entries = listOf(
+                                DropdownEntry(
+                                    items = listOf("跟随系统", "浅色", "深色").mapIndexed { index, text ->
+                                        DropdownItem(
+                                            text = text,
+                                            selected = ThemeState.mode == index,
+                                            onClick = { ThemeState.mode = index },
+                                        )
+                                    },
+                                ),
+                            ),
+                            collapseOnSelection = true,
+                        )
+                        // UI 修改入口
+                        ArrowPreference(
+                            title = "UI 修改",
+                            summary = "底栏模糊 · 悬浮底栏 · 液态玻璃",
+                            onClick = onOpenUiSettings,
+                        )
+                    }
+                }
+                item {
+                    SmallTitle("存储")
+                }
+                item {
+                    CachePreference()
+                }
+                item {
+                    SmallTitle("输出")
+                }
+                item {
+                    OutputDirectoryPreference()
+                }
+                item {
+                    SmallTitle("其他")
+                }
+                item { Spacer(Modifier.height(24.dp)) }
             }
-            item {
-                SmallTitle("存储")
-            }
-            item {
-                CachePreference()
-            }
-            item {
-                SmallTitle("输出")
-            }
-            item {
-                OutputDirectoryPreference()
-            }
-            item {
-                SmallTitle("其他")
-            }
-            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
@@ -115,7 +186,7 @@ private fun CachePreference() {
     var clearing by remember { mutableStateOf(false) }
 
     // 进入设置页时异步算一次缓存大小
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         sizeText = withContext(Dispatchers.IO) { cacheMgr.totalSizeText() }
     }
 

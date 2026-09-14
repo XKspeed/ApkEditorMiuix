@@ -134,6 +134,7 @@ fun AboutPage(
                 lazyListState = lazyListState,
                 scrollProgressProvider = { scrollProgress },
                 onBack = onBack,
+                onOpenThirdPartyLicenses = onOpenThirdPartyLicenses,
             )
         }
     }
@@ -146,6 +147,7 @@ private fun AboutContent(
     lazyListState: LazyListState,
     scrollProgressProvider: () -> Float,
     onBack: () -> Unit,
+    onOpenThirdPartyLicenses: () -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
     val contentBackdrop = rememberBlurBackdrop()

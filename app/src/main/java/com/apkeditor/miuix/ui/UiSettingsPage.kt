@@ -1,7 +1,6 @@
 package com.apkeditor.miuix.ui
 
 import android.content.Context
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,9 +60,6 @@ object UiConfigState {
  */
 @Composable
 fun UiSettingsPage(onBack: () -> Unit) {
-    // 返回键处理
-    BackHandler { onBack() }
-
     val context = LocalContext.current
 
     Scaffold(

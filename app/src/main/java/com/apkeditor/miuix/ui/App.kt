@@ -1,16 +1,10 @@
 package com.apkeditor.miuix.ui
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,11 +15,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -38,7 +30,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,29 +38,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.RealApkDataService
 import com.apkeditor.miuix.ui.component.liquid.IosLiquidGlassNavigationBar
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationItem
-import top.yukonga.miuix.kmp.basic.NavigationRail
-import top.yukonga.miuix.kmp.basic.NavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.ScrollBehavior
-import top.yukonga.miuix.kmp.basic.rememberNavigationRailState
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -82,23 +63,12 @@ import top.yukonga.miuix.kmp.icon.extended.Download
 import top.yukonga.miuix.kmp.icon.extended.Home
 import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.Settings
+import top.yukonga.miuix.kmp.nav.core.NavDisplay
+import top.yukonga.miuix.kmp.nav.core.entry
+import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
 import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.abs
-
-/** 主页 tab 内的页面路由 */
-sealed interface Screen {
-    data object Home : Screen
-    data class ApkInfo(val uri: String) : Screen
-    data class SmaliTree(val dexNames: List<String>) : Screen
-    data class SmaliEdit(val dexName: String, val filePath: String) : Screen
-    data object ArscTypes : Screen
-    data class ArscEntries(val type: String) : Screen
-    data object XmlFiles : Screen
-    data class XmlEdit(val path: String) : Screen
-    data object About : Screen
-    data object UiSettings : Screen
-}
 
 /** 底部导航 tab */
 private enum class BottomTab(val title: String) {
@@ -116,34 +86,18 @@ fun App(service: ApkDataService? = null) {
     } else {
         remember { RealApkDataService(ctx) }
     }
-    val stack = remember { mutableStateListOf<Screen>(Screen.Home) }
-    val current = stack.last()
 
     LaunchedEffect(Unit) { UiConfigState.load(ctx) }
 
     CompositionLocalProvider(
         LocalSquircleEnabled provides true,
     ) {
-        MainPage(
-            stack = stack,
-            current = current,
-            goBack = { if (stack.size > 1) stack.removeLast() },
-            navigate = { stack.add(it) },
-            service = svc,
-        )
-
-        BackHandler(enabled = stack.size > 1) {
-            stack.removeLast()
-        }
+        MainPage(service = svc)
     }
 }
 
 @Composable
 private fun MainPage(
-    stack: MutableList<Screen>,
-    current: Screen,
-    goBack: () -> Unit,
-    navigate: (Screen) -> Unit,
     service: ApkDataService,
 ) {
     val pagerState = rememberPagerState(pageCount = { 4 })
@@ -257,9 +211,9 @@ private fun MainPage(
                 modifier = Modifier.fillMaxSize(),
             ) { page ->
                 when (page) {
-                    0 -> HomeContent(current, goBack, navigate, service)
+                    0 -> HomeTab(service = service)
                     1 -> SavedApksPage()
-                    2 -> SettingsContent(current, goBack, navigate)
+                    2 -> SettingsTab()
                     3 -> AboutPage(onBack = {})
                 }
             }
@@ -380,145 +334,100 @@ private fun BottomNavigationBar(
     }
 }
 
-/** 主页 tab 内容 */
+/** 主页 tab：包含主页和所有二级页面，用 NavDisplay 管理导航栈 */
 @Composable
-private fun HomeContent(
-    current: Screen,
-    goBack: () -> Unit,
-    navigate: (Screen) -> Unit,
+private fun HomeTab(
     service: ApkDataService,
 ) {
-    AnimatedContent(
-        targetState = current,
-        transitionSpec = {
-            // 判断是进入二级页面还是返回
-            val isEntering = initialState is Screen.Home && targetState !is Screen.Home
-            val isReturning = initialState !is Screen.Home && targetState is Screen.Home
+    val backStack = rememberNavBackStack<Route>(Route.Home)
 
-            if (isEntering) {
-                // 进入二级页面：新页面从右滑入，旧页面向左移出
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth: Int -> fullWidth },
-                    animationSpec = tween(300),
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth: Int -> -fullWidth / 4 },
-                    animationSpec = tween(300),
-                )
-            } else if (isReturning) {
-                // 返回：新页面从左滑入，旧页面向右滑出
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth: Int -> -fullWidth / 4 },
-                    animationSpec = tween(300),
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth: Int -> fullWidth },
-                    animationSpec = tween(300),
-                )
-            } else {
-                // 其他情况（比如从一个二级页面到另一个二级页面）
-                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-            }
-        },
-        label = "homeContentTransition",
-    ) { target ->
-        when (target) {
-            is Screen.Home -> HomePage(
-                onPickApk = { uri -> navigate(Screen.ApkInfo(uri)) },
+    NavDisplay(
+        backStack = backStack,
+        onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
+    ) {
+        entry<Route.Home> {
+            HomePage(
+                onPickApk = { uri -> backStack.add(Route.ApkInfo(uri)) },
             )
-            is Screen.ApkInfo -> ApkInfoPage(
-                uri = target.uri,
+        }
+        entry<Route.ApkInfo> { route ->
+            ApkInfoPage(
+                uri = route.apkPath,
                 service = service,
-                onBack = goBack,
-                onOpenManifest = { navigate(Screen.XmlEdit("AndroidManifest.xml")) },
-                onOpenDex = { name -> navigate(Screen.SmaliTree(listOf(name))) },
-                onOpenAllDex = { names -> navigate(Screen.SmaliTree(names)) },
-                onOpenArsc = { navigate(Screen.ArscTypes) },
-                onOpenRes = { navigate(Screen.XmlFiles) },
+                onBack = { backStack.removeLastOrNull() },
+                onOpenManifest = { backStack.add(Route.XmlEdit("AndroidManifest.xml")) },
+                onOpenDex = { name -> backStack.add(Route.SmaliTree(route.apkPath, listOf(name))) },
+                onOpenAllDex = { names -> backStack.add(Route.SmaliTree(route.apkPath, names)) },
+                onOpenArsc = { backStack.add(Route.ArscTypes(route.apkPath)) },
+                onOpenRes = { backStack.add(Route.XmlFiles) },
             )
-            is Screen.SmaliTree -> SmaliTreePage(
-                dexNames = target.dexNames,
+        }
+        entry<Route.SmaliTree> { route ->
+            SmaliTreePage(
+                dexNames = route.dexNames,
                 service = service,
-                onBack = goBack,
-                onOpenFile = { dex, path -> navigate(Screen.SmaliEdit(dex, path)) },
+                onBack = { backStack.removeLastOrNull() },
+                onOpenFile = { dex, path -> backStack.add(Route.SmaliEdit(route.apkPath, dex, path)) },
             )
-            is Screen.SmaliEdit -> TextEditorPage(
-                title = target.filePath.substringAfterLast("/"),
-                subtitle = target.filePath,
-                load = { service.readSmaliFile(target.dexName, target.filePath) },
-                save = { text -> service.saveSmaliFile(target.dexName, target.filePath, text) },
-                onBack = goBack,
+        }
+        entry<Route.SmaliEdit> { route ->
+            TextEditorPage(
+                title = route.filePath.substringAfterLast("/"),
+                subtitle = route.filePath,
+                load = { service.readSmaliFile(route.dexName, route.filePath) },
+                save = { text -> service.saveSmaliFile(route.dexName, route.filePath, text) },
+                onBack = { backStack.removeLastOrNull() },
             )
-            is Screen.ArscTypes -> ArscTypesPage(
+        }
+        entry<Route.ArscTypes> { route ->
+            ArscTypesPage(
                 service = service,
-                onBack = goBack,
-                onOpenType = { type -> navigate(Screen.ArscEntries(type)) },
+                onBack = { backStack.removeLastOrNull() },
+                onOpenType = { type -> backStack.add(Route.ArscEntries(route.apkPath, type)) },
             )
-            is Screen.ArscEntries -> ArscEntriesPage(
-                type = target.type,
+        }
+        entry<Route.ArscEntries> { route ->
+            ArscEntriesPage(
+                type = route.type,
                 service = service,
-                onBack = goBack,
+                onBack = { backStack.removeLastOrNull() },
             )
-            is Screen.XmlFiles -> XmlFilesPage(
+        }
+        entry<Route.XmlFiles> {
+            XmlFilesPage(
                 service = service,
-                onBack = goBack,
-                onOpenFile = { path -> navigate(Screen.XmlEdit(path)) },
+                onBack = { backStack.removeLastOrNull() },
+                onOpenFile = { path -> backStack.add(Route.XmlEdit(path)) },
             )
-            is Screen.XmlEdit -> TextEditorPage(
-                title = target.path.substringAfterLast("/"),
-                subtitle = target.path,
-                load = { service.readXmlFile(target.path) },
-                save = { text -> service.saveXmlFile(target.path, text) },
-                onBack = goBack,
+        }
+        entry<Route.XmlEdit> { route ->
+            TextEditorPage(
+                title = route.path.substringAfterLast("/"),
+                subtitle = route.path,
+                load = { service.readXmlFile(route.path) },
+                save = { text -> service.saveXmlFile(route.path, text) },
+                onBack = { backStack.removeLastOrNull() },
             )
-            else -> {}
         }
     }
 }
 
-/** 设置 tab 内容 */
+/** 设置 tab：包含设置和 UI 设置二级页面，用 NavDisplay 管理导航栈 */
 @Composable
-private fun SettingsContent(
-    current: Screen,
-    goBack: () -> Unit,
-    navigate: (Screen) -> Unit,
-) {
-    AnimatedContent(
-        targetState = current,
-        transitionSpec = {
-            // 判断是进入二级页面还是返回
-            val isRootPage = targetState !is Screen.UiSettings && targetState !is Screen.About
-            val isEntering = initialState.let { it !is Screen.UiSettings && it !is Screen.About } && !isRootPage
-            val isReturning = initialState.let { it is Screen.UiSettings || it is Screen.About } && isRootPage
+private fun SettingsTab() {
+    val backStack = rememberNavBackStack<Route>(Route.Settings)
 
-            if (isEntering) {
-                // 进入二级页面：新页面从右滑入，旧页面向左移出
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth: Int -> fullWidth },
-                    animationSpec = tween(300),
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth: Int -> -fullWidth / 4 },
-                    animationSpec = tween(300),
-                )
-            } else if (isReturning) {
-                // 返回：新页面从左滑入，旧页面向右滑出
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth: Int -> -fullWidth / 4 },
-                    animationSpec = tween(300),
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth: Int -> fullWidth },
-                    animationSpec = tween(300),
-                )
-            } else {
-                // 其他情况
-                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-            }
-        },
-        label = "settingsContentTransition",
-    ) { target ->
-        when (target) {
-            is Screen.UiSettings -> UiSettingsPage(onBack = goBack)
-            else -> SettingsPage(
-                onOpenUiSettings = { navigate(Screen.UiSettings) },
+    NavDisplay(
+        backStack = backStack,
+        onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
+    ) {
+        entry<Route.Settings> {
+            SettingsPage(
+                onOpenUiSettings = { backStack.add(Route.UiSettings) },
             )
+        }
+        entry<Route.UiSettings> {
+            UiSettingsPage(onBack = { backStack.removeLastOrNull() })
         }
     }
 }

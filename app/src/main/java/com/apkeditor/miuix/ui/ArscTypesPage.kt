@@ -49,6 +49,7 @@ fun ArscTypesPage(
             TopAppBar(
                 title = "资源",
                 navigationIcon = {
+                    BackNavigationIcon(onClick = onBack)
                     Text(
                         "返回",
                         color = MiuixTheme.colorScheme.primary,

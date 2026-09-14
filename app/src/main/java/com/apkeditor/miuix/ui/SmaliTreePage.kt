@@ -127,6 +127,7 @@ fun SmaliTreePage(
             TopAppBar(
                 title = "Smali",
                 navigationIcon = {
+                    BackNavigationIcon(onClick = onBack)
                     Text("返回",
                         color = MiuixTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)

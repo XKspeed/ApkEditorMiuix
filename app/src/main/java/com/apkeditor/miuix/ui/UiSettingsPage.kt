@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.blurSource
 import com.apkeditor.miuix.ui.util.pageContentPadding
@@ -111,13 +112,7 @@ fun UiSettingsPage(onBack: () -> Unit) {
                 SmallTopAppBar(
                     title = "UI 修改",
                     navigationIcon = {
-                        Text(
-                            text = "返回",
-                            color = MiuixTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                                .clickable(onClick = onBack),
-                        )
+                        BackNavigationIcon(onClick = onBack)
                     },
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,

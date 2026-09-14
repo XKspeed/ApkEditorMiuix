@@ -34,6 +34,7 @@ import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.ApkEntry
 import com.apkeditor.miuix.data.ApkInfo
 import com.apkeditor.miuix.data.BuildResult
+import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ErrorBox
 import com.apkeditor.miuix.ui.components.InfoRow
@@ -92,13 +93,7 @@ fun ApkInfoPage(
             TopAppBar(
                 title = info?.label ?: "APK 内容",
                 navigationIcon = {
-                    Text(
-                        "返回",
-                        color = MiuixTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                            .clickable(onClick = onBack),
-                    )
+                    BackNavigationIcon(onClick = onBack)
                 },
             )
         }

@@ -80,11 +80,7 @@ fun ArscEntriesPage(
             TopAppBar(
                 title = "资源 · $type",
                 navigationIcon = {
-                    Text("返回",
-                        color = MiuixTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            .clickable(onClick = onBack),
-                    )
+                    BackNavigationIcon(onClick = onBack)
                 },
             )
         }

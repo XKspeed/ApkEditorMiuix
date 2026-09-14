@@ -50,6 +50,7 @@ fun DexListPage(
             TopAppBar(
                 title = "DEX 文件",
                 navigationIcon = {
+                    BackNavigationIcon(onClick = onBack)
                     Text(
                         "返回",
                         color = MiuixTheme.colorScheme.primary,

@@ -149,6 +149,7 @@ fun UiSettingsPage(onBack: () -> Unit) {
                     top = scrollPadding.calculateTopPadding(),
                     start = scrollPadding.calculateLeftPadding(LayoutDirection.Ltr),
                     end = scrollPadding.calculateRightPadding(LayoutDirection.Ltr),
+                    bottom = innerPadding.calculateBottomPadding(),
                 ),
             ) {
                 item {

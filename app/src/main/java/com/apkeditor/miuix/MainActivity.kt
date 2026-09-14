@@ -41,11 +41,14 @@ class MainActivity : ComponentActivity() {
         SavedApkStore.init(this)
         com.apkeditor.miuix.data.OutputConfig.init(this)
         setContent {
-            // 主题模式（0 跟随系统 / 1 浅色 / 2 深色），设置页可切换
+            // 主题模式（0 跟随系统 / 1 浅色 / 2 深色 / 3 莫奈跟随系统 / 4 莫奈浅色 / 5 莫奈深色），设置页可切换
             val controller = remember(ThemeState.mode) {
                 when (ThemeState.mode) {
                     ThemeState.MODE_LIGHT -> ThemeController(ColorSchemeMode.Light)
                     ThemeState.MODE_DARK -> ThemeController(ColorSchemeMode.Dark)
+                    ThemeState.MODE_MONET_SYSTEM -> ThemeController(ColorSchemeMode.MonetSystem)
+                    ThemeState.MODE_MONET_LIGHT -> ThemeController(ColorSchemeMode.MonetLight)
+                    ThemeState.MODE_MONET_DARK -> ThemeController(ColorSchemeMode.MonetDark)
                     else -> ThemeController(ColorSchemeMode.System)
                 }
             }

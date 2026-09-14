@@ -39,7 +39,7 @@ import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色")
+private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色", "莫奈跟随系统", "莫奈浅色", "莫奈深色")
 
 /** 底部导航：设置 */
 @Composable

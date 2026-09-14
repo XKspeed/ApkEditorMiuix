@@ -1,4 +1,5 @@
 package com.apkeditor.miuix.ui
+import com.apkeditor.miuix.ui.component.BackNavigationIcon
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column

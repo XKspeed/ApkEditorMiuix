@@ -5,17 +5,28 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.Settings
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,15 +35,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.MiuixDialog
-import top.yukonga.miuix.kmp.basic.Button
+import com.apkeditor.miuix.ui.util.BlurredBar
+import com.apkeditor.miuix.ui.util.blurSource
+import com.apkeditor.miuix.ui.util.pageContentPadding
+import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurState
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
 
@@ -74,6 +91,22 @@ fun HomePage(onPickApk: (String) -> Unit) {
         return
     }
 
+    val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val lazyListState = rememberLazyListState()
+
+    val scrollProgress by remember {
+        derivedStateOf {
+            when {
+                lazyListState.firstVisibleItemIndex > 0 -> 1f
+                else -> 0f
+            }
+        }
+    }
+
+    val hazeState = rememberBlurState()
+    val collapsed by remember { derivedStateOf { scrollProgress == 1f } }
+    val blurActive by remember(hazeState) { derivedStateOf { hazeState != null && scrollProgress == 1f } }
+
     val files = remember(currentDir) {
         currentDir.listFiles()?.toList()?.sortedWith(
             compareBy({ !it.isDirectory }, { it.name.lowercase() })
@@ -81,25 +114,61 @@ fun HomePage(onPickApk: (String) -> Unit) {
     }
 
     Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(
-            title = currentDir.absolutePath,
-            scrollBehavior = top.yukonga.miuix.kmp.basic.MiuixScrollBehavior(),
-        ) }
-    ) { innerPadding ->
-        Column(Modifier.fillMaxSize().padding(innerPadding)) {
-            // 上级目录
-            Row(
-                Modifier.fillMaxWidth().clickable {
-                    currentDir.parentFile?.let { if (it.canRead()) currentDir = it }
-                }.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("..", fontWeight = FontWeight.Medium)
+        topBar = {
+            val barColor = if (blurActive) {
+                androidx.compose.ui.graphics.Color.Transparent
+            } else {
+                if (collapsed) MiuixTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent
             }
-            HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
+            val titleColor = MiuixTheme.colorScheme.onSurface.copy(
+                alpha = ((scrollProgress - 0.35f) / 0.65f).coerceIn(0f, 1f),
+            )
+            BlurredBar(hazeState, blurActive) {
+                SmallTopAppBar(
+                    title = currentDir.absolutePath,
+                    scrollBehavior = topAppBarScrollBehavior,
+                    color = barColor,
+                    titleColor = titleColor,
+                    defaultWindowInsetsPadding = false,
+                )
+            }
+        },
+        contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
+    ) { innerPadding ->
+        Box(modifier = Modifier.blurSource(hazeState)) {
+            val scrollPadding = pageContentPadding(
+                innerPadding,
+                innerPadding,
+                false,
+                extraStart = WindowInsets.displayCutout.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr),
+                extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),
+            )
 
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pageScrollModifiers(
+                        showTopAppBar = true,
+                        topAppBarScrollBehavior = topAppBarScrollBehavior,
+                    ),
+                contentPadding = PaddingValues(
+                    top = scrollPadding.calculateTopPadding(),
+                    start = scrollPadding.calculateLeftPadding(LayoutDirection.Ltr),
+                    end = scrollPadding.calculateRightPadding(LayoutDirection.Ltr),
+                ),
+            ) {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth().clickable {
+                            currentDir.parentFile?.let { if (it.canRead()) currentDir = it }
+                        }.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("..", fontWeight = FontWeight.Medium)
+                    }
+                    HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
+                }
                 items(files) { file ->
                     val isApk = file.extension.equals("apk", true)
                     ListItemRow(
@@ -108,10 +177,10 @@ fun HomePage(onPickApk: (String) -> Unit) {
                         else formatSize(file.length()),
                         trailing = "›",
                         onClick = {
-                    when {
-                        file.isDirectory -> currentDir = file
-                        isApk -> selectedApk = file
-                    }
+                            when {
+                                file.isDirectory -> currentDir = file
+                                isApk -> selectedApk = file
+                            }
                         },
                     )
                     HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)

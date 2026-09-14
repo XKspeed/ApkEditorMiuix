@@ -76,6 +76,7 @@ import top.yukonga.miuix.kmp.basic.Text as MiuixText
 @Composable
 fun AboutPage(
     onBack: () -> Unit,
+    onOpenThirdPartyLicenses: () -> Unit = {},
     isBlurEnabled: Boolean = true,
 ) {
     val topAppBarScrollBehavior = MiuixScrollBehavior()
@@ -386,8 +387,8 @@ private fun AboutContent(
                             onClick = { uriHandler.openUri("https://www.apache.org/licenses/LICENSE-2.0.txt") },
                         )
                         ArrowPreference(
-                            title = "开源依赖",
-                            onClick = onBack,
+                            title = "第三方许可证",
+                            onClick = onOpenThirdPartyLicenses,
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))

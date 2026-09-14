@@ -173,6 +173,9 @@ fun App(service: ApkDataService? = null) {
             entry<Route.UiSettings> {
                 UiSettingsPage(onBack = { backStack.removeLastOrNull() })
             }
+            entry<Route.ThirdPartyLicenses> {
+                ThirdPartyLicensesPage(onBack = { backStack.removeLastOrNull() })
+            }
         }
     }
 }
@@ -301,7 +304,10 @@ private fun MainPage(
                     2 -> SettingsPage(
                         onOpenUiSettings = { navigate(Route.UiSettings) },
                     )
-                    3 -> AboutPage(onBack = {})
+                    3 -> AboutPage(
+                        onBack = {},
+                        onOpenThirdPartyLicenses = { navigate(Route.ThirdPartyLicenses) },
+                    )
                 }
             }
         }

@@ -55,8 +55,11 @@ import top.yukonga.miuix.kmp.icon.extended.Download
 import top.yukonga.miuix.kmp.icon.extended.Home
 import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.Settings
+import top.yukonga.miuix.kmp.nav.core.NavCornerClipMode
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
+import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
 import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
+import top.yukonga.miuix.kmp.nav.transition.NavTransitions
 import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.abs
@@ -89,6 +92,15 @@ fun App(service: ApkDataService? = null) {
         NavDisplay(
             backStack = backStack,
             onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
+            transition = NavTransitions.MiuixDefault,
+            effects = NavDisplayEffects(
+                enableCornerClip = true,
+                cornerClipRadius = 32.dp,
+                cornerClipMode = NavCornerClipMode.All,
+                dimAmount = 0.5f,
+                blockInputDuringTransition = false,
+                backdropColor = MiuixTheme.colorScheme.surface,
+            ),
         ) {
             // 主页面：包含 Pager 和底栏
             entry<Route.Main> {

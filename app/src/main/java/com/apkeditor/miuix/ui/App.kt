@@ -10,17 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -91,13 +82,93 @@ fun App(service: ApkDataService? = null) {
     CompositionLocalProvider(
         LocalSquircleEnabled provides true,
     ) {
-        MainPage(service = svc)
+        // 全局 NavDisplay：第一个是主页面，其他是二级页面
+        val backStack = rememberNavBackStack<Route>(Route.Main)
+
+        NavDisplay(
+            backStack = backStack,
+            onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
+        ) {
+            // 主页面：包含 Pager 和底栏
+            entry<Route.Main> {
+                MainPage(
+                    service = svc,
+                    navigate = { backStack.add(it) },
+                )
+            }
+
+            // 二级页面：全屏显示，自动隐藏底栏
+            entry<Route.ApkInfo> { route ->
+                ApkInfoPage(
+                    uri = route.apkPath,
+                    service = svc,
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenManifest = { backStack.add(Route.XmlEdit("AndroidManifest.xml")) },
+                    onOpenDex = { name -> backStack.add(Route.SmaliTree(route.apkPath, listOf(name))) },
+                    onOpenAllDex = { names -> backStack.add(Route.SmaliTree(route.apkPath, names)) },
+                    onOpenArsc = { backStack.add(Route.ArscTypes(route.apkPath)) },
+                    onOpenRes = { backStack.add(Route.XmlFiles) },
+                )
+            }
+            entry<Route.SmaliTree> { route ->
+                SmaliTreePage(
+                    dexNames = route.dexNames,
+                    service = svc,
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenFile = { dex, path -> backStack.add(Route.SmaliEdit(route.apkPath, dex, path)) },
+                )
+            }
+            entry<Route.SmaliEdit> { route ->
+                TextEditorPage(
+                    title = route.filePath.substringAfterLast("/"),
+                    subtitle = route.filePath,
+                    load = { svc.readSmaliFile(route.dexName, route.filePath) },
+                    save = { text -> svc.saveSmaliFile(route.dexName, route.filePath, text) },
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+            entry<Route.ArscTypes> { route ->
+                ArscTypesPage(
+                    service = svc,
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenType = { type -> backStack.add(Route.ArscEntries(route.apkPath, type)) },
+                )
+            }
+            entry<Route.ArscEntries> { route ->
+                ArscEntriesPage(
+                    type = route.type,
+                    service = svc,
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+            entry<Route.XmlFiles> {
+                XmlFilesPage(
+                    service = svc,
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenFile = { path -> backStack.add(Route.XmlEdit(path)) },
+                )
+            }
+            entry<Route.XmlEdit> { route ->
+                TextEditorPage(
+                    title = route.path.substringAfterLast("/"),
+                    subtitle = route.path,
+                    load = { svc.readXmlFile(route.path) },
+                    save = { text -> svc.saveXmlFile(route.path, text) },
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+            entry<Route.UiSettings> {
+                UiSettingsPage(onBack = { backStack.removeLastOrNull() })
+            }
+        }
     }
 }
 
+/** 主页面：包含 Pager 和底栏 */
 @Composable
 private fun MainPage(
     service: ApkDataService,
+    navigate: (Route) -> Unit,
 ) {
     val pagerState = rememberPagerState(pageCount = { 4 })
     var selectedIndex by remember { mutableIntStateOf(0) }
@@ -210,9 +281,13 @@ private fun MainPage(
                 modifier = Modifier.fillMaxSize(),
             ) { page ->
                 when (page) {
-                    0 -> HomeTab(service = service)
+                    0 -> HomePage(
+                        onPickApk = { uri -> navigate(Route.ApkInfo(uri)) },
+                    )
                     1 -> SavedApksPage()
-                    2 -> SettingsTab()
+                    2 -> SettingsPage(
+                        onOpenUiSettings = { navigate(Route.UiSettings) },
+                    )
                     3 -> AboutPage(onBack = {})
                 }
             }
@@ -329,104 +404,6 @@ private fun BottomNavigationBar(
                     }
                 }
             }
-        }
-    }
-}
-
-/** 主页 tab：包含主页和所有二级页面，用 NavDisplay 管理导航栈 */
-@Composable
-private fun HomeTab(
-    service: ApkDataService,
-) {
-    val backStack = rememberNavBackStack<Route>(Route.Home)
-
-    NavDisplay(
-        backStack = backStack,
-        onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
-    ) {
-        entry<Route.Home> {
-            HomePage(
-                onPickApk = { uri -> backStack.add(Route.ApkInfo(uri)) },
-            )
-        }
-        entry<Route.ApkInfo> { route ->
-            ApkInfoPage(
-                uri = route.apkPath,
-                service = service,
-                onBack = { backStack.removeLastOrNull() },
-                onOpenManifest = { backStack.add(Route.XmlEdit("AndroidManifest.xml")) },
-                onOpenDex = { name -> backStack.add(Route.SmaliTree(route.apkPath, listOf(name))) },
-                onOpenAllDex = { names -> backStack.add(Route.SmaliTree(route.apkPath, names)) },
-                onOpenArsc = { backStack.add(Route.ArscTypes(route.apkPath)) },
-                onOpenRes = { backStack.add(Route.XmlFiles) },
-            )
-        }
-        entry<Route.SmaliTree> { route ->
-            SmaliTreePage(
-                dexNames = route.dexNames,
-                service = service,
-                onBack = { backStack.removeLastOrNull() },
-                onOpenFile = { dex, path -> backStack.add(Route.SmaliEdit(route.apkPath, dex, path)) },
-            )
-        }
-        entry<Route.SmaliEdit> { route ->
-            TextEditorPage(
-                title = route.filePath.substringAfterLast("/"),
-                subtitle = route.filePath,
-                load = { service.readSmaliFile(route.dexName, route.filePath) },
-                save = { text -> service.saveSmaliFile(route.dexName, route.filePath, text) },
-                onBack = { backStack.removeLastOrNull() },
-            )
-        }
-        entry<Route.ArscTypes> { route ->
-            ArscTypesPage(
-                service = service,
-                onBack = { backStack.removeLastOrNull() },
-                onOpenType = { type -> backStack.add(Route.ArscEntries(route.apkPath, type)) },
-            )
-        }
-        entry<Route.ArscEntries> { route ->
-            ArscEntriesPage(
-                type = route.type,
-                service = service,
-                onBack = { backStack.removeLastOrNull() },
-            )
-        }
-        entry<Route.XmlFiles> {
-            XmlFilesPage(
-                service = service,
-                onBack = { backStack.removeLastOrNull() },
-                onOpenFile = { path -> backStack.add(Route.XmlEdit(path)) },
-            )
-        }
-        entry<Route.XmlEdit> { route ->
-            TextEditorPage(
-                title = route.path.substringAfterLast("/"),
-                subtitle = route.path,
-                load = { service.readXmlFile(route.path) },
-                save = { text -> service.saveXmlFile(route.path, text) },
-                onBack = { backStack.removeLastOrNull() },
-            )
-        }
-    }
-}
-
-/** 设置 tab：包含设置和 UI 设置二级页面，用 NavDisplay 管理导航栈 */
-@Composable
-private fun SettingsTab() {
-    val backStack = rememberNavBackStack<Route>(Route.Settings)
-
-    NavDisplay(
-        backStack = backStack,
-        onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
-    ) {
-        entry<Route.Settings> {
-            SettingsPage(
-                onOpenUiSettings = { backStack.add(Route.UiSettings) },
-            )
-        }
-        entry<Route.UiSettings> {
-            UiSettingsPage(onBack = { backStack.removeLastOrNull() })
         }
     }
 }

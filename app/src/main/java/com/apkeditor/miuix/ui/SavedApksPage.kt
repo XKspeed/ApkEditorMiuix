@@ -4,34 +4,52 @@ import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.apkeditor.miuix.SavedApkInfo
 import com.apkeditor.miuix.SavedApkStore
+import com.apkeditor.miuix.ui.util.BlurredBar
+import com.apkeditor.miuix.ui.util.blurSource
+import com.apkeditor.miuix.ui.util.pageContentPadding
+import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurState
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -45,59 +63,111 @@ fun SavedApksPage() {
 
     LaunchedEffect(Unit) { records = SavedApkStore.list() }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(
-            title = "保存的 APK",
-            scrollBehavior = top.yukonga.miuix.kmp.basic.MiuixScrollBehavior(),
-        ) },
-    ) { innerPadding ->
-        if (records.isEmpty()) {
-            Box(
-                Modifier.fillMaxSize().padding(innerPadding).padding(32.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "还没有保存的 APK",
-                        style = MiuixTheme.textStyles.title2,
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "在主页完成「打包并签名」后，产物会显示在这里",
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        style = MiuixTheme.textStyles.subtitle,
-                        textAlign = TextAlign.Center,
-                    )
-                }
+    val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val lazyListState = rememberLazyListState()
+
+    val scrollProgress by remember {
+        derivedStateOf {
+            when {
+                lazyListState.firstVisibleItemIndex > 0 -> 1f
+                else -> 0f
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-            ) {
-                item {
-                    Text(
-                        "共 ${records.size} 个 APK",
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        style = MiuixTheme.textStyles.subtitle,
-                    )
-                }
-                items(records, key = { it.uri }) { record ->
-                    Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                        Column {
-                            SavedApkRow(record = record, onShare = {
-                                shareApk(context, record)
-                            }, onDelete = {
-                                SavedApkStore.remove(record.uri)
-                                records = SavedApkStore.list()
-                            })
-                            HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
-                        }
+        }
+    }
+
+    val hazeState = rememberBlurState()
+    val collapsed by remember { derivedStateOf { scrollProgress == 1f } }
+    val blurActive by remember(hazeState) { derivedStateOf { hazeState != null && scrollProgress == 1f } }
+
+    Scaffold(
+        topBar = {
+            val barColor = if (blurActive) {
+                Color.Transparent
+            } else {
+                if (collapsed) MiuixTheme.colorScheme.surface else Color.Transparent
+            }
+            val titleColor = MiuixTheme.colorScheme.onSurface.copy(
+                alpha = ((scrollProgress - 0.35f) / 0.65f).coerceIn(0f, 1f),
+            )
+            BlurredBar(hazeState, blurActive) {
+                SmallTopAppBar(
+                    title = "保存的 APK",
+                    scrollBehavior = topAppBarScrollBehavior,
+                    color = barColor,
+                    titleColor = titleColor,
+                    defaultWindowInsetsPadding = false,
+                )
+            }
+        },
+        contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
+    ) { innerPadding ->
+        Box(modifier = Modifier.blurSource(hazeState)) {
+            val scrollPadding = pageContentPadding(
+                innerPadding,
+                innerPadding,
+                false,
+                extraStart = WindowInsets.displayCutout.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr),
+                extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),
+            )
+
+            if (records.isEmpty()) {
+                Box(
+                    Modifier.fillMaxSize().padding(innerPadding).padding(32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "还没有保存的 APK",
+                            style = MiuixTheme.textStyles.title2,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "在主页完成「打包并签名」后，产物会显示在这里",
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            style = MiuixTheme.textStyles.subtitle,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
-                item { Spacer(Modifier.height(24.dp)) }
+            } else {
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pageScrollModifiers(
+                            showTopAppBar = true,
+                            topAppBarScrollBehavior = topAppBarScrollBehavior,
+                        ),
+                    contentPadding = PaddingValues(
+                        top = scrollPadding.calculateTopPadding(),
+                        start = scrollPadding.calculateLeftPadding(LayoutDirection.Ltr),
+                        end = scrollPadding.calculateRightPadding(LayoutDirection.Ltr),
+                    ),
+                ) {
+                    item {
+                        Text(
+                            "共 ${records.size} 个 APK",
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            style = MiuixTheme.textStyles.subtitle,
+                        )
+                    }
+                    items(records, key = { it.uri }) { record ->
+                        Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                            Column {
+                                SavedApkRow(record = record, onShare = {
+                                    shareApk(context, record)
+                                }, onDelete = {
+                                    SavedApkStore.remove(record.uri)
+                                    records = SavedApkStore.list()
+                                })
+                                HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(24.dp)) }
+                }
             }
         }
     }

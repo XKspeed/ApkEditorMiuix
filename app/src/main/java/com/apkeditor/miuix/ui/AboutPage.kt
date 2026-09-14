@@ -127,7 +127,7 @@ fun AboutPage(
             AboutContent(
                 padding = PaddingValues(
                     top = innerPadding.calculateTopPadding(),
-                    bottom = 0.dp,
+                    bottom = innerPadding.calculateBottomPadding(),
                 ),
                 topAppBarScrollBehavior = topAppBarScrollBehavior,
                 lazyListState = lazyListState,

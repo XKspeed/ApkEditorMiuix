@@ -2,8 +2,8 @@ name: Build APK
 
 on:
   push:
-    branches: [ ui-only ]
-  workflow_dispatch:      # 手动触发
+    branches: [ main ]
+  workflow_dispatch:      # 手动触发（ui-only 等分支走这里）
 
 jobs:
   build:

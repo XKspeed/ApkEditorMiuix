@@ -5,12 +5,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 
 /**
- * 全局主题模式状态（参考 miuix 官方示例 ui/Theme.kt 的实现方式）。
+ * 全局主题状态（对齐官方 example/ui/Theme.kt 的 AppTheme 参数体系）。
  * 0 = 跟随系统，1 = 浅色，2 = 深色，3 = 莫奈跟随系统，4 = 莫奈浅色，5 = 莫奈深色。
- * 设置页修改此状态，MainActivity 据此重建 ThemeController。
  */
 object ThemeState {
     var mode by mutableIntStateOf(0)
+    var seedIndex by mutableIntStateOf(0)
+    var paletteStyle by mutableIntStateOf(0)
+    var colorSpec by mutableIntStateOf(0)
 
     const val MODE_SYSTEM = 0
     const val MODE_LIGHT = 1

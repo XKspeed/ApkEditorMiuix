@@ -58,7 +58,7 @@ import java.util.Locale
 
 /** 底部导航：保存的 APK */
 @Composable
-fun SavedApksPage() {
+fun SavedApksPage(padding: PaddingValues) {
     val context = LocalContext.current
     val isWideScreen = LocalIsWideScreen.current
     var records by remember { mutableStateOf(SavedApkStore.list()) }
@@ -103,7 +103,7 @@ fun SavedApksPage() {
         Box(modifier = Modifier.blurSource(hazeState)) {
             val scrollPadding = pageContentPadding(
                 innerPadding,
-                innerPadding,
+                padding,
                 isWideScreen,
                 extraStart = WindowInsets.displayCutout.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr),
                 extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),

@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.MutatePriority
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -88,6 +89,7 @@ fun App(service: ApkDataService? = null) {
     ) {
         // 全局 NavDisplay：第一个是主页面，其他是二级页面
         val backStack = rememberNavBackStack<Route>(Route.Main)
+        BackHandler(enabled = backStack.size > 1) { backStack.removeLastOrNull() }
 
         NavDisplay(
             backStack = backStack,

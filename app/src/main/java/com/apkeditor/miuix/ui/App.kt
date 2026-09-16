@@ -291,7 +291,8 @@ private fun MainPage(
             modifier = Modifier
                 .fillMaxSize()
                 .then(Modifier.layerBackdrop(backdrop))
-                .background(surfaceColor),
+                .background(surfaceColor)
+                .padding(bottom = globalPadding.calculateBottomPadding()),
         ) {
             HorizontalPager(
                 state = pagerState,

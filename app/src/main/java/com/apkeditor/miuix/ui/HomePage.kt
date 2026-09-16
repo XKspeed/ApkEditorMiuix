@@ -40,7 +40,9 @@ import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.MiuixDialog
+import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
+import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.blurSource
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
@@ -48,18 +50,14 @@ import com.apkeditor.miuix.ui.util.rememberBlurState
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
 
-/**
- * NP 管理器风格主页（纯 miuix 组件）：
- * 文件浏览器，浏览手机存储，点文件夹进入，点 .apk 弹出操作菜单（安装/反编译）。
- */
 @Composable
 fun HomePage(onPickApk: (String) -> Unit) {
     val context = LocalContext.current
+    val isWideScreen = LocalIsWideScreen.current
     var currentDir by remember { mutableStateOf(Environment.getExternalStorageDirectory()) }
     var selectedApk by remember { mutableStateOf<File?>(null) }
     var needPermission by remember {
@@ -124,12 +122,12 @@ fun HomePage(onPickApk: (String) -> Unit) {
                 alpha = ((scrollProgress - 0.35f) / 0.65f).coerceIn(0f, 1f),
             )
             BlurredBar(hazeState, blurActive) {
-                SmallTopAppBar(
+                AdaptiveTopAppBar(
                     title = currentDir.absolutePath,
+                    showTopAppBar = true,
+                    isWideScreen = isWideScreen,
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,
-                    titleColor = titleColor,
-                    defaultWindowInsetsPadding = false,
                 )
             }
         },
@@ -139,7 +137,7 @@ fun HomePage(onPickApk: (String) -> Unit) {
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 innerPadding,
-                false,
+                isWideScreen,
                 extraStart = WindowInsets.displayCutout.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr),
                 extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),
             )
@@ -156,6 +154,7 @@ fun HomePage(onPickApk: (String) -> Unit) {
                     top = scrollPadding.calculateTopPadding(),
                     start = scrollPadding.calculateLeftPadding(LayoutDirection.Ltr),
                     end = scrollPadding.calculateRightPadding(LayoutDirection.Ltr),
+                    bottom = scrollPadding.calculateBottomPadding(),
                 ),
             ) {
                 item {
@@ -172,10 +171,10 @@ fun HomePage(onPickApk: (String) -> Unit) {
                 items(files) { file ->
                     val isApk = file.extension.equals("apk", true)
                     ListItemRow(
-                        title = (if (file.isDirectory) "📁 " else "") + file.name,
+                        title = (if (file.isDirectory) "\uD83D\uDCC1 " else "") + file.name,
                         subtitle = if (file.isDirectory) "${file.list()?.size ?: 0} 项"
                         else formatSize(file.length()),
-                        trailing = "›",
+                        trailing = "\u203A",
                         onClick = {
                             when {
                                 file.isDirectory -> currentDir = file
@@ -189,7 +188,6 @@ fun HomePage(onPickApk: (String) -> Unit) {
         }
     }
 
-    // APK 操作菜单
     selectedApk?.let { apk ->
         MiuixDialog(
             title = apk.name,

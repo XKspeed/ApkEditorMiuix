@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.captionBar
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProvidableCompositionLocal
@@ -16,7 +15,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -32,7 +30,6 @@ import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -42,17 +39,17 @@ val LocalEnableBlur: ProvidableCompositionLocal<Boolean> = staticCompositionLoca
 val LocalIsWideScreen: ProvidableCompositionLocal<Boolean> = staticCompositionLocalOf { false }
 
 /**
- * 顶栏渐进模糊统一参数（对齐官方 example/utils/PageUtils.kt）。
+ * 顶栏渐进模糊统一参数（严格对齐官方 example/utils/PageUtils.kt 的 BlurredBar progressive 分支）。
  */
 object TopBarBlurConfig {
-    /** 非渐进模式的模糊半径 */
-    const val SolidBlurRadius: Float = 25f
+    /** 渐进模式模糊半径（dp，full strength） */
+    const val BlurRadius: Float = 10f
 
-    /** 渐进模式的模糊半径 */
-    const val ProgressiveBlurRadius: Float = 10f
+    /** surface 着色叠加在模糊之上的透明度（0~1） */
+    const val SurfaceAlpha: Float = 0.3f
 
-    /** surface 着色叠加在模糊之上的透明度（0~1），越大栏越实 */
-    const val SurfaceAlpha: Float = 0.8f
+    /** 渐进曲线 */
+    const val Curve: Float = 2.2f
 }
 
 /**
@@ -85,8 +82,7 @@ fun isInDarkTheme(): Boolean {
 }
 
 /**
- * 顶栏模糊容器（对齐官方 PageUtils.kt 的 BlurredBar）。
- * 使用 miuix-blur 的 textureBlur / progressiveTextureBlur。
+ * 顶栏模糊容器（严格对齐官方 PageUtils.kt 的 BlurredBar，progressive 模式）。
  */
 @Composable
 fun BlurredBar(
@@ -99,10 +95,11 @@ fun BlurredBar(
     val surfaceColor = MiuixTheme.colorScheme.surface
     Box(
         modifier = if (blurActive) {
-            Modifier.textureBlur(
+            Modifier.progressiveTextureBlur(
                 backdrop = backdrop,
                 shape = RectangleShape,
-                blurRadius = TopBarBlurConfig.SolidBlurRadius,
+                gradient = ProgressiveBlur.Top.copy(curve = TopBarBlurConfig.Curve),
+                blurRadius = TopBarBlurConfig.BlurRadius,
                 colors = BlurDefaults.blurColors(
                     blendColors = listOf(
                         BlendColorEntry(color = surfaceColor.copy(TopBarBlurConfig.SurfaceAlpha)),

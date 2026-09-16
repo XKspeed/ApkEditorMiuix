@@ -37,7 +37,9 @@ import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ThemeState
 import com.apkeditor.miuix.data.ApkCacheManager
 import com.apkeditor.miuix.data.OutputConfig
+import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
+import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.blurSource
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
@@ -50,7 +52,6 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -65,6 +66,7 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色", "莫奈�
 fun SettingsPage(
     onOpenUiSettings: () -> Unit = {},
 ) {
+    val isWideScreen = LocalIsWideScreen.current
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val lazyListState = rememberLazyListState()
 
@@ -88,16 +90,13 @@ fun SettingsPage(
             } else {
                 if (collapsed) MiuixTheme.colorScheme.surface else Color.Transparent
             }
-            val titleColor = MiuixTheme.colorScheme.onSurface.copy(
-                alpha = ((scrollProgress - 0.35f) / 0.65f).coerceIn(0f, 1f),
-            )
             BlurredBar(hazeState, blurActive) {
-                SmallTopAppBar(
+                AdaptiveTopAppBar(
                     title = "设置",
+                    showTopAppBar = true,
+                    isWideScreen = isWideScreen,
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,
-                    titleColor = titleColor,
-                    defaultWindowInsetsPadding = false,
                 )
             }
         },
@@ -107,7 +106,7 @@ fun SettingsPage(
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 innerPadding,
-                false,
+                isWideScreen,
                 extraStart = WindowInsets.displayCutout.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr),
                 extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),
             )
@@ -132,7 +131,6 @@ fun SettingsPage(
                 }
                 item {
                     Card(modifier = Modifier.padding(horizontal = 12.dp)) {
-                        // 主题切换（分组下拉）
                         OverlayDropdownPreference(
                             title = "主题",
                             entries = listOf(
@@ -157,7 +155,6 @@ fun SettingsPage(
                             ),
                             collapseOnSelection = true,
                         )
-                        // UI 修改入口
                         ArrowPreference(
                             title = "UI 修改",
                             summary = "底栏模糊 · 悬浮底栏 · 液态玻璃",
@@ -186,7 +183,6 @@ fun SettingsPage(
     }
 }
 
-/** 缓存管理：显示缓存占用 + 清除缓存（磁盘反编译产物 + 内存树） */
 @Composable
 private fun CachePreference() {
     val context = LocalContext.current
@@ -195,7 +191,6 @@ private fun CachePreference() {
     var sizeText by remember { mutableStateOf("—") }
     var clearing by remember { mutableStateOf(false) }
 
-    // 进入设置页时异步算一次缓存大小
     LaunchedEffect(Unit) {
         sizeText = withContext(Dispatchers.IO) { cacheMgr.totalSizeText() }
     }
@@ -229,7 +224,6 @@ private fun CachePreference() {
     }
 }
 
-/** 输出目录配置项：全部文件权限 / SAF 选择 / 恢复默认 */
 @Composable
 private fun OutputDirectoryPreference() {
     val context = LocalContext.current
@@ -237,7 +231,6 @@ private fun OutputDirectoryPreference() {
     var hasAccess by remember { mutableStateOf(OutputConfig.hasAllFilesAccess(context)) }
     var dirName by remember { mutableStateOf(OutputConfig.displayName(context)) }
 
-    // 从系统设置页返回时刷新
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
@@ -289,26 +282,13 @@ private fun OutputDirectoryPreference() {
                         }
                         .padding(vertical = 8.dp),
                 )
-                HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
             }
             Text(
-                "选择目录（SAF，备选）",
+                "选择输出目录（SAF）",
                 color = MiuixTheme.colorScheme.primary,
                 style = MiuixTheme.textStyles.main,
                 modifier = Modifier
                     .clickable { picker.launch(null) }
-                    .padding(vertical = 8.dp),
-            )
-            HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
-            Text(
-                "恢复默认",
-                color = MiuixTheme.colorScheme.primary,
-                style = MiuixTheme.textStyles.main,
-                modifier = Modifier
-                    .clickable {
-                        OutputConfig.setTreeUri(null, null)
-                        dirName = OutputConfig.displayName(context)
-                    }
                     .padding(vertical = 8.dp),
             )
             Spacer(Modifier.height(6.dp))

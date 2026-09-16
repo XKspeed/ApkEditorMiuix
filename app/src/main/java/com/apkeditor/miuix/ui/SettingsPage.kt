@@ -64,6 +64,7 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色", "莫奈�
 /** 底部导航：设置 */
 @Composable
 fun SettingsPage(
+    padding: PaddingValues,
     onOpenUiSettings: () -> Unit = {},
 ) {
     val isWideScreen = LocalIsWideScreen.current
@@ -105,7 +106,7 @@ fun SettingsPage(
         Box(modifier = Modifier.blurSource(hazeState)) {
             val scrollPadding = pageContentPadding(
                 innerPadding,
-                innerPadding,
+                padding,
                 isWideScreen,
                 extraStart = WindowInsets.displayCutout.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr),
                 extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),

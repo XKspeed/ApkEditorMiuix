@@ -176,7 +176,7 @@ fun ThirdPartyLicensesPage(onBack: () -> Unit) {
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
         val uriHandler = LocalUriHandler.current
-        Box(modifier = Modifier.layerBackdrop(backdrop)) {
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 innerPadding,

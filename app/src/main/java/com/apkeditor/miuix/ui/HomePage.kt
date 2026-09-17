@@ -41,10 +41,8 @@ import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
-import com.apkeditor.miuix.ui.util.blurSource
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
-import com.apkeditor.miuix.ui.util.rememberBlurState
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -102,9 +100,9 @@ fun HomePage(
         }
     }
 
-    val hazeState = rememberBlurState()
+    val backdrop = rememberBlurBackdrop()
     val collapsed by remember { derivedStateOf { scrollProgress == 1f } }
-    val blurActive by remember(hazeState) { derivedStateOf { hazeState != null && scrollProgress == 1f } }
+    val blurActive by remember(backdrop) { derivedStateOf { backdrop != null && scrollProgress == 1f } }
 
     val files = remember(currentDir) {
         currentDir.listFiles()?.toList()?.sortedWith(
@@ -119,7 +117,7 @@ fun HomePage(
             } else {
                 if (collapsed) MiuixTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent
             }
-            BlurredBar(hazeState, blurActive) {
+            BlurredBar(backdrop, blurActive) {
                 AdaptiveTopAppBar(
                     title = currentDir.absolutePath,
                     showTopAppBar = true,
@@ -131,7 +129,7 @@ fun HomePage(
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        Box(modifier = Modifier.blurSource(hazeState)) {
+        Box {
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 padding,

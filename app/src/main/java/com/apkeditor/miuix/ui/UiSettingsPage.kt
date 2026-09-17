@@ -32,10 +32,10 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.util.BlurredBar
-import com.apkeditor.miuix.ui.util.blurSource
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
-import com.apkeditor.miuix.ui.util.rememberBlurState
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -94,9 +94,9 @@ fun UiSettingsPage(onBack: () -> Unit) {
         }
     }
 
-    val hazeState = rememberBlurState()
+    val backdrop = rememberBlurBackdrop()
     val collapsed by remember { derivedStateOf { scrollProgress == 1f } }
-    val blurActive by remember(hazeState) { derivedStateOf { hazeState != null && scrollProgress == 1f } }
+    val blurActive by remember(backdrop) { derivedStateOf { backdrop != null && scrollProgress == 1f } }
 
     Scaffold(
         topBar = {
@@ -108,7 +108,7 @@ fun UiSettingsPage(onBack: () -> Unit) {
             val titleColor = MiuixTheme.colorScheme.onSurface.copy(
                 alpha = ((scrollProgress - 0.35f) / 0.65f).coerceIn(0f, 1f),
             )
-            BlurredBar(hazeState, blurActive) {
+            BlurredBar(backdrop, blurActive) {
                 SmallTopAppBar(
                     title = "UI 修改",
                     navigationIcon = {
@@ -123,7 +123,7 @@ fun UiSettingsPage(onBack: () -> Unit) {
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        Box(modifier = Modifier.blurSource(hazeState)) {
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 innerPadding,

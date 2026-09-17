@@ -38,17 +38,18 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.apkeditor.miuix.SavedApkInfo
 import com.apkeditor.miuix.SavedApkStore
+import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
-import com.apkeditor.miuix.ui.util.blurSource
+import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
-import com.apkeditor.miuix.ui.util.rememberBlurState
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.text.SimpleDateFormat
@@ -57,8 +58,9 @@ import java.util.Locale
 
 /** 底部导航：保存的 APK */
 @Composable
-fun SavedApksPage() {
+fun SavedApksPage(padding: PaddingValues) {
     val context = LocalContext.current
+    val isWideScreen = LocalIsWideScreen.current
     var records by remember { mutableStateOf(SavedApkStore.list()) }
 
     LaunchedEffect(Unit) { records = SavedApkStore.list() }
@@ -75,9 +77,9 @@ fun SavedApksPage() {
         }
     }
 
-    val hazeState = rememberBlurState()
+    val backdrop = rememberBlurBackdrop()
     val collapsed by remember { derivedStateOf { scrollProgress == 1f } }
-    val blurActive by remember(hazeState) { derivedStateOf { hazeState != null && scrollProgress == 1f } }
+    val blurActive by remember(backdrop) { derivedStateOf { backdrop != null && scrollProgress == 1f } }
 
     Scaffold(
         topBar = {
@@ -86,26 +88,23 @@ fun SavedApksPage() {
             } else {
                 if (collapsed) MiuixTheme.colorScheme.surface else Color.Transparent
             }
-            val titleColor = MiuixTheme.colorScheme.onSurface.copy(
-                alpha = ((scrollProgress - 0.35f) / 0.65f).coerceIn(0f, 1f),
-            )
-            BlurredBar(hazeState, blurActive) {
-                SmallTopAppBar(
+            BlurredBar(backdrop, blurActive) {
+                AdaptiveTopAppBar(
                     title = "保存的 APK",
+                    showTopAppBar = true,
+                    isWideScreen = isWideScreen,
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,
-                    titleColor = titleColor,
-                    defaultWindowInsetsPadding = false,
                 )
             }
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        Box(modifier = Modifier.blurSource(hazeState)) {
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
             val scrollPadding = pageContentPadding(
                 innerPadding,
-                innerPadding,
-                false,
+                padding,
+                isWideScreen,
                 extraStart = WindowInsets.displayCutout.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr),
                 extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),
             )
@@ -143,6 +142,7 @@ fun SavedApksPage() {
                         top = scrollPadding.calculateTopPadding(),
                         start = scrollPadding.calculateLeftPadding(LayoutDirection.Ltr),
                         end = scrollPadding.calculateRightPadding(LayoutDirection.Ltr),
+                        bottom = scrollPadding.calculateBottomPadding(),
                     ),
                 ) {
                     item {
@@ -202,7 +202,6 @@ private fun formatTime(time: Long): String =
 
 private fun shareApk(context: android.content.Context, record: SavedApkInfo) {
     try {
-        // 本地文件路径（统一输出目录）用 FileProvider；content:// 直接分享
         val uri = when {
             record.uri.startsWith("file:") || record.uri.startsWith("/") -> {
                 val f = java.io.File(android.net.Uri.parse(record.uri).path ?: return)
@@ -218,6 +217,5 @@ private fun shareApk(context: android.content.Context, record: SavedApkInfo) {
         }
         context.startActivity(Intent.createChooser(intent, "分享 ${record.name}"))
     } catch (e: Exception) {
-        // SAF uri 可能已过期，提示用户
     }
 }

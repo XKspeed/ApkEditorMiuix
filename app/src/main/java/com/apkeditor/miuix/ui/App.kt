@@ -58,6 +58,9 @@ import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.nav.core.NavCornerClipMode
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
 import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
 import top.yukonga.miuix.kmp.nav.transition.NavTransitions
 import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
@@ -88,6 +91,8 @@ fun App(service: ApkDataService? = null) {
     ) {
         // 全局 NavDisplay：第一个是主页面，其他是二级页面
         val backStack = rememberNavBackStack<Route>(Route.Main)
+        val navEventState = rememberNavigationEventState(NavigationEventInfo.None)
+        NavigationBackHandler(state = navEventState, isBackEnabled = backStack.size > 1, onBackCompleted = { backStack.removeLastOrNull() })
 
         NavDisplay(
             backStack = backStack,
@@ -298,10 +303,12 @@ private fun MainPage(
             ) { page ->
                 when (page) {
                     0 -> HomePage(
+                        padding = globalPadding,
                         onPickApk = { uri -> navigate(Route.ApkInfo(uri)) },
                     )
-                    1 -> SavedApksPage()
+                    1 -> SavedApksPage(padding = globalPadding)
                     2 -> SettingsPage(
+                        padding = globalPadding,
                         onOpenUiSettings = { navigate(Route.UiSettings) },
                     )
                     3 -> AboutPage(

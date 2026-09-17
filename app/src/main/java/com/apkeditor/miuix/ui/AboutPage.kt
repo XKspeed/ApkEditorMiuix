@@ -122,7 +122,7 @@ fun AboutPage(
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        Box {
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
             AboutContent(
                 padding = PaddingValues(
                     top = innerPadding.calculateTopPadding(),

@@ -40,10 +40,8 @@ import com.apkeditor.miuix.data.OutputConfig
 import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
-import com.apkeditor.miuix.ui.util.blurSource
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
-import com.apkeditor.miuix.ui.util.rememberBlurState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -80,9 +78,9 @@ fun SettingsPage(
         }
     }
 
-    val hazeState = rememberBlurState()
+    val backdrop = rememberBlurBackdrop()
     val collapsed by remember { derivedStateOf { scrollProgress == 1f } }
-    val blurActive by remember(hazeState) { derivedStateOf { hazeState != null && scrollProgress == 1f } }
+    val blurActive by remember(backdrop) { derivedStateOf { backdrop != null && scrollProgress == 1f } }
 
     Scaffold(
         topBar = {
@@ -91,7 +89,7 @@ fun SettingsPage(
             } else {
                 if (collapsed) MiuixTheme.colorScheme.surface else Color.Transparent
             }
-            BlurredBar(hazeState, blurActive) {
+            BlurredBar(backdrop, blurActive) {
                 AdaptiveTopAppBar(
                     title = "设置",
                     showTopAppBar = true,
@@ -103,7 +101,7 @@ fun SettingsPage(
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        Box(modifier = Modifier.blurSource(hazeState)) {
+        Box {
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 padding,

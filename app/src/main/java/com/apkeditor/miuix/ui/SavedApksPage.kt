@@ -100,7 +100,7 @@ fun SavedApksPage(padding: PaddingValues) {
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        Box(modifier = Modifier.layerBackdrop(backdrop)) {
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 padding,

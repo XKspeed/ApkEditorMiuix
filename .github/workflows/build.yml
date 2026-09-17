@@ -1,9 +1,10 @@
 name: Build APK
+run-name: "${{ github.event.head_commit.message || github.ref_name }} · ${{ github.sha }}"
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:      # 手动触发
+  workflow_dispatch:      # 手动触发（ui-only 等分支走这里）
 
 jobs:
   build:

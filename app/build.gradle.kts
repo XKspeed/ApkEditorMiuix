@@ -68,6 +68,7 @@ dependencies {
     implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
 
     implementation("com.github.REAndroid:ARSCLib:V1.4.0")
+    implementation("com.github.apk-editor:aXML:b71030bd5ede39d8f9872bd8bd85e245e1c34b7a")
     implementation("org.smali:baksmali:2.5.2")
     implementation("org.smali:smali:2.5.2")
     implementation("com.android.tools.build:apksig:8.13.2")

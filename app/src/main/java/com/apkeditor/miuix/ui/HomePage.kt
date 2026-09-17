@@ -43,6 +43,7 @@ import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold

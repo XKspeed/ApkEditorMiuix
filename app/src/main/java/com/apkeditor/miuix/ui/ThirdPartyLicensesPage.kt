@@ -22,10 +22,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.util.BlurredBar
-import com.apkeditor.miuix.ui.util.blurSource
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
-import com.apkeditor.miuix.ui.util.rememberBlurState
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -157,11 +155,11 @@ fun ThirdPartyLicensesPage(onBack: () -> Unit) {
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val lazyListState = rememberLazyListState()
 
-    val hazeState = rememberBlurState()
+    val backdrop = rememberBlurBackdrop()
 
     Scaffold(
         topBar = {
-            BlurredBar(hazeState, true) {
+            BlurredBar(backdrop, true) {
                 SmallTopAppBar(
                     title = "第三方许可证",
                     navigationIcon = {
@@ -176,7 +174,7 @@ fun ThirdPartyLicensesPage(onBack: () -> Unit) {
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
         val uriHandler = LocalUriHandler.current
-        Box(modifier = Modifier.blurSource(hazeState)) {
+        Box {
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 innerPadding,

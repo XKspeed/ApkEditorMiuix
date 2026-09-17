@@ -24,6 +24,7 @@ import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -175,7 +176,7 @@ fun ThirdPartyLicensesPage(onBack: () -> Unit) {
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
         val uriHandler = LocalUriHandler.current
-        Box {
+        Box(modifier = Modifier.layerBackdrop(backdrop)) {
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 innerPadding,

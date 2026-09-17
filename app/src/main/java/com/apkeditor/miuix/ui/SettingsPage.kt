@@ -42,6 +42,7 @@ import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

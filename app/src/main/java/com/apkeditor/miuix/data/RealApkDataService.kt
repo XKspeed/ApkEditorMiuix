@@ -246,29 +246,26 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                     }
                 }
             }
-            // 2) 锁外：并行 baksmali 反汇编
-            val result = kotlinx.coroutines.coroutineScope {
-                dexNames.map { dex ->
-                    async {
-                        smaliCache[dex]?.let { return@async dex to it }
-                        val dir = dexWorkDir(dex)
-                        val smaliDir = File(dir, smaliDirName(dex))
-                        if (!smaliDir.exists()) {
-                            smaliDir.mkdirs()
-                            val dexFileObj = DexFileFactory.loadDexFile(
-                                File(dir, dex), Opcodes.getDefault(),
-                            )
-                            val threadCount = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
-                            val options = BaksmaliOptions().apply {
-                                apiLevel = currentMinSdk
-                            }
-                            Baksmali.disassembleDexFile(dexFileObj, smaliDir, threadCount, options)
-                        }
-                        val files = collectSmali(smaliDir)
-                        smaliCache[dex] = files
-                        dex to files
+            // 2) 锁外：逐 dex 反汇编（单 dex 内多线程用满核心，避免双层并行导致线程爆炸）
+            val threadCount = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
+            val result = HashMap<String, List<String>>()
+            for (dex in dexNames) {
+                smaliCache[dex]?.let { result[dex] = it; continue }
+                val dir = dexWorkDir(dex)
+                val smaliDir = File(dir, smaliDirName(dex))
+                if (!smaliDir.exists()) {
+                    smaliDir.mkdirs()
+                    val dexFileObj = DexFileFactory.loadDexFile(
+                        File(dir, dex), Opcodes.getDefault(),
+                    )
+                    val options = BaksmaliOptions().apply {
+                        apiLevel = currentMinSdk
                     }
-                }.awaitAll().toMap()
+                    Baksmali.disassembleDexFile(dexFileObj, smaliDir, threadCount, options)
+                }
+                val files = collectSmali(smaliDir)
+                smaliCache[dex] = files
+                result[dex] = files
             }
             result
         }

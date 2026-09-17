@@ -42,6 +42,7 @@ import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -102,7 +103,7 @@ fun SettingsPage(
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        Box {
+        Box(modifier = Modifier.layerBackdrop(backdrop)) {
             val scrollPadding = pageContentPadding(
                 innerPadding,
                 padding,

@@ -474,8 +474,11 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 rawApkFile?.let { module = ApkModule.loadApkFile(it) }
                 smaliCache.clear()
                 clearTreeCaches()
-                // 连同磁盘上的反编译产物一起丢掉，下次进入即从原始 APK 重新开始
-                runCatching { workDir().deleteRecursively() }
+                // 连同磁盘上的反编译产物一起丢掉，下次进入即从原始 APK 重新开始。
+                // 末尾显式 Unit：withLock 块的返回值会决定外层 runCatching 的类型，
+                // 不收敛的话结果是 Result<Boolean>，与接口声明的 Result<Unit> 不匹配。
+                workDir().deleteRecursively()
+                Unit
             }
         }
     }

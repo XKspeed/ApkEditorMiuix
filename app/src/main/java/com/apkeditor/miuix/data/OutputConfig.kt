@@ -21,6 +21,7 @@ object OutputConfig {
     private const val KEY_TREE = "output_tree_uri"
     private const val KEY_DIR_NAME = "output_dir_name"
     private const val KEY_USE_PUBLIC = "use_public_dir"
+    private const val KEY_SIGN_ON_BUILD = "sign_on_build"
 
     fun init(context: Context) {
         if (appContext == null) {
@@ -57,6 +58,20 @@ object OutputConfig {
     fun getDirName(): String? = prefs().getString(KEY_DIR_NAME, null)
     fun setTreeUri(uri: String?, name: String?) {
         prefs().edit().putString(KEY_TREE, uri).putString(KEY_DIR_NAME, name).apply()
+    }
+
+    // ---- 打包是否签名（默认不签） ----
+
+    /**
+     * 打包时是否用内置密钥签名。
+     *
+     * 默认 **false**：直接输出未签名 APK，交给用户自行签名。
+     * 注意未签名产物无法直接安装，要装需要在设置里打开此项。
+     */
+    fun isSignEnabled(): Boolean = prefs().getBoolean(KEY_SIGN_ON_BUILD, false)
+
+    fun setSignEnabled(enabled: Boolean) {
+        prefs().edit().putBoolean(KEY_SIGN_ON_BUILD, enabled).apply()
     }
 
     /** 计算当前输出目录的显示名 */

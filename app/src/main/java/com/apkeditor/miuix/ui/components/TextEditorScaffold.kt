@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.lang.Language
 import io.github.rosemoe.sora.widget.CodeEditor
@@ -36,20 +35,12 @@ import io.github.rosemoe.sora.widget.EditorSearcher.SearchOptions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
-import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
-import top.yukonga.miuix.kmp.basic.TopAppBar
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.More
-import top.yukonga.miuix.kmp.icon.extended.Search
-import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -223,40 +214,23 @@ fun TextEditorScaffold(
             .onFailure { Toast.makeText(ctx, "全部替换失败：${it.message}", Toast.LENGTH_SHORT).show() }
     }
 
-    val moreEntry = DropdownEntry(
-        items = listOf(
-            DropdownItem(text = "查找替换", onClick = { showSearchBar = true }),
-            DropdownItem(text = "跳转到行", onClick = { showGoto = true }),
-            DropdownItem(text = "撤销", onClick = { runCatching { refs.editor?.undo() } }),
-            DropdownItem(text = "重做", onClick = { runCatching { refs.editor?.redo() } }),
-            DropdownItem(text = "保存", onClick = { doSave() }),
-            DropdownItem(text = "退出", onClick = onBack),
-        ),
-    )
-
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
+            // 与列表页共用同一个顶栏组件，避免各页各自拼 TopAppBar 导致样式漂移
+            MiuixTopBar(
                 title = if (dirty) "$title *" else title,
                 subtitle = subtitle,
-                navigationIcon = { BackNavigationIcon(onClick = onBack) },
-                actions = {
-                    IconButton(onClick = { showSearchBar = !showSearchBar }) {
-                        Icon(
-                            imageVector = MiuixIcons.Search,
-                            contentDescription = "查找替换",
-                            tint = MiuixTheme.colorScheme.onBackground,
-                        )
-                    }
-                    OverlayIconDropdownMenu(entry = moreEntry) {
-                        Icon(
-                            imageVector = MiuixIcons.More,
-                            contentDescription = "更多",
-                            tint = MiuixTheme.colorScheme.onBackground,
-                        )
-                    }
-                },
+                onBack = onBack,
+                onSearch = { showSearchBar = !showSearchBar },
+                menuItems = listOf(
+                    DropdownItem(text = "查找替换", onClick = { showSearchBar = true }),
+                    DropdownItem(text = "跳转到行", onClick = { showGoto = true }),
+                    DropdownItem(text = "撤销", onClick = { runCatching { refs.editor?.undo() } }),
+                    DropdownItem(text = "重做", onClick = { runCatching { refs.editor?.redo() } }),
+                    DropdownItem(text = "保存", onClick = { doSave() }),
+                    DropdownItem(text = "退出", onClick = onBack),
+                ),
             )
         },
         bottomBar = {

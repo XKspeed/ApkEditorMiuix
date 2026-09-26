@@ -67,25 +67,23 @@ class MockApkDataService : ApkDataService {
         )
     }
 
-    override suspend fun listSmaliTree(
+    override suspend fun listSmaliMergedTree(
         dexNames: List<String>,
         onProgress: ((Int, Int) -> Unit)?,
-    ): Result<Map<String, List<SmaliTreeNode>>> {
+    ): Result<List<SmaliTreeNode>> {
         mockDelay()
-        val map = LinkedHashMap<String, List<SmaliTreeNode>>()
+        val merged = mutableListOf<SmaliTreeNode>()
         dexNames.forEachIndexed { index, dex ->
             onProgress?.invoke(index, dexNames.size)
             val files = listSmaliFiles(dex).getOrThrow()
-            map[dex] = listOf(
-                SmaliTreeNode(name = "smali", path = dex, isDir = true, dex = dex,
-                    children = files.map { f ->
-                        SmaliTreeNode(name = f.substringAfterLast("/"), path = f, isDir = false, dex = dex)
-                    }
-                )
+            merged.addAll(
+                files.map { f ->
+                    SmaliTreeNode(name = f.substringAfterLast("/"), path = f, isDir = false, dex = dex)
+                }
             )
         }
         onProgress?.invoke(dexNames.size, dexNames.size)
-        return Result.success(map)
+        return Result.success(merged)
     }
 
     override suspend fun searchResources(type: String?, keyword: String, maxResults: Int): Result<List<ResourceEntryInfo>> {

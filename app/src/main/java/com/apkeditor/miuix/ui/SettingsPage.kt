@@ -57,6 +57,7 @@ import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色", "莫奈跟随系统", "莫奈浅色", "莫奈深色")
@@ -231,6 +232,7 @@ private fun OutputDirectoryPreference() {
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var hasAccess by remember { mutableStateOf(OutputConfig.hasAllFilesAccess(context)) }
     var dirName by remember { mutableStateOf(OutputConfig.displayName(context)) }
+    var signEnabled by remember { mutableStateOf(OutputConfig.isSignEnabled()) }
 
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -293,6 +295,17 @@ private fun OutputDirectoryPreference() {
                     .padding(vertical = 8.dp),
             )
             Spacer(Modifier.height(6.dp))
+            HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
+            SwitchPreference(
+                title = "打包时签名",
+                summary = "关闭时直接输出未签名 APK（未签名产物无法直接安装）",
+                checked = signEnabled,
+                onCheckedChange = {
+                    signEnabled = it
+                    OutputConfig.setSignEnabled(it)
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

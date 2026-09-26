@@ -79,8 +79,10 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     /** smali 反编译缓存：返回时不重复反编译（首次反编译后复用） */
     private val smaliCache = HashMap<String, List<String>>()
-    /** smali 目录树缓存：按 dexNames 分组，切换界面回来直接复用，不重建 */
-    private val smaliTreeCache = HashMap<String, List<SmaliTreeNode>>()
+    /** 每个 dex 的目录树节点缓存：换一组 dexNames 时不必重新建树 */
+    private val dexNodeCache = HashMap<String, SmaliTreeNode>()
+    /** 合并后的目录树缓存：按 dexNames 组合缓存，退出再进来直接复用 */
+    private val smaliMergedCache = HashMap<String, List<SmaliTreeNode>>()
 
     /** 当前 APK 的 minSdk（用于 baksmali 设置正确的 Opcodes，同 NP 管理器） */
     private var currentMinSdk: Int = 35
@@ -95,7 +97,13 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     /** 清理内存中的 smali 缓存与目录树缓存（供清除缓存调用） */
     private fun clearMemoryCache() {
         smaliCache.clear()
-        smaliTreeCache.clear()
+        clearTreeCaches()
+    }
+
+    /** 清理目录树相关缓存（文件增删改名、换 APK 后调用） */
+    private fun clearTreeCaches() {
+        dexNodeCache.clear()
+        smaliMergedCache.clear()
     }
 
     // ---------- 基础 ----------
@@ -131,7 +139,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 rawApkFile = input
                 apkFileName = Uri.parse(uri).lastPathSegment ?: "input.apk"
                 if (hashChanged) smaliCache.clear()
-                if (hashChanged) smaliTreeCache.clear()
+                if (hashChanged) clearTreeCaches()
                 modifiedDex.clear()
                 modifiedXml.clear()
                 modifiedArsc = false
@@ -297,61 +305,83 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         r
     }
 
-    override suspend fun listSmaliTree(
+    override suspend fun listSmaliMergedTree(
         dexNames: List<String>,
         onProgress: ((Int, Int) -> Unit)?,
-    ): Result<Map<String, List<SmaliTreeNode>>> = runCatching {
+    ): Result<List<SmaliTreeNode>> = runCatching {
         val key = dexNames.joinToString(",")
-        smaliTreeCache[key]?.let { cached ->
-            return@runCatching cached.groupBy { it.dex }
-        }
-        val topNodes = mutableListOf<SmaliTreeNode>()
+        smaliMergedCache[key]?.let { return@runCatching it }
+        val roots = mutableListOf<SmaliTreeNode>()
         dexNames.forEachIndexed { index, dex ->
             onProgress?.invoke(index, dexNames.size)
-            val files = listSmaliFiles(dex).getOrThrow()
-            topNodes.add(buildDexNode(dex, files))
+            val cached = dexNodeCache[dex]
+            roots.add(
+                cached ?: buildDexNode(dex, listSmaliFiles(dex).getOrThrow())
+                    .also { dexNodeCache[dex] = it }
+            )
         }
         onProgress?.invoke(dexNames.size, dexNames.size)
-        smaliTreeCache[key] = topNodes
-        topNodes.groupBy { it.dex }
+        val merged = mergeTopNodes(roots.flatMap { it.children })
+        smaliMergedCache[key] = merged
+        merged
+    }
+
+    /** 建树中间态：先用 map 归并目录，最后一次性转成不可变节点 */
+    private class TreeBuild(val name: String, val path: String, val isDir: Boolean, val dex: String) {
+        val dirs = LinkedHashMap<String, TreeBuild>()
+        val leaves = ArrayList<TreeBuild>()
     }
 
     /** 由 (dex, 文件相对路径) 构建一个 dex 顶层目录节点 */
     private fun buildDexNode(dex: String, files: List<String>): SmaliTreeNode {
         val rootName = if (dex == "classes.dex") "smali" else "smali_" + dex.removeSuffix(".dex")
-        val rootChildren = mutableListOf<SmaliTreeNode>()
+        val root = TreeBuild(rootName, dex, true, dex)
         files.sorted().forEach { file ->
             // file 形如 smali/com/apkeditor/miuix/MainActivity.smali（含 smali 前缀）
-            val parts = file.split("/")
-            val rel = parts.drop(1) // 去掉 smali 前缀
-            insertPath(rootChildren, rel, file, dex, "")
+            val parts = file.split("/").drop(1) // 去掉 smali 前缀
+            if (parts.isEmpty()) return@forEach
+            var cur = root
+            var acc = ""
+            parts.dropLast(1).forEach { seg ->
+                acc = if (acc.isEmpty()) seg else "$acc/$seg"
+                cur = cur.dirs.getOrPut(seg) { TreeBuild(seg, acc, true, dex) }
+            }
+            cur.leaves.add(TreeBuild(parts.last(), file, false, dex))
         }
-        return SmaliTreeNode(name = rootName, path = dex, isDir = true, dex = dex, children = rootChildren)
+        return toNode(root)
     }
 
-    private fun insertPath(
-        children: MutableList<SmaliTreeNode>,
-        parts: List<String>,
-        fullPath: String,
-        dex: String,
-        parentPath: String,
-    ) {
-        if (parts.isEmpty()) return
-        val head = parts.first()
-        val dirPath = if (parentPath.isEmpty()) head else "$parentPath/$head"
-        if (parts.size == 1) {
-            children.add(SmaliTreeNode(name = head, path = fullPath, isDir = false, dex = dex))
-            return
+    /**
+     * 中间态转不可变节点。子节点按名字排序，与原先「按完整路径排序后依次插入」的展示顺序一致。
+     *
+     * 原先的 insertPath 每插一个节点都要 dir.copy(...) 并 children.indexOf(dir)，
+     * 而 SmaliTreeNode 是 data class，indexOf 会递归比较整棵子树 ——
+     * 几万个 smali 文件时是 O(n²) 级别开销（比 baksmali 本身还慢，
+     * 表现为"退出再进来像又重新反编译了一遍"）。这里改成先归并再一次性转换。
+     */
+    private fun toNode(b: TreeBuild): SmaliTreeNode {
+        val children = (b.leaves + b.dirs.values).sortedBy { it.name }.map { child ->
+            if (child.isDir) toNode(child)
+            else SmaliTreeNode(child.name, child.path, false, child.dex)
         }
-        var dir = children.firstOrNull { it.name == head && it.isDir }
-        if (dir == null) {
-            dir = SmaliTreeNode(name = head, path = dirPath, isDir = true, dex = dex)
-            children.add(dir)
+        return SmaliTreeNode(b.name, b.path, b.isDir, b.dex, children)
+    }
+
+    /** 合并多个 dex 的顶层节点：同名目录递归合并 */
+    private fun mergeTopNodes(nodes: List<SmaliTreeNode>): List<SmaliTreeNode> {
+        val byName = LinkedHashMap<String, SmaliTreeNode>()
+        nodes.forEach { node ->
+            val existing = byName[node.name]
+            when {
+                existing == null -> byName[node.name] = node
+                existing.isDir && node.isDir ->
+                    byName[node.name] = existing.copy(
+                        children = mergeTopNodes(existing.children + node.children)
+                    )
+                // 同名但非目录（两个 dex 有同名文件）：保留先出现的
+            }
         }
-        val mutable = dir.children.toMutableList()
-        insertPath(mutable, parts.drop(1), fullPath, dex, dirPath)
-        val updated = dir.copy(children = mutable)
-        children[children.indexOf(dir)] = updated
+        return byName.values.toList()
     }
 
     override suspend fun readSmaliFile(dexName: String, filePath: String): Result<String> = runCatching {
@@ -389,7 +419,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             oldFile.delete()
             // 清缓存让树重建
             smaliCache.remove(dexName)
-            smaliTreeCache.clear()
+            clearTreeCaches()
         }
 
     override suspend fun deleteSmaliFile(dexName: String, filePath: String): Result<Unit> = runCatching {
@@ -397,7 +427,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         if (!f.exists()) error("文件不存在：$filePath")
         f.delete()
         smaliCache.remove(dexName)
-        smaliTreeCache.clear()
+        clearTreeCaches()
     }
 
     override suspend fun assembleDex(dexName: String): Result<Unit> = runCatching {
@@ -723,36 +753,49 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     override suspend fun buildAndSign(): Result<BuildResult> = withContext(Dispatchers.IO) {
         runCatching {
-            var outputPath: String
-            var outputName: String
-            val signedFile: File
+            var outputPath: String = ""
+            var outputName: String = ""
+            var signedFlag: Boolean = false
+            var outSize: Long = 0L
             mutex.withLock {
                 val m = module ?: throw IllegalStateException("尚未打开 APK")
                 val src = rawApkFile ?: throw IllegalStateException("尚未打开 APK")
                 val unsigned = File(cacheDir(), "out/unsigned.apk")
                 unsigned.parentFile?.mkdirs()
                 writeUnsignedApk(src, unsigned, m)
-                val (key, cert) = loadOrCreateSigningKey()
-                signedFile = File(cacheDir(), "out/signed.apk")
-                val signerConfig = ApkSigner.SignerConfig.Builder(
-                    "CN=ApkEditorMiuix", key, listOf(cert),
-                ).build()
-                ApkSigner.Builder(listOf(signerConfig))
-                    .setInputApk(unsigned)
-                    .setOutputApk(signedFile)
-                    .setMinSdkVersion(35)
-                    .setV1SigningEnabled(true)
-                    .setV2SigningEnabled(true)
-                    .build()
-                    .sign()
-                // 统一输出到配置目录
+
                 val base = apkFileName.removeSuffix(".apk").ifBlank { "output" }
-                outputName = "${base}-signed.apk"
-                outputPath = writeToOutput(signedFile, outputName)
+                // 是否签名由设置决定，默认不签名：直接输出未签名 APK，交给用户自行签名。
+                val toOutput: File
+                if (OutputConfig.isSignEnabled()) {
+                    val (key, cert) = loadOrCreateSigningKey()
+                    val signedFile = File(cacheDir(), "out/signed.apk")
+                    val signerConfig = ApkSigner.SignerConfig.Builder(
+                        "CN=ApkEditorMiuix", key, listOf(cert),
+                    ).build()
+                    ApkSigner.Builder(listOf(signerConfig))
+                        .setInputApk(unsigned)
+                        .setOutputApk(signedFile)
+                        .setMinSdkVersion(35)
+                        .setV1SigningEnabled(true)
+                        .setV2SigningEnabled(true)
+                        .build()
+                        .sign()
+                    toOutput = signedFile
+                    outputName = "${base}-signed.apk"
+                    signedFlag = true
+                } else {
+                    toOutput = unsigned
+                    outputName = "${base}-unsigned.apk"
+                    signedFlag = false
+                }
+                outSize = toOutput.length()
+                // 统一输出到配置目录
+                outputPath = writeToOutput(toOutput, outputName)
             }
             // 记录到"保存的 APK"
-            SavedApkStore.add(outputPath, outputName, signedFile.length())
-            BuildResult(outputName = outputName, signed = true, outputPath = outputPath)
+            SavedApkStore.add(outputPath, outputName, outSize)
+            BuildResult(outputName = outputName, signed = signedFlag, outputPath = outputPath)
         }
     }
 

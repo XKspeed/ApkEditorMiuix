@@ -35,13 +35,18 @@ interface ApkDataService {
     suspend fun listResourceTypes(): Result<List<ResourceTypeInfo>>
 
     /**
-     * 列出指定 DEX 的 smali 目录树（构建一次后缓存，切换界面回来直接复用）。
-     * onProgress 回调：每完成一个 DEX 的反编译时调用，参数 (已完成数, 总数)
+     * 列出指定 DEX **合并后**的 smali 目录树（构建一次后缓存，切换界面回来直接复用）。
+     *
+     * 多个 DEX 的同名包目录会递归合并成一棵统一的树，直接返回顶层子节点；
+     * 合并结果与各 dex 的原始树都在数据层缓存，UI 不需要自己再合并一遍。
+     *
+     * [onProgress] 只在**真的发生反编译**时回调（缓存命中不会回调），
+     * UI 可据此区分"读取中"与"正在反编译"。
      */
-    suspend fun listSmaliTree(
+    suspend fun listSmaliMergedTree(
         dexNames: List<String>,
         onProgress: ((Int, Int) -> Unit)? = null,
-    ): Result<Map<String, List<SmaliTreeNode>>>
+    ): Result<List<SmaliTreeNode>>
 
     /** 列出指定类型的资源条目 */
     suspend fun listResources(type: String): Result<List<ResourceEntryInfo>>

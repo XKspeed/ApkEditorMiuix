@@ -845,6 +845,14 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         // 若 arsc 被修改，预生成其二进制字节
         val arscBytes: ByteArray? = if (modifiedArsc) {
             val tmp = File(cacheDir(), "out/arsc.bin")
+            // 关键：ARSCLib 自己的写入流程（ApkModuleEncoder.scanDirectory → refreshTable）
+            // 在序列化 resource table 之前一定会先 refreshFull()，用于重建字符串池、
+            // 各 chunk 偏移与 entry 索引。我们直接 writeBytes 会跳过这一步，
+            // 写出内部偏移错乱的表 —— 表现为 MT 能打开但"目录结构不完整"，
+            // 本 app 再打开时报
+            // java.io.IOException: Error at:(idx,offset)Finished reading:...
+            // （OffsetItem 读目标越界 → BlockReader 抛 EOFException）
+            m.refreshTable()
             m.tableBlock.writeBytes(tmp)
             tmp.readBytes()
         } else null
@@ -984,16 +992,22 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     private fun loadOrCreateSigningKey(): Pair<PrivateKey, X509Certificate> {
         val ksFile = File(context.filesDir, "signing.keystore")
-        val ks = KeyStore.getInstance("PKCS12")
-        ks.load(null, null)
         if (ksFile.exists()) {
-            ksFile.inputStream().use { ks.load(it, KS_PASS) }
-            runCatching {
+            // 密钥库可能因为上次写入被中断而损坏（PKCS12 只写了一半）。
+            // 这里必须容错：否则打包会永久失败，而唯一的恢复手段是"清除应用数据"。
+            val existing = runCatching {
+                val ks = KeyStore.getInstance("PKCS12")
+                ksFile.inputStream().use { ks.load(it, KS_PASS) }
                 val key = ks.getKey(KS_ALIAS, KS_PASS) as PrivateKey
                 val cert = ks.getCertificate(KS_ALIAS) as X509Certificate
-                return key to cert
-            }
+                key to cert
+            }.getOrNull()
+            if (existing != null) return existing
+            // 损坏就删掉重建（会导致产物签名变化，属可接受代价）
+            runCatching { ksFile.delete() }
         }
+        val ks = KeyStore.getInstance("PKCS12")
+        ks.load(null, null)
         // 生成新的 RSA 密钥 + 自签名证书（BouncyCastle，Android 可用）
         val kpg = java.security.KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }
         val kp = kpg.generateKeyPair()

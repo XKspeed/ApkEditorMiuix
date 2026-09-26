@@ -31,6 +31,14 @@ interface ApkDataService {
     /** 将修改后的 smali 汇编回 DEX 并替换到 APK */
     suspend fun assembleDex(dexName: String): Result<Unit>
 
+    /**
+     * 放弃当前 APK 的所有待应用修改，回到原始状态。
+     *
+     * 同一 APK 的加载状态与待应用修改会跨页面保留（否则从编辑页返回信息页会丢失修改），
+     * 所以需要一个显式的"重新开始"入口来丢弃它们。
+     */
+    suspend fun discardModifications(): Result<Unit>
+
     /** 列出 ARSC 资源类型 */
     suspend fun listResourceTypes(): Result<List<ResourceTypeInfo>>
 

@@ -87,6 +87,10 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     /** 当前 APK 的 minSdk（用于 baksmali 设置正确的 Opcodes，同 NP 管理器） */
     private var currentMinSdk: Int = 35
 
+    /** 已加载 APK 的 uri 与其解析结果：同一 APK 从编辑页返回信息页时复用，避免重置修改记录 */
+    private var loadedUri: String? = null
+    private var cachedInfo: ApkInfo? = null
+
     init {
         activeInstance = this
         ApkCacheManager.registerMemoryCleaner {
@@ -132,17 +136,33 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     override suspend fun loadApk(uri: String): Result<ApkInfo> = withContext(Dispatchers.IO) {
         runCatching {
             mutex.withLock {
+                // 同一个 APK 再次打开 —— 最典型的就是「从反编译编辑页返回 APK 信息页」，
+                // 而 ApkInfoPage 每次进入都会调 loadApk。此时必须直接复用已加载的 ApkModule
+                // 与 modifiedDex/modifiedXml/modifiedArsc：一旦往下走完整加载流程，
+                // module 会被换成从原始 APK 重新解析的新对象，旧对象上已做过的 arsc/xml 修改
+                // 会随之消失，待应用的 dex/xml 记录也会被 clear ——
+                // 表现就是"刚改完返回上一页，修改无效了"。
+                if (uri == loadedUri && module != null) {
+                    cachedInfo?.let { return@withLock it }
+                }
+
                 val tmpInput = File(cacheDir(), "apk/tmp.apk")
                 copyUriToCache(uri, tmpInput)
-                val entry = cacheMgr.prepare(tmpInput); val input = entry.inputApk; val hashChanged = cacheEntry?.hash != entry.hash; cacheEntry = entry; val m = ApkModule.loadApkFile(input)
+                val entry = cacheMgr.prepare(tmpInput)
+                val input = entry.inputApk
+                val hashChanged = cacheEntry?.hash != entry.hash
+                cacheEntry = entry
+                val m = ApkModule.loadApkFile(input)
                 module = m
                 rawApkFile = input
                 apkFileName = Uri.parse(uri).lastPathSegment ?: "input.apk"
                 if (hashChanged) smaliCache.clear()
                 if (hashChanged) clearTreeCaches()
+                // 走到这里说明换了一个 APK（或首次打开），上一个 APK 的待应用修改已无意义
                 modifiedDex.clear()
                 modifiedXml.clear()
                 modifiedArsc = false
+                loadedUri = uri
 
                 val manifest = m.getAndroidManifestBlock()
                 val label = runCatching { manifest.getApplicationLabelString() }.getOrNull()
@@ -156,7 +176,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 val dexNames = listDexNamesFromZip(input)
                 val resourceCount = runCatching { countResources(m) }.getOrElse { 0 }
 
-                ApkInfo(
+                val info = ApkInfo(
                     fileName = apkFileName,
                     label = label,
                     packageName = manifest.packageName,
@@ -170,6 +190,8 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                     fileSize = input.length().toDisplaySize(),
                     resourceCount = resourceCount,
                 )
+                cachedInfo = info
+                info
             }
         }
     }
@@ -440,6 +462,22 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         if (!outDex.exists()) throw IllegalStateException("smali 汇编失败：未生成 dex")
         // 记录修改：重打包时用汇编产物替换原 dex（不再 m.add 到模块，避免模块内源混乱）
         modifiedDex[dexName] = outDex
+    }
+
+    override suspend fun discardModifications(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            mutex.withLock {
+                modifiedDex.clear()
+                modifiedXml.clear()
+                modifiedArsc = false
+                // 从原始 APK 重新解析模块，丢掉内存里已经应用的 arsc / xml 修改
+                rawApkFile?.let { module = ApkModule.loadApkFile(it) }
+                smaliCache.clear()
+                clearTreeCaches()
+                // 连同磁盘上的反编译产物一起丢掉，下次进入即从原始 APK 重新开始
+                runCatching { workDir().deleteRecursively() }
+            }
+        }
     }
 
     // ---------- ARSC 资源 ----------

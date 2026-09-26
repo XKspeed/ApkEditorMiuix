@@ -43,6 +43,7 @@ import com.apkeditor.miuix.ui.components.MiuixTopBar
 import com.apkeditor.miuix.ui.components.SectionCard
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
@@ -75,6 +76,8 @@ fun ApkInfoPage(
     var buildResult by remember { mutableStateOf<BuildResult?>(null) }
     var buildError by remember { mutableStateOf<String?>(null) }
     var unsupported by remember { mutableStateOf<String?>(null) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
+    var discardTip by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(uri) {
@@ -92,6 +95,12 @@ fun ApkInfoPage(
             MiuixTopBar(
                 title = info?.label ?: "APK 内容",
                 onBack = onBack,
+                menuItems = listOf(
+                    DropdownItem(
+                        text = "放弃所有修改",
+                        onClick = { showDiscardConfirm = true },
+                    ),
+                ),
             )
         }
     ) { innerPadding ->
@@ -212,6 +221,38 @@ fun ApkInfoPage(
                 onConfirm = { unsupported = null },
                 cancelText = "",
                 onCancel = { unsupported = null },
+            )
+        }
+    }
+    // 待应用修改会跨页面保留（避免返回信息页丢修改），所以给一个显式的"重新开始"入口
+    if (showDiscardConfirm) {
+        MiuixDialog(title = "放弃所有修改", onDismiss = { showDiscardConfirm = false }) {
+            Text(
+                "将丢弃对 DEX / 资源 / XML 的全部未打包修改，回到原始 APK 状态。",
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+            DialogActions(
+                confirmText = "放弃",
+                onConfirm = {
+                    showDiscardConfirm = false
+                    scope.launch {
+                        service.discardModifications()
+                            .onSuccess { discardTip = "已放弃所有修改" }
+                            .onFailure { discardTip = "操作失败：${it.message}" }
+                    }
+                },
+                onCancel = { showDiscardConfirm = false },
+            )
+        }
+    }
+    if (discardTip != null) {
+        MiuixDialog(title = "结果", onDismiss = { discardTip = null }) {
+            Text(discardTip!!, color = MiuixTheme.colorScheme.onSurface)
+            DialogActions(
+                confirmText = "好的",
+                onConfirm = { discardTip = null },
+                cancelText = "",
+                onCancel = { discardTip = null },
             )
         }
     }

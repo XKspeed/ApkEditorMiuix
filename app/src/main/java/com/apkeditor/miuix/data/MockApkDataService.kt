@@ -148,6 +148,11 @@ class MockApkDataService : ApkDataService {
         return Result.success(Unit)
     }
 
+    override suspend fun discardModifications(): Result<Unit> {
+        mockDelay()
+        return Result.success(Unit)
+    }
+
     override suspend fun listResourceTypes(): Result<List<ResourceTypeInfo>> {
         mockDelay()
         return Result.success(

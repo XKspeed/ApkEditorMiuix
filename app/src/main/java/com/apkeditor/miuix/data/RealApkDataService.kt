@@ -30,9 +30,12 @@ import org.jf.smali.Smali
 import org.jf.smali.SmaliOptions
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FilterOutputStream
+import java.io.OutputStream
 import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.cert.X509Certificate
+import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -51,6 +54,10 @@ import java.util.zip.ZipOutputStream
  *  改为 **zip 拷贝 + 只替换修改过的文件**：遍历原始 APK 所有条目，仅把
  *  被修改过的 dex / xml / arsc 用新字节替换，其余条目逐字节原样保留。
  *  这样「未修改内容直接回编译」= 原 APK 逐字节拷贝 + 重新签名，产物必然可用。
+ *
+ *  写回时做**进程内 zipalign**（Android 上没有 zipalign 可执行文件）：
+ *  不压缩条目要落在 4 字节边界，lib 下不压缩的 .so 要落在 4096 页边界。
+ *  详见 [writeUnsignedApk] 与 [alignmentExtra]。
  *
  * 线程模型：全部引擎操作用 [Dispatchers.IO]；同一 [ApkModule] 的读写用 [Mutex] 串行保护。
  */
@@ -758,28 +765,98 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             tmp.readBytes()
         } else null
 
-        ZipOutputStream(FileOutputStream(out)).use { zos ->
-            ZipFile(src).use { zf ->
-                val entries = zf.entries()
-                while (entries.hasMoreElements()) {
-                    val e = entries.nextElement()
-                    val name = e.name
-                    val nz = ZipEntry(name)
-                    nz.time = e.time
-                    nz.method = e.method
-                    zos.putNextEntry(nz)
-                    val bytes: ByteArray? = when {
-                        modifiedDex.containsKey(name) -> modifiedDex[name]!!.readBytes()
-                        modifiedXml.containsKey(name) -> modifiedXml[name]
-                        name == "resources.arsc" && modifiedArsc -> arscBytes
-                        else -> null
+        FileOutputStream(out).use { fos ->
+            // 自己数流过的字节：ZipOutputStream 不暴露当前输出偏移，
+            // 而对齐必须知道「本地头部将写在哪里」才能算出填充长度。
+            val counter = CountingOutputStream(fos)
+            ZipOutputStream(counter).use { zos ->
+                ZipFile(src).use { zf ->
+                    val entries = zf.entries()
+                    while (entries.hasMoreElements()) {
+                        val e = entries.nextElement()
+                        val name = e.name
+                        // 只有被修改的条目才需要备好整块字节；未修改的沿用原条目元数据边读边写，
+                        // 避免把几百 MB 的 assets 之类整个读进内存。
+                        val replacement: ByteArray? = when {
+                            modifiedDex.containsKey(name) -> modifiedDex[name]!!.readBytes()
+                            modifiedXml.containsKey(name) -> modifiedXml[name]!!
+                            name == "resources.arsc" && modifiedArsc -> arscBytes!!
+                            else -> null
+                        }
+                        val isStored = e.method == ZipEntry.STORED
+                        val nz = ZipEntry(name)
+                        // 刻意不设 time：一旦设置，JDK 会自动往 extra 追加 9 字节的
+                        // UT(0x5455) 扩展时间戳字段，本地头部长度超出预期，下面的对齐会算错。
+                        nz.method = if (isStored) ZipEntry.STORED else ZipEntry.DEFLATED
+                        var bytes: ByteArray? = replacement
+                        if (bytes != null) {
+                            nz.size = bytes.size.toLong()
+                            nz.crc = crc32Of(bytes)
+                        } else if (e.size >= 0 && e.crc >= 0) {
+                            // 未修改条目：直接沿用原 zip 的元数据，边读边写，不占内存
+                            nz.size = e.size
+                            nz.crc = e.crc
+                        } else {
+                            // 极端情况：源条目缺 size/crc（带 data descriptor 的奇怪 zip）。
+                            // STORED 没有这两个值 ZipOutputStream 会直接抛，只能读出来算。
+                            bytes = zf.getInputStream(e).use { it.readBytes() }
+                            nz.size = bytes.size.toLong()
+                            nz.crc = crc32Of(bytes)
+                        }
+                        // STORED 还需要 compressed size（等于 uncompressed size）
+                        if (isStored) nz.compressedSize = nz.size
+                        // 进程内 zipalign：不压缩条目按 4 字节对齐，
+                        // lib 下的 .so 按 4096 页对齐（高版本系统 dlopen 的硬要求）。
+                        val align = if (isStored) alignmentOf(name) else 1
+                        if (align > 1) {
+                            val extra = alignmentExtra(
+                                counter.count,
+                                name.toByteArray(Charsets.UTF_8).size,
+                                align,
+                            )
+                            if (extra.isNotEmpty()) nz.extra = extra
+                        }
+                        zos.putNextEntry(nz)
+                        if (bytes != null) zos.write(bytes!!)
+                        else zf.getInputStream(e).use { it.copyTo(zos) }
+                        zos.closeEntry()
                     }
-                    if (bytes != null) zos.write(bytes)
-                    else zf.getInputStream(e).use { it.copyTo(zos) }
-                    zos.closeEntry()
                 }
             }
         }
+    }
+
+    /** 不压缩条目所需的对齐边界：lib 下的 .so 要求页对齐，其余 4 字节 */
+    private fun alignmentOf(name: String): Int =
+        if (name.startsWith("lib/") && name.endsWith(".so")) 4096 else 4
+
+    /**
+     * 算出使「数据起始偏移」满足 [align] 的 extra 字段。
+     *
+     * 数据偏移 = 本地头部起点 + 30（固定头长）+ 名字长度 + extra 长度，
+     * 反解出 extra 长度即可。extra 内部沿用 Android 对齐惯例的 0xD935 ID，
+     * 载荷补 0；不需要填充时返回空数组。
+     */
+    private fun alignmentExtra(headerStart: Long, nameLen: Int, align: Int): ByteArray {
+        val base = headerStart + 30L + nameLen
+        var pad = ((align - (base % align)) % align).toInt()
+        if (pad == 0) return ByteArray(0)
+        // extra 字段本身占 4 字节头，且总长需为偶数
+        if (pad < 4) pad += align
+        if (pad % 2 != 0) pad += align
+        val extra = ByteArray(pad)
+        extra[0] = 0x35
+        extra[1] = 0xD9.toByte()
+        val payload = pad - 4
+        extra[2] = (payload and 0xFF).toByte()
+        extra[3] = ((payload shr 8) and 0xFF).toByte()
+        return extra
+    }
+
+    private fun crc32Of(data: ByteArray): Long {
+        val c = CRC32()
+        c.update(data)
+        return c.value
     }
 
     /** 写入统一输出目录：公共目录(有全部文件权限) → SAF(失败回退) → 默认私有目录 */
@@ -861,5 +938,26 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
         val KS_PASS = charArrayOf('a', 'p', 'k', 'e', 'd', 'i', 't', 'o', 'r')
         const val KS_ALIAS = "apkeditor"
+    }
+}
+
+/**
+ * 统计流经的字节数。
+ *
+ * ZipOutputStream 不暴露当前输出偏移，而对齐填充必须先知道本地头部会写在哪里，
+ * 所以包一层自己数：所有字节都要从 [ZipOutputStream] 经这里落到文件。
+ */
+private class CountingOutputStream(out: OutputStream) : FilterOutputStream(out) {
+    var count: Long = 0L
+        private set
+
+    override fun write(b: Int) {
+        out.write(b)
+        count++
+    }
+
+    override fun write(b: ByteArray, off: Int, len: Int) {
+        out.write(b, off, len)
+        count += len
     }
 }

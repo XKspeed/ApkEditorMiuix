@@ -581,6 +581,9 @@ ApkSigner.Builder(listOf(signerConfig))                      // ⚠️ 需 List�
 | 30 | 从 dex 返回又变慢（重复反编译） | `listSmaliFiles` 每次进入都会重新 baksmali。加模块级 `smaliCache: HashMap<String, List<String>>`，首次反编译后缓存文件列表，`loadApk` 时清空，返回时直接命中缓存 |
 | 31 | sora-editor 查找替换调用即崩 / 按钮没反应 | `EditorSearcher` 有 3 个坑：① `search()` 是**异步**的（内部起线程），调用后立刻 `gotoNext()` 会因结果未生成而空转，需等 `getMatchedPositionCount() > 0` 再跳；② `getMatchedPositionCount()` / `gotoNext()` / `gotoPrevious()` / `replaceAll()` 内部都调 `checkState()`，**没有查询时抛 `IllegalStateException("pattern not set")`**，调用前必须先用 `hasQuery()` 判空或包 `runCatching`；③ `replaceAll()` 要求结果已就绪，否则只弹一个"搜索忙"Toast 就返回，须先跑完一次 search。完整签名：`search(String, SearchOptions)` / `gotoNext()` / `gotoPrevious()` / `replaceCurrentMatch(String)` / `replaceAll(String)` / `hasQuery()`；`SearchOptions(TYPE_NORMAL|TYPE_WHOLE_WORD|TYPE_REGULAR_EXPRESSION, caseInsensitive)` |
 | 32 | 编辑器引用写成 Compose state 导致组合期赋值 | `AndroidView.factory` 与 sora 事件回调里回写 `mutableStateOf` 会在组合/布局阶段改 state。改为普通持有类 `EditorRefs` 存引用，只有 UI 真要重绘的（脏标记/光标行/匹配数）才用 state；脏标记用 `subscribeEvent(ContentChangeEvent)` 并忽略 `ACTION_SET_NEW_TEXT`（装载初始文本不算改动）。装载文本放 `AndroidView.update` 里写，可同时覆盖"文本先到"与"编辑器先到"两种时序 |
+| 33 | **重打包必崩：`STORED entry missing size, compressed size, or crc-32`** | `writeUnsignedApk` 原先只 `ZipEntry(name)` + `method = e.method` 就 `putNextEntry`，**没设 size/crc**。`java.util.zip.ZipOutputStream.putNextEntry` 对 STORED 条目强制要求三者齐全，否则直接抛 `ZipException`。现代 APK 的 `resources.arsc`、`lib/**/*.so` 都是 STORED，所以**几乎任何真 APK 都打不出包**。修法：① 被修改的条目先把字节备好，用 `size`/`crc32` 填上；② **未修改的条目直接沿用原 zip 的 `e.size` / `e.crc`**，边读边写，不要把几百 MB 的 assets 读进内存；③ STORED 还要 `compressedSize`（等于 size） |
+| 34 | 对齐填充算错 9 字节 | 一旦调用 `ZipEntry.setTime`，JDK 会**自动往 extra 追加 9 字节的 UT(0x5455) 扩展时间戳字段**，本地头部长度超出预期，导致按 `30+名字长+extra` 推算的数据偏移全部失准（实测：设了 832 字节填充，实际写成 841）。**做对齐时不要设 time** |
+| 35 | Android 上没有 `zipalign` 可执行文件，怎么对齐 | 自己实现：`ZipOutputStream` 不暴露当前输出偏移，所以包一层 `CountingOutputStream`（自己数流过的字节，见 `RealApkDataService` 文件末尾），写每条之前拿到 `count`，令 `数据偏移 = count + 30 + 名字长 + extra长 ≡ 0 (mod align)` 反解 extra 长度，用 Android 惯用的 0xD935 ID 填充（extra 至少 4 字节头，总长取偶）。规则：STORED 条目 4 字节对齐，`lib/**/*.so` 4096 页对齐（高版本系统 dlopen 硬要求）。**顺序必须是「对齐 → 再签名」**，apksig 的签名块不移动条目数据偏移，对齐能保住。验证可离线做：手写一个已按 zipalign 对齐的假 zip，用 JVM 跑一遍重打包再解析偏移（见 `_ziptest/`） |
 
 ---
 
@@ -623,6 +626,8 @@ ApkSigner.Builder(listOf(signerConfig))                      // ⚠️ 需 List�
 | v0.1（可靠重打包） | 2026-09-12 | 修复"回编译产物无意义"：弃用 ARSCLib 全量 writeApk，改为 **zip 逐条拷贝 + 只替换修改过的 dex/xml/arsc**（未修改条目逐字节原样保留 → 未修改直接回编译 = 原 APK 拷贝 + 重签名，必然可用）；反编译目录改 **smali/smali_classesN 标签一一对应 classesN.dex**；APK 内容页改 **zip 直接解压预览**（打开即出文件树，快）；反汇编 Opcode 改用 Opcodes.getDefault() |
 
 | v0.1（编辑器统一） | 2026-09-18 | 编辑器收敛为 `TextEditorScaffold`（sora-editor 0.23.6）：删除重复的 `ui/TextEditorPage.kt`，smali 与 AXML 共用同一壳；**查找/替换从占位实现改为真实 `EditorSearcher` 调用**（上一个/下一个/替换/全部替换、忽略大小写、正则）；新增跳转到行、撤销重做、脏标记与状态行；`App.kt` 两处调用点改为 `TextEditorScaffold` 并传入 `JavaLanguage()` |
+| v0.1（顶栏统一） | 2026-09-26 | 编辑器流程 6 个页面统一到 `MiuixTopBar`（XmlFiles/ArscTypes/ArscEntries/DexList/SmaliTree/ApkInfo）；搜索框改为顶栏 Search 图标切换，Smali 树的"汇编"收进 More 菜单并把渲染错位的汇编结果改为弹窗；另两套顶栏（`AdaptiveTopAppBar`、`SmallTopAppBar`+模糊）保留不动，边界记入 §5.1.1 |
+| v0.1（打包修复） | 2026-09-26 | **修复重打包致命 bug**：`writeUnsignedApk` 对 STORED 条目未设 size/crc 导致 `ZipException: STORED entry missing size, compressed size, or crc-32`，几乎任何真 APK 都打不出包；改为「修改条目备好字节、未修改条目沿用原 zip 元数据边读边写」。**新增进程内 zipalign**（计数流 + 0xD935 extra 填充），STORED 条目 4 字节、`lib/**/*.so` 4096 页对齐；对齐在签名之前完成。踩坑见 §8 第 33–35 条 |
 
 
 ---
@@ -683,7 +688,7 @@ baksmali 反汇编统一用 `Opcodes.getDefault()`（不再写死 forApi(35)）�
 - [x] **列表页统一顶栏**（`ui/components/MiuixTopBar.kt`）：编辑器流程的 6 个页面已全部迁移 —— XmlFilesPage / ArscTypesPage / ArscEntriesPage / DexListPage / SmaliTreePage / ApkInfoPage。搜索框统一改为顶栏 Search 图标切换，页面级动作（如 Smali 树的"汇编"）收进 More 菜单。
       - ⚠️ **项目里其实有三套顶栏，不要盲目"统一"掉另外两套**：① `MiuixTopBar`（上面 6 页）；② `util/PageUtils.kt` 的 `AdaptiveTopAppBar`（HomePage / SavedApksPage / SettingsPage 三个 tab 根页，窄屏大标题栏、宽屏小标题栏 + `scrollBehavior`）；③ 直接用的 `SmallTopAppBar` + 滚动模糊（AboutPage / ThirdPartyLicensesPage / UiSettingsPage，配合 `pageScrollModifiers`/`layerBackdrop` 折叠模糊）。②③ 是 ui-only 分支引入的设计，`MiuixTopBar` 目前不接受 `scrollBehavior`，硬替换会丢掉折叠与模糊效果。
 - [ ] **DEX 编辑升级为 MT 式导航**：类列表 → 方法列表 → 单方法编辑（当前是整份 smali 文本编辑，对应 MT 的"文件级"，非"类/方法级"）
-- [ ] **zipalign 对齐**：重打包签名前对 APK 做 4 字节对齐（Android 高版本要求，当前未做，暂不影响安装但建议补）
+- [x] **zipalign 对齐**（已实现，进程内，不需要外部可执行文件）：重打包写回时给不压缩条目补对齐 extra，STORED 条目 4 字节、`lib/**/*.so` 4096 页对齐。同时修掉了它旁边的致命 bug —— 原先重打包遇到 STORED 条目必抛 `ZipException`（见 §8 第 33 条），**修之前几乎任何真 APK 都打不出包**。顺序：写 zip（含对齐）→ apksig 签名。
 - [ ] **R8 混淆/裁剪瘦身**：APK 51MB → 目标 20-30MB（删未用库代码）
 - [ ] 包名修改 / APK 共存（改 package 需要动 manifest + dex 引用，改动大，优先级低）
 - [ ] 去除签名校验（注入类/so，参考 MP 的 SignatureKillerUtil）

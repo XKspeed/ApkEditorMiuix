@@ -579,6 +579,8 @@ ApkSigner.Builder(listOf(signerConfig))                      // ⚠️ 需 List�
 | 28 | 多 dex 并行反编译 | 锁内只解 dex 字节到临时文件，锁外 `coroutineScope+async` 并行 baksmali，避免模块被 Mutex 长时间占用 |
 | 29 | 回编译"未知目录" | SAF tree 目录易失效。**改为优先用 `MANAGE_EXTERNAL_STORAGE`（所有文件访问）直写公共目录** `/storage/emulated/0/ApkEditorMiuix/output`；SAF 失败自动回退默认私有目录；设置页可跳 `ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION` 授权 |
 | 30 | 从 dex 返回又变慢（重复反编译） | `listSmaliFiles` 每次进入都会重新 baksmali。加模块级 `smaliCache: HashMap<String, List<String>>`，首次反编译后缓存文件列表，`loadApk` 时清空，返回时直接命中缓存 |
+| 31 | sora-editor 查找替换调用即崩 / 按钮没反应 | `EditorSearcher` 有 3 个坑：① `search()` 是**异步**的（内部起线程），调用后立刻 `gotoNext()` 会因结果未生成而空转，需等 `getMatchedPositionCount() > 0` 再跳；② `getMatchedPositionCount()` / `gotoNext()` / `gotoPrevious()` / `replaceAll()` 内部都调 `checkState()`，**没有查询时抛 `IllegalStateException("pattern not set")`**，调用前必须先用 `hasQuery()` 判空或包 `runCatching`；③ `replaceAll()` 要求结果已就绪，否则只弹一个"搜索忙"Toast 就返回，须先跑完一次 search。完整签名：`search(String, SearchOptions)` / `gotoNext()` / `gotoPrevious()` / `replaceCurrentMatch(String)` / `replaceAll(String)` / `hasQuery()`；`SearchOptions(TYPE_NORMAL|TYPE_WHOLE_WORD|TYPE_REGULAR_EXPRESSION, caseInsensitive)` |
+| 32 | 编辑器引用写成 Compose state 导致组合期赋值 | `AndroidView.factory` 与 sora 事件回调里回写 `mutableStateOf` 会在组合/布局阶段改 state。改为普通持有类 `EditorRefs` 存引用，只有 UI 真要重绘的（脏标记/光标行/匹配数）才用 state；脏标记用 `subscribeEvent(ContentChangeEvent)` 并忽略 `ACTION_SET_NEW_TEXT`（装载初始文本不算改动）。装载文本放 `AndroidView.update` 里写，可同时覆盖"文本先到"与"编辑器先到"两种时序 |
 
 ---
 
@@ -619,6 +621,8 @@ ApkSigner.Builder(listOf(signerConfig))                      // ⚠️ 需 List�
 
 | v0.1（输出容错） | 2026-09-12 | 回编译输出改全部文件权限(MANAGE_EXTERNAL_STORAGE)直写公共目录 + SAF 失败回退；smali 反编译加缓存，返回不重复编译 |
 | v0.1（可靠重打包） | 2026-09-12 | 修复"回编译产物无意义"：弃用 ARSCLib 全量 writeApk，改为 **zip 逐条拷贝 + 只替换修改过的 dex/xml/arsc**（未修改条目逐字节原样保留 → 未修改直接回编译 = 原 APK 拷贝 + 重签名，必然可用）；反编译目录改 **smali/smali_classesN 标签一一对应 classesN.dex**；APK 内容页改 **zip 直接解压预览**（打开即出文件树，快）；反汇编 Opcode 改用 Opcodes.getDefault() |
+
+| v0.1（编辑器统一） | 2026-09-18 | 编辑器收敛为 `TextEditorScaffold`（sora-editor 0.23.6）：删除重复的 `ui/TextEditorPage.kt`，smali 与 AXML 共用同一壳；**查找/替换从占位实现改为真实 `EditorSearcher` 调用**（上一个/下一个/替换/全部替换、忽略大小写、正则）；新增跳转到行、撤销重做、脏标记与状态行；`App.kt` 两处调用点改为 `TextEditorScaffold` 并传入 `JavaLanguage()` |
 
 
 ---
@@ -672,7 +676,11 @@ baksmali 反汇编统一用 `Opcodes.getDefault()`（不再写死 forApi(35)）�
 - [x] smali 反编译缓存（返回不重复编译）
 
 ### 待办（下一步）
-- [ ] **引入 sora-editor（Rosemoe）升级 smali/XML 编辑器**：语法高亮(smali/java/xml)、行号、代码折叠、查找替换、自动补全。NP 管理器同款，可直接对标 MT 手感。有 Compose 版本。
+- [x] **引入 sora-editor（Rosemoe）升级 smali/XML 编辑器**（已接 0.23.6）：语法高亮、行号、查找替换、跳转行、撤销重做。
+      - 统一组件 `ui/components/TextEditorScaffold.kt`，smali 与 AXML 共用；旧的 `ui/TextEditorPage.kt` 已删除（两条并行实现收敛为一条）。
+      - 查找/替换已接真实 `EditorSearcher` API，不再是占位实现；踩坑见 §8 第 31、32 条。
+      - 仍未做：代码折叠、自动补全（sora-editor 本身支持，后续补 TextMate 语言配置即可）。
+- [x] **列表页统一顶栏**（`ui/components/MiuixTopBar.kt`）：XmlFilesPage 已迁移，其余列表页仍用裸 `TopAppBar`。
 - [ ] **DEX 编辑升级为 MT 式导航**：类列表 → 方法列表 → 单方法编辑（当前是整份 smali 文本编辑，对应 MT 的"文件级"，非"类/方法级"）
 - [ ] **zipalign 对齐**：重打包签名前对 APK 做 4 字节对齐（Android 高版本要求，当前未做，暂不影响安装但建议补）
 - [ ] **R8 混淆/裁剪瘦身**：APK 51MB → 目标 20-30MB（删未用库代码）
@@ -686,4 +694,4 @@ baksmali 反汇编统一用 `Opcodes.getDefault()`（不再写死 forApi(35)）�
 - **MP-Manager 源码**（`参考/MP-Manager`）：dexlib2 + Opcodes.getDefault() + DexPool 写回；自研 AXML 解码器；apksig 打包；SignatureKiller/PairipRemover 等逆向工具
 - **ARSCLib 源码**（`参考/ARSCLib`）：resources.arsc 与二进制 XML 的底层解析/编码
 - **miuix**：UI 库为 maven 依赖（io.github.yukonga），gradle 自动拉取，无需源码
-- 引擎依赖坐标：ARSCLib V1.4.0 / smali baksmali dexlib2 util 2.5.2 / apksig 8.13.2 / bcprov+bcpkix 1.78.1 / navigationevent-compose-android 1.1.2
+- 引擎依赖坐标：ARSCLib V1.4.0 / smali baksmali dexlib2 util 2.5.2 / apksig 8.13.2 / bcprov+bcpkix 1.78.1 / navigationevent-compose-android 1.1.2 / **sora-editor 0.23.6（editor + language-java + language-textmate）**

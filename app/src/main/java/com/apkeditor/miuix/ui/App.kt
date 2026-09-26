@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.RealApkDataService
 import com.apkeditor.miuix.ui.component.liquid.IosLiquidGlassNavigationBar
+import com.apkeditor.miuix.ui.components.TextEditorScaffold
+import io.github.rosemoe.sora.langs.java.JavaLanguage
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
@@ -137,9 +139,10 @@ fun App(service: ApkDataService? = null) {
                 )
             }
             entry<Route.SmaliEdit> { route ->
-                TextEditorPage(
+                TextEditorScaffold(
                     title = route.filePath.substringAfterLast("/"),
                     subtitle = route.filePath,
+                    language = remember { JavaLanguage() },
                     load = { svc.readSmaliFile(route.dexName, route.filePath) },
                     save = { text -> svc.saveSmaliFile(route.dexName, route.filePath, text) },
                     onBack = { backStack.removeLastOrNull() },
@@ -167,9 +170,10 @@ fun App(service: ApkDataService? = null) {
                 )
             }
             entry<Route.XmlEdit> { route ->
-                TextEditorPage(
+                TextEditorScaffold(
                     title = route.path.substringAfterLast("/"),
                     subtitle = route.path,
+                    language = remember { JavaLanguage() },
                     load = { svc.readXmlFile(route.path) },
                     save = { text -> svc.saveXmlFile(route.path, text) },
                     onBack = { backStack.removeLastOrNull() },

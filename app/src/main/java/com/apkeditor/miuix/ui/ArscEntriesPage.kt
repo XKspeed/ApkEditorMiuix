@@ -1,5 +1,4 @@
 package com.apkeditor.miuix.ui
-import com.apkeditor.miuix.ui.component.BackNavigationIcon
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,12 +33,12 @@ import com.apkeditor.miuix.ui.components.ErrorBox
 import com.apkeditor.miuix.ui.components.InfoRow
 import com.apkeditor.miuix.ui.components.LoadingBox
 import com.apkeditor.miuix.ui.components.MiuixDialog
+import com.apkeditor.miuix.ui.components.MiuixTopBar
 import com.apkeditor.miuix.ui.components.TextField
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -58,6 +57,7 @@ fun ArscEntriesPage(
     var entries by remember { mutableStateOf<List<ResourceEntryInfo>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var filter by remember { mutableStateOf("") }
+    var showSearch by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Pair<ResourceEntryInfo, ResourceVariant>?>(null) }
     var editValue by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
@@ -78,21 +78,22 @@ fun ArscEntriesPage(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
+            MiuixTopBar(
                 title = "资源 · $type",
-                navigationIcon = {
-                    BackNavigationIcon(onClick = onBack)
-                },
+                onBack = onBack,
+                onSearch = { showSearch = !showSearch },
             )
         }
     ) { innerPadding ->
         Column(Modifier.fillMaxSize().padding(innerPadding)) {
-            TextField(
-                value = filter,
-                onValueChange = { filter = it },
-                label = "输入资源名搜索",
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+            if (showSearch) {
+                TextField(
+                    value = filter,
+                    onValueChange = { filter = it },
+                    label = "输入资源名搜索",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             Text(
                 "共 ${visible.size} 个匹配",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,

@@ -1,5 +1,4 @@
 package com.apkeditor.miuix.ui
-import com.apkeditor.miuix.ui.component.BackNavigationIcon
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -26,14 +25,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.SmaliTreeNode
+import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ErrorBox
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.LoadingBox
+import com.apkeditor.miuix.ui.components.MiuixDialog
+import com.apkeditor.miuix.ui.components.MiuixTopBar
 import com.apkeditor.miuix.ui.components.TextField
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +58,7 @@ fun SmaliTreePage(
     var topNodes by remember { mutableStateOf<List<SmaliTreeNode>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var filter by remember { mutableStateOf("") }
+    var showSearch by remember { mutableStateOf(false) }
     var assembling by remember { mutableStateOf(false) }
     var assembleResult by remember { mutableStateOf<String?>(null) }
     var progressText by remember { mutableStateOf("") }
@@ -125,22 +128,15 @@ fun SmaliTreePage(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
+            MiuixTopBar(
                 title = "Smali",
-                navigationIcon = {
-                    BackNavigationIcon(onClick = onBack)
-                    Text("返回",
-                        color = MiuixTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            .clickable(onClick = onBack),
-                    )
-                },
-                actions = {
-                    Text("汇编",
-                        color = if (assembling) MiuixTheme.colorScheme.onSurfaceVariantActions
-                        else MiuixTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            .clickable(enabled = !assembling) {
+                onBack = onBack,
+                onSearch = { showSearch = !showSearch },
+                menuItems = listOf(
+                    DropdownItem(
+                        text = if (assembling) "汇编中…" else "汇编",
+                        onClick = {
+                            if (!assembling) {
                                 assembling = true
                                 scope.launch {
                                     val errs = mutableListOf<String>()
@@ -152,19 +148,22 @@ fun SmaliTreePage(
                                     else "部分失败：${errs.joinToString("；")}"
                                     assembling = false
                                 }
-                            },
-                    )
-                },
+                            }
+                        },
+                    ),
+                ),
             )
         }
     ) { innerPadding ->
         Column(Modifier.fillMaxSize().padding(innerPadding)) {
-            TextField(
-                value = filter,
-                onValueChange = { filter = it },
-                label = "搜索类名",
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+            if (showSearch) {
+                TextField(
+                    value = filter,
+                    onValueChange = { filter = it },
+                    label = "搜索类名",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             Text(
                 when {
                     searching -> "搜索中…"
@@ -210,10 +209,15 @@ fun SmaliTreePage(
     }
 
     if (assembleResult != null) {
-        top.yukonga.miuix.kmp.basic.Text(
-            assembleResult!!,
-            modifier = Modifier.padding(16.dp),
-        )
+        MiuixDialog(title = "汇编结果", onDismiss = { assembleResult = null }) {
+            Text(assembleResult!!, color = MiuixTheme.colorScheme.onSurface)
+            DialogActions(
+                confirmText = "好的",
+                onConfirm = { assembleResult = null },
+                cancelText = "",
+                onCancel = { assembleResult = null },
+            )
+        }
     }
 }
 

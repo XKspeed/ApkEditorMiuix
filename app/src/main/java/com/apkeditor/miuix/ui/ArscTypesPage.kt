@@ -1,7 +1,5 @@
 package com.apkeditor.miuix.ui
-import com.apkeditor.miuix.ui.component.BackNavigationIcon
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -21,11 +19,11 @@ import com.apkeditor.miuix.data.ResourceTypeInfo
 import com.apkeditor.miuix.ui.components.ErrorBox
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.LoadingBox
+import com.apkeditor.miuix.ui.components.MiuixTopBar
 import com.apkeditor.miuix.ui.components.SectionCard
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.WindowInsets
 
@@ -47,18 +45,9 @@ fun ArscTypesPage(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
+            MiuixTopBar(
                 title = "资源",
-                navigationIcon = {
-                    BackNavigationIcon(onClick = onBack)
-                    Text(
-                        "返回",
-                        color = MiuixTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                            .clickable(onClick = onBack),
-                    )
-                },
+                onBack = onBack,
             )
         }
     ) { innerPadding ->

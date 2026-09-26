@@ -34,12 +34,12 @@ import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.ApkEntry
 import com.apkeditor.miuix.data.ApkInfo
 import com.apkeditor.miuix.data.BuildResult
-import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ErrorBox
 import com.apkeditor.miuix.ui.components.InfoRow
 import com.apkeditor.miuix.ui.components.LoadingBox
 import com.apkeditor.miuix.ui.components.MiuixDialog
+import com.apkeditor.miuix.ui.components.MiuixTopBar
 import com.apkeditor.miuix.ui.components.SectionCard
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
@@ -47,7 +47,6 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.File
 import top.yukonga.miuix.kmp.icon.extended.Folder
@@ -90,11 +89,9 @@ fun ApkInfoPage(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
+            MiuixTopBar(
                 title = info?.label ?: "APK 内容",
-                navigationIcon = {
-                    BackNavigationIcon(onClick = onBack)
-                },
+                onBack = onBack,
             )
         }
     ) { innerPadding ->

@@ -680,7 +680,8 @@ baksmali 反汇编统一用 `Opcodes.getDefault()`（不再写死 forApi(35)）�
       - 统一组件 `ui/components/TextEditorScaffold.kt`，smali 与 AXML 共用；旧的 `ui/TextEditorPage.kt` 已删除（两条并行实现收敛为一条）。
       - 查找/替换已接真实 `EditorSearcher` API，不再是占位实现；踩坑见 §8 第 31、32 条。
       - 仍未做：代码折叠、自动补全（sora-editor 本身支持，后续补 TextMate 语言配置即可）。
-- [x] **列表页统一顶栏**（`ui/components/MiuixTopBar.kt`）：XmlFilesPage 已迁移，其余列表页仍用裸 `TopAppBar`。
+- [x] **列表页统一顶栏**（`ui/components/MiuixTopBar.kt`）：编辑器流程的 6 个页面已全部迁移 —— XmlFilesPage / ArscTypesPage / ArscEntriesPage / DexListPage / SmaliTreePage / ApkInfoPage。搜索框统一改为顶栏 Search 图标切换，页面级动作（如 Smali 树的"汇编"）收进 More 菜单。
+      - ⚠️ **项目里其实有三套顶栏，不要盲目"统一"掉另外两套**：① `MiuixTopBar`（上面 6 页）；② `util/PageUtils.kt` 的 `AdaptiveTopAppBar`（HomePage / SavedApksPage / SettingsPage 三个 tab 根页，窄屏大标题栏、宽屏小标题栏 + `scrollBehavior`）；③ 直接用的 `SmallTopAppBar` + 滚动模糊（AboutPage / ThirdPartyLicensesPage / UiSettingsPage，配合 `pageScrollModifiers`/`layerBackdrop` 折叠模糊）。②③ 是 ui-only 分支引入的设计，`MiuixTopBar` 目前不接受 `scrollBehavior`，硬替换会丢掉折叠与模糊效果。
 - [ ] **DEX 编辑升级为 MT 式导航**：类列表 → 方法列表 → 单方法编辑（当前是整份 smali 文本编辑，对应 MT 的"文件级"，非"类/方法级"）
 - [ ] **zipalign 对齐**：重打包签名前对 APK 做 4 字节对齐（Android 高版本要求，当前未做，暂不影响安装但建议补）
 - [ ] **R8 混淆/裁剪瘦身**：APK 51MB → 目标 20-30MB（删未用库代码）

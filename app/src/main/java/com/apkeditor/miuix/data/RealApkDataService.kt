@@ -197,8 +197,11 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     }
 
     /**
-     * 抽取 APK 真实应用图标：loadApk 时原 APK 已被拷进缓存（cacheEntry.inputApk），
-     * 直接让 PackageManager 从该文件解析图标（未安装的 APK 也可用）。
+     * 抽取 APK 真实应用图标：loadApk 时原 APK 已被拷进缓存（cacheEntry.inputApk）。
+     *
+     * 注意：SDK 37 起 PackageManager.getApplicationArchiveIcon 已被移除（编译不过），
+     * 改用等价组合：getPackageArchiveInfo 解析归档 → applicationInfo 指向该归档
+     * （sourceDir 必须回填，否则按未安装包加载不到资源）→ getApplicationIcon(ai)。
      */
     override suspend fun loadApkIcon(uri: String): Result<android.graphics.drawable.Drawable?> =
         withContext(Dispatchers.IO) {
@@ -206,7 +209,13 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 if (uri != loadedUri) return@runCatching null
                 val f = cacheEntry?.inputApk ?: return@runCatching null
                 if (!f.exists()) return@runCatching null
-                context.packageManager.getApplicationArchiveIcon(f.absolutePath)
+                val ai = context.packageManager
+                    .getPackageArchiveInfo(f.absolutePath, 0)
+                    ?.applicationInfo
+                    ?: return@runCatching null
+                ai.sourceDir = f.absolutePath
+                ai.publicSourceDir = f.absolutePath
+                context.packageManager.getApplicationIcon(ai)
             }
         }
 

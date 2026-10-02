@@ -37,6 +37,12 @@ class MockApkDataService : ApkDataService {
         )
     }
 
+    override suspend fun loadApkIcon(uri: String): Result<android.graphics.drawable.Drawable?> {
+        mockDelay()
+        // 演示数据没有真实 APK，回退首字母占位
+        return Result.success(null)
+    }
+
     override suspend fun listDexFiles(): Result<List<DexEntry>> {
         mockDelay()
         return Result.success(

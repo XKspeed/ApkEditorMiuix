@@ -132,6 +132,9 @@ fun App(service: ApkDataService? = null) {
                 MainPage(
                     service = svc,
                     navigate = { backStack.add(it) },
+                    // 只有导航栈顶（没进二级页）时，主页的返回键拦截才生效，
+                    // 避免在详情页等场景下抢走系统的“返回上一页”
+                    isNavTop = backStack.size == 1,
                 )
             }
 
@@ -153,9 +156,9 @@ fun App(service: ApkDataService? = null) {
                     dexNames = route.dexNames,
                     service = svc,
                     onBack = { backStack.removeLastOrNull() },
-                    // 点 smali 文件 → 类详情页（类头 + 方法列表，MT 风格）
+                    // 点 smali 文件 → 默认整文件编辑（方法列表走编辑器顶栏 method 导航）
                     onOpenFile = { dex, path ->
-                        backStack.add(Route.SmaliClass(route.apkPath, dex, path, route.dexNames))
+                        backStack.add(Route.SmaliEdit(route.apkPath, dex, path, route.dexNames))
                     },
                 )
             }
@@ -176,7 +179,9 @@ fun App(service: ApkDataService? = null) {
                         )
                     },
                     onEditFile = {
-                        backStack.add(Route.SmaliEdit(route.apkPath, route.dexName, route.filePath))
+                        backStack.add(
+                            Route.SmaliEdit(route.apkPath, route.dexName, route.filePath, route.dexNames)
+                        )
                     },
                 )
             }
@@ -218,6 +223,12 @@ fun App(service: ApkDataService? = null) {
                     load = { svc.readSmaliFile(route.dexName, route.filePath) },
                     save = { text -> svc.saveSmaliFile(route.dexName, route.filePath, text) },
                     onBack = { backStack.removeLastOrNull() },
+                    // method 导航：顶栏返回右侧图标 / More 菜单 → 方法列表页
+                    onOpenMethodNav = {
+                        backStack.add(
+                            Route.SmaliClass(route.apkPath, route.dexName, route.filePath, route.dexNames)
+                        )
+                    },
                 )
             }
             entry<Route.ArscTypes> { route ->
@@ -266,6 +277,7 @@ fun App(service: ApkDataService? = null) {
 private fun MainPage(
     service: ApkDataService,
     navigate: (Route) -> Unit,
+    isNavTop: Boolean = true,
 ) {
     val pagerState = rememberPagerState(pageCount = { 4 })
     var selectedIndex by remember { mutableIntStateOf(0) }
@@ -381,6 +393,7 @@ private fun MainPage(
                     0 -> HomePage(
                         padding = globalPadding,
                         onPickApk = { uri -> navigate(Route.ApkInfo(uri)) },
+                        enableBackToParent = isNavTop,
                     )
                     1 -> SavedApksPage(padding = globalPadding)
                     2 -> SettingsPage(

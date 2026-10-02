@@ -30,8 +30,17 @@ sealed interface Route : NavKey {
     @Serializable
     data class SmaliTree(val apkPath: String, val dexNames: List<String> = emptyList()) : Route
 
+    /**
+     * 整文件 smali 编辑（点 smali 文件的默认落点）。
+     * [dexNames] 供顶栏 method 导航进入类详情页时带上上下文 DEX 列表。
+     */
     @Serializable
-    data class SmaliEdit(val apkPath: String, val dexName: String, val filePath: String) : Route
+    data class SmaliEdit(
+        val apkPath: String,
+        val dexName: String,
+        val filePath: String,
+        val dexNames: List<String> = emptyList(),
+    ) : Route
 
     /** 类详情页：类头信息 + 方法列表（点 smali 文件进入） */
     @Serializable

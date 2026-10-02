@@ -196,6 +196,20 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         }
     }
 
+    /**
+     * 抽取 APK 真实应用图标：loadApk 时原 APK 已被拷进缓存（cacheEntry.inputApk），
+     * 直接让 PackageManager 从该文件解析图标（未安装的 APK 也可用）。
+     */
+    override suspend fun loadApkIcon(uri: String): Result<android.graphics.drawable.Drawable?> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                if (uri != loadedUri) return@runCatching null
+                val f = cacheEntry?.inputApk ?: return@runCatching null
+                if (!f.exists()) return@runCatching null
+                context.packageManager.getApplicationArchiveIcon(f.absolutePath)
+            }
+        }
+
     private fun countResources(m: ApkModule): Int {
         var count = 0
         m.tableBlock.resources.forEach { count++ }

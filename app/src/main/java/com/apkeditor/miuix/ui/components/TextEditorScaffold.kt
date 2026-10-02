@@ -38,6 +38,7 @@ import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import io.github.rosemoe.sora.widget.EditorSearcher.SearchOptions
 import androidx.compose.ui.graphics.toArgb
 import com.apkeditor.miuix.ui.EditorLanguages
+import com.apkeditor.miuix.ui.component.MethodNavIcon
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
@@ -45,6 +46,7 @@ import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.Colors
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
@@ -187,6 +189,8 @@ fun TextEditorScaffold(
      * 文本分析器整体替换 Styles 后也会自动补刷（轮询校验）。
      */
     lineMarks: ((String) -> Boolean)? = null,
+    /** method 导航：非空时顶栏返回右侧显示方法列表图标 + More 菜单入口（smali 整文件编辑用） */
+    onOpenMethodNav: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
@@ -345,14 +349,26 @@ fun TextEditorScaffold(
                 subtitle = subtitle,
                 onBack = onBack,
                 onSearch = { showSearchBar = !showSearchBar },
-                menuItems = listOf(
-                    DropdownItem(text = "查找替换", onClick = { showSearchBar = true }),
-                    DropdownItem(text = "跳转到行", onClick = { showGoto = true }),
-                    DropdownItem(text = "撤销", onClick = { runCatching { refs.editor?.undo() } }),
-                    DropdownItem(text = "重做", onClick = { runCatching { refs.editor?.redo() } }),
-                    DropdownItem(text = "保存", onClick = { doSave() }),
-                    DropdownItem(text = "退出", onClick = onBack),
-                ),
+                navigationExtras = if (onOpenMethodNav != null) {
+                    {
+                        IconButton(onClick = onOpenMethodNav) {
+                            MethodNavIcon(tint = MiuixTheme.colorScheme.onBackground)
+                        }
+                    }
+                } else {
+                    null
+                },
+                menuItems = buildList {
+                    if (onOpenMethodNav != null) {
+                        add(DropdownItem(text = "方法列表", onClick = onOpenMethodNav))
+                    }
+                    add(DropdownItem(text = "查找替换", onClick = { showSearchBar = true }))
+                    add(DropdownItem(text = "跳转到行", onClick = { showGoto = true }))
+                    add(DropdownItem(text = "撤销", onClick = { runCatching { refs.editor?.undo() } }))
+                    add(DropdownItem(text = "重做", onClick = { runCatching { refs.editor?.redo() } }))
+                    add(DropdownItem(text = "保存", onClick = { doSave() }))
+                    add(DropdownItem(text = "退出", onClick = onBack))
+                },
             )
         },
         bottomBar = {

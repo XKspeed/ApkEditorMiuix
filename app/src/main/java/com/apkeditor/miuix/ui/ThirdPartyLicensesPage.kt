@@ -43,10 +43,10 @@ data class Library(
 
 private val libraries = listOf(
     Library(
-        name = "Compose Multiplatform",
-        version = "1.7.3",
+        name = "Jetpack Compose",
+        version = "1.11.x（由 Miuix 传递）",
         license = "Apache License 2.0",
-        website = "https://github.com/JetBrains/compose-multiplatform",
+        website = "https://developer.android.com/jetpack/androidx/releases/compose",
     ),
     Library(
         name = "Kotlin Coroutines",
@@ -74,15 +74,15 @@ private val libraries = listOf(
     ),
     Library(
         name = "Miuix",
-        version = "0.9.3",
+        version = "0.9.4-rc01",
         license = "Apache License 2.0",
-        website = "https://github.com/compose-miuix-ui/miuix",
+        website = "https://github.com/YuKongA/miuix",
     ),
     Library(
-        name = "miuix-nav",
-        version = "0.9.3",
+        name = "miuix-nav（内嵌源码）",
+        version = "0.9.4-rc01",
         license = "Apache License 2.0",
-        website = "https://github.com/compose-miuix-ui/miuix",
+        website = "https://github.com/YuKongA/miuix",
     ),
     Library(
         name = "Navigation Event",
@@ -109,13 +109,19 @@ private val libraries = listOf(
         website = "https://github.com/JesusFreke/smali",
     ),
     Library(
+        name = "dexlib2",
+        version = "2.5.2",
+        license = "BSD 3-Clause",
+        website = "https://github.com/JesusFreke/smali",
+    ),
+    Library(
         name = "apksig",
         version = "8.13.2",
         license = "Apache License 2.0",
         website = "https://android.googlesource.com/platform/tools/apksig",
     ),
     Library(
-        name = "Bouncy Castle",
+        name = "Bouncy Castle（bcprov + bcpkix）",
         version = "1.78.1",
         license = "MIT License",
         website = "https://www.bouncycastle.org/",

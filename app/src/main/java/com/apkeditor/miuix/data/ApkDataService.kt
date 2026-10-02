@@ -10,6 +10,12 @@ interface ApkDataService {
     /** 从 SAF Uri 加载 APK，返回基本信息 */
     suspend fun loadApk(uri: String): Result<ApkInfo>
 
+    /**
+     * 读取 APK 应用图标（从已缓存的 APK 文件抽取，PM.getApplicationArchiveIcon）。
+     * 未加载 / 取不到时返回 success(null)，UI 回退首字母占位。
+     */
+    suspend fun loadApkIcon(uri: String): Result<android.graphics.drawable.Drawable?>
+
     /** 列出 APK 内的 DEX 文件 */
     suspend fun listDexFiles(): Result<List<DexEntry>>
 

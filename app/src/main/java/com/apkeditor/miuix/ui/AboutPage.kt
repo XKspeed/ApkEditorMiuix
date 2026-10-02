@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.apkeditor.miuix.R
 import com.apkeditor.miuix.ui.component.effect.BgEffectBackground
+import com.apkeditor.miuix.ui.components.InfoRow
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.ColorBlendToken
 import com.apkeditor.miuix.ui.util.isInDarkTheme
@@ -201,9 +203,19 @@ private fun AboutContent(
             .toBitmap(iconSizePx, iconSizePx)
             .asImageBitmap()
     }
-    val versionName = try {
-        ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "1.0"
-    } catch (_: Exception) { "1.0" }
+    // 真实应用信息（与 build.gradle / PackageManager 保持一致，杜绝写死的过期数据）
+    val versionName = remember(ctx) {
+        try {
+            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "0.1"
+        } catch (_: Exception) { "0.1" }
+    }
+    val versionCode = remember(ctx) {
+        try {
+            val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
+            @Suppress("DEPRECATION")
+            if (android.os.Build.VERSION.SDK_INT >= 28) pi.longVersionCode else pi.versionCode.toLong()
+        } catch (_: Exception) { 0L }
+    }
 
     BgEffectBackground(
         dynamicBackground = true,
@@ -348,6 +360,14 @@ private fun AboutContent(
                             Color.Transparent,
                         ),
                     ) {
+                        // 应用信息（运行时读 PackageManager，版本与 build.gradle 实际值一致）
+                        InfoRow("应用名称", appName)
+                        InfoRow("版本", "v" + versionName + " (" + versionCode + ")")
+                        InfoRow("包名", ctx.packageName)
+                        InfoRow("最低系统", "Android 15（API 35）")
+                        InfoRow("界面引擎", "Miuix 0.9.4-rc01")
+                        InfoRow("编辑引擎", "sora-editor 0.23.6 · ARSCLib V1.4.0")
+                        HorizontalDivider(color = colorScheme.dividerLine)
                         ArrowPreference(
                             title = "查看源码",
                             summary = "GitHub",

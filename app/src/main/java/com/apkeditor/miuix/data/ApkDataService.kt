@@ -32,6 +32,30 @@ interface ApkDataService {
     suspend fun assembleDex(dexName: String): Result<Unit>
 
     /**
+     * 列出所有类（跨 DEX 合并的扁平列表，类名点分）。
+     * 复用合并树缓存：树构建过则不会重复反编译。
+     */
+    suspend fun listSmaliClasses(dexNames: List<String>): Result<List<SmaliClassEntry>>
+
+    /** 读取类详情：类头（类名/访问标志/父类/接口）+ 方法列表 */
+    suspend fun readSmaliClassDetail(dexName: String, filePath: String): Result<SmaliClassDetail>
+
+    /** 读取单个方法的 smali 文本（.method … .end method 块，含首尾行） */
+    suspend fun readSmaliMethod(dexName: String, filePath: String, methodIndex: Int): Result<String>
+
+    /**
+     * 保存单个方法：按 [methodIndex] 定位 + [methodHeader] 声明行校验后整块回写原文件。
+     * 校验失败（文件已被别处改动）返回错误而不是静默覆盖。
+     */
+    suspend fun saveSmaliMethod(
+        dexName: String,
+        filePath: String,
+        methodIndex: Int,
+        methodHeader: String,
+        content: String,
+    ): Result<Unit>
+
+    /**
      * 放弃当前 APK 的所有待应用修改，回到原始状态。
      *
      * 同一 APK 的加载状态与待应用修改会跨页面保留（否则从编辑页返回信息页会丢失修改），

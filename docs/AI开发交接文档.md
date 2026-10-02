@@ -636,6 +636,8 @@ ApkSigner.Builder(listOf(signerConfig))                      // ⚠️ 需 List�
 | v0.1（修改不再丢失） | 2026-09-26 | **修复"改完返回信息页修改全丢"**：`ApkInfoPage` 每次进入都调 `loadApk`，而 `loadApk` 无条件重载模块并清空 `modifiedDex`/`modifiedXml`/`modifiedArsc`，导致从编辑页返回 APK 信息页时 arsc/dex/xml 修改被整体丢弃。改为同一 uri 复用已加载模块与修改记录，只有换 APK 才重置；新增 `discardModifications()` 与 APK 信息页 More 菜单「放弃所有修改」作为显式重置入口。踩坑见 §8 第 37 条 |
 | v0.1（arsc 修复） | 2026-09-26 | **修复"改了 arsc 值后回编译 arsc 结构损坏"**：写回前漏了 ARSCLib 必做的 `refreshTable()`（= `TableBlock.refreshFull()`），导致写出的 resource table 内部偏移错乱（MT 能打开但目录不完整，本 app 报 `IOException: Error at:(idx,offset)Finished reading:N`）。`writeUnsignedApk` 的 arsc 分支现在先 `m.refreshTable()` 再 `writeBytes`。同时加固 `loadOrCreateSigningKey()`：密钥库损坏时删除重建，避免"只能清除应用数据才能恢复"的永久性打包失败。另在设置页新增「崩溃日志」入口（读 `files/crash_log.txt`），便于无 root 时排查闪退。踩坑见 §8 第 38、39 条。**注意：用户反馈的"有保存记录时打不开 app"这一闪退问题本轮未定位到根因**（启动路径不读保存记录，`SavedApkStore` 解析本身也是防御式的），已提供崩溃日志入口待下次取证 |
 
+| v0.1（类方法导航+高亮） | 2026-09-27 | **MT 式类/方法级导航**：Smali 树点文件 → \`SmaliClassPage\`（类头信息 + 方法列表）→ \`Route.SmaliMethod\` 单方法编辑（\`SmaliParser\` 解析 .method/.end method 块区间；保存按 序号+声明行 双校验后整块回写，防错位覆盖）；类详情页顶栏**返回键右侧指南针图标**（\`component/CompassIcon.kt\` 手绘）→ \`SmaliClassListPage\`「所有类」跨 DEX 扁平列表（搜索、选类原地替换栈顶）；整文件编辑保留为类详情页 More 菜单入口。数据层新增 \`listSmaliClasses/readSmaliClassDetail/readSmaliMethod/saveSmaliMethod\`（接口+Real+Mock 同步）。**编辑器**：\`EditorLanguages.kt\` 装载自写 TextMate 语法（smali：指令/寄存器/类型/标签着色 + dalvik 助记符补全；XML）替换两处错误的 \`JavaLanguage()\`；**深浅色直接问 Miuix**（\`MiuixTheme.colorSchemeMode\` 六模式，System 才回退 \`isSystemInDarkTheme()\`），编辑器底色/正文/行号/分隔线/补全窗经 \`applyMiuixColors\` 覆盖为 \`MiuixTheme.colorScheme\` 当前值 → **Monet 动态取色与 app 同源**；smali .method/.end method **整行红底**（sora \`LineBackground\` 行样式 0x66FF0000，TextEditorScaffold 轮询维护：内容签名变化或分析器替换 Styles 后自动重建，重建后 \`finishBuilding()\` 重排序）。资源：\`assets/textmate/\`（languages.json、smali/xml 语法与语言配置、app-light/app-dark 主题）。⚠️ sora 坑：\`TextMateColorScheme\` 构造器不应用主题，必须 \`setTheme(model)\`（否则 rawTheme 为空、监听也不注册），见 \`EditorLanguages.colorScheme()\` |
+
 
 ---
 
@@ -688,13 +690,13 @@ baksmali 反汇编统一用 `Opcodes.getDefault()`（不再写死 forApi(35)）�
 - [x] smali 反编译缓存（返回不重复编译）
 
 ### 待办（下一步）
-- [x] **引入 sora-editor（Rosemoe）升级 smali/XML 编辑器**（已接 0.23.6）：语法高亮、行号、查找替换、跳转行、撤销重做。
+- [x] **引入 sora-editor（Rosemoe）升级 smali/XML 编辑器**（已接 0.23.6）：语法高亮、行号、查找替换、跳转行、撤销重做。本轮补齐：smali/XML TextMate 语法（自写，assets/textmate/ + EditorLanguages.kt）替换 JavaLanguage 占位；smali dalvik 助记符补全；主题问 Miuix（colorSchemeMode 含 Monet，applyMiuixColors 同源取色）；.method 红线。遗留：折叠 UI 入口
       - 统一组件 `ui/components/TextEditorScaffold.kt`，smali 与 AXML 共用；旧的 `ui/TextEditorPage.kt` 已删除（两条并行实现收敛为一条）。
       - 查找/替换已接真实 `EditorSearcher` API，不再是占位实现；踩坑见 §8 第 31、32 条。
       - 仍未做：代码折叠、自动补全（sora-editor 本身支持，后续补 TextMate 语言配置即可）。
 - [x] **列表页统一顶栏**（`ui/components/MiuixTopBar.kt`）：编辑器流程的 6 个页面已全部迁移 —— XmlFilesPage / ArscTypesPage / ArscEntriesPage / DexListPage / SmaliTreePage / ApkInfoPage。搜索框统一改为顶栏 Search 图标切换，页面级动作（如 Smali 树的"汇编"）收进 More 菜单。
       - ⚠️ **项目里其实有三套顶栏，不要盲目"统一"掉另外两套**：① `MiuixTopBar`（上面 6 页）；② `util/PageUtils.kt` 的 `AdaptiveTopAppBar`（HomePage / SavedApksPage / SettingsPage 三个 tab 根页，窄屏大标题栏、宽屏小标题栏 + `scrollBehavior`）；③ 直接用的 `SmallTopAppBar` + 滚动模糊（AboutPage / ThirdPartyLicensesPage / UiSettingsPage，配合 `pageScrollModifiers`/`layerBackdrop` 折叠模糊）。②③ 是 ui-only 分支引入的设计，`MiuixTopBar` 目前不接受 `scrollBehavior`，硬替换会丢掉折叠与模糊效果。
-- [ ] **DEX 编辑升级为 MT 式导航**：类列表 → 方法列表 → 单方法编辑（当前是整份 smali 文本编辑，对应 MT 的"文件级"，非"类/方法级"）
+- [x] **DEX 编辑升级为 MT 式导航**：已实现——类列表（Smali 树 / 指南针 → SmaliClassListPage）→ 方法列表（SmaliClassPage）→ 单方法编辑（SmaliMethod + SmaliParser 块解析，序号+声明行双校验回写）；.method/.end method 整行红底
 - [x] **zipalign 对齐**（已实现，进程内，不需要外部可执行文件）：重打包写回时给不压缩条目补对齐 extra，STORED 条目 4 字节、`lib/**/*.so` 4096 页对齐。同时修掉了它旁边的致命 bug —— 原先重打包遇到 STORED 条目必抛 `ZipException`（见 §8 第 33 条），**修之前几乎任何真 APK 都打不出包**。顺序：写 zip（含对齐）→ apksig 签名。
 - [ ] **R8 混淆/裁剪瘦身**：APK 51MB → 目标 20-30MB（删未用库代码）
 - [ ] 包名修改 / APK 共存（改 package 需要动 manifest + dex 引用，改动大，优先级低）

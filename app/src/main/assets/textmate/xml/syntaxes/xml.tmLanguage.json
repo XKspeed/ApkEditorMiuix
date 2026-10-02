@@ -1,0 +1,68 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "XML",
+  "scopeName": "text.xml",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#cdata" },
+    { "include": "#doctype" },
+    { "include": "#entity" },
+    { "include": "#tag" }
+  ],
+  "repository": {
+    "comment": {
+      "begin": "<!--",
+      "end": "-->",
+      "name": "comment.block.xml"
+    },
+    "cdata": {
+      "begin": "<!\\[CDATA\\[",
+      "end": "\\]\\]>",
+      "name": "markup.cdata.xml"
+    },
+    "doctype": {
+      "match": "<!DOCTYPE[^>]*>",
+      "name": "meta.tag.preprocessor.xml"
+    },
+    "entity": {
+      "match": "&[#a-zA-Z0-9]+;",
+      "name": "constant.character.entity.xml"
+    },
+    "tag": {
+      "begin": "(</?)([\\w:.-]+)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml" },
+        "2": { "name": "entity.name.tag.xml" }
+      },
+      "end": "(/?>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml" }
+      },
+      "name": "meta.tag.xml",
+      "patterns": [{ "include": "#attribute" }]
+    },
+    "attribute": {
+      "patterns": [
+        { "include": "#entity" },
+        {
+          "match": "[\\w:.-]+",
+          "name": "entity.other.attribute-name.xml"
+        },
+        {
+          "begin": "\"",
+          "end": "\"",
+          "name": "string.quoted.double.xml",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.xml" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.xml" } }
+        },
+        {
+          "begin": "'",
+          "end": "'",
+          "name": "string.quoted.single.xml",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.xml" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.xml" } }
+        }
+      ]
+    }
+  }
+}

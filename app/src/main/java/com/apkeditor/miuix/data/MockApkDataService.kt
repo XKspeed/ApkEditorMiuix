@@ -133,6 +133,45 @@ class MockApkDataService : ApkDataService {
         return Result.success(Unit)
     }
 
+    override suspend fun listSmaliClasses(dexNames: List<String>): Result<List<SmaliClassEntry>> {
+        mockDelay()
+        val out = mutableListOf<SmaliClassEntry>()
+        dexNames.forEach { dex ->
+            listSmaliFiles(dex).getOrThrow().forEach { p ->
+                val cls = p.substringAfter("/", p).removeSuffix(".smali").replace("/", ".")
+                out.add(SmaliClassEntry(dex, p, cls))
+            }
+        }
+        return Result.success(out.sortedBy { it.className })
+    }
+
+    override suspend fun readSmaliClassDetail(dexName: String, filePath: String): Result<SmaliClassDetail> {
+        mockDelay()
+        val text = readSmaliFile(dexName, filePath).getOrThrow()
+        return Result.success(SmaliParser.parse(text).detail)
+    }
+
+    override suspend fun readSmaliMethod(dexName: String, filePath: String, methodIndex: Int): Result<String> {
+        mockDelay()
+        val text = readSmaliFile(dexName, filePath).getOrThrow()
+        val block = SmaliParser.parse(text).blocks.getOrNull(methodIndex)
+            ?: return Result.failure(IllegalArgumentException("方法不存在"))
+        return Result.success(
+            text.split("\n").subList(block.start, block.end + 1).joinToString("\n")
+        )
+    }
+
+    override suspend fun saveSmaliMethod(
+        dexName: String,
+        filePath: String,
+        methodIndex: Int,
+        methodHeader: String,
+        content: String,
+    ): Result<Unit> {
+        mockDelay()
+        return Result.success(Unit)
+    }
+
     override suspend fun renameSmaliFile(dexName: String, filePath: String, newClassName: String): Result<Unit> {
         mockDelay()
         return Result.success(Unit)

@@ -3,6 +3,7 @@ package com.apkeditor.miuix.ui.components
 import android.graphics.Typeface
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,13 +30,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.lang.Language
+import io.github.rosemoe.sora.lang.styling.color.ResolvableColor
+import io.github.rosemoe.sora.lang.styling.line.LineBackground
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.EditorSearcher
+import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import io.github.rosemoe.sora.widget.EditorSearcher.SearchOptions
+import androidx.compose.ui.graphics.toArgb
+import com.apkeditor.miuix.ui.EditorLanguages
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.Colors
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
@@ -58,6 +66,94 @@ private class EditorRefs {
     var lastQuery: String? = null
     var lastType = -1
     var lastCaseInsensitive = false
+
+    /** 行标记（如 .method/.end method 红底）的内容签名与已标记行，用于增量维护 */
+    var markSig: Long = -1L
+    var markedLines: IntArray = IntArray(0)
+}
+
+/** 行标记背景色：40% 红（0x66FF0000），整行绘制在文字之下 */
+private const val LINE_MARK_BG = 0x66FF0000
+
+/**
+ * 把 Miuix 当前配色覆盖到 TextMate 颜色方案的基础键上。
+ *
+ * - 深浅主题（app-light / app-dark）由 [EditorLanguages.applyTheme] 按 Miuix 解析出的
+ *   深浅色选择，语法 token 高亮随之切换；
+ * - 底色 / 正文 / 行号 / 分隔线 / 当前行 / 补全窗等基础键直接取 [colors]——
+ *   Monet 模式下这就是动态生成的色板，编辑器与 app 主题同源取色。
+ *
+ * [ed] 为 null（编辑器尚未创建）时只切主题，编辑器创建时会再执行一遍。
+ */
+private fun applyMiuixColors(ed: CodeEditor?, dark: Boolean, colors: Colors) {
+    EditorLanguages.applyTheme(dark)
+    if (ed == null) return
+    val scheme = EditorLanguages.colorScheme() ?: return
+    runCatching {
+        scheme.setColor(EditorColorScheme.WHOLE_BACKGROUND, colors.background.toArgb())
+        scheme.setColor(EditorColorScheme.TEXT_NORMAL, colors.onBackground.toArgb())
+        scheme.setColor(EditorColorScheme.LINE_NUMBER, colors.onSurfaceVariantSummary.toArgb())
+        scheme.setColor(EditorColorScheme.LINE_NUMBER_CURRENT, colors.onSurface.toArgb())
+        scheme.setColor(EditorColorScheme.LINE_NUMBER_BACKGROUND, colors.background.toArgb())
+        scheme.setColor(EditorColorScheme.LINE_DIVIDER, colors.dividerLine.toArgb())
+        scheme.setColor(EditorColorScheme.CURRENT_LINE, colors.surface.toArgb())
+        scheme.setColor(EditorColorScheme.SELECTION_INSERT, colors.primary.toArgb())
+        scheme.setColor(EditorColorScheme.SELECTION_HANDLE, colors.primary.toArgb())
+        scheme.setColor(EditorColorScheme.COMPLETION_WND_BACKGROUND, colors.surface.toArgb())
+        scheme.setColor(EditorColorScheme.COMPLETION_WND_TEXT_PRIMARY, colors.onSurface.toArgb())
+        scheme.setColor(EditorColorScheme.COMPLETION_WND_TEXT_SECONDARY, colors.onSurfaceVariantSummary.toArgb())
+    }.onFailure { it.printStackTrace() }
+    ed.colorScheme = scheme
+    ed.invalidate()
+}
+
+/**
+ * 维护 [matcher] 匹配行的整行背景（LineBackground 行样式）。
+ *
+ * 触发时机：轮询（200ms）驱动，两种情况会真正重建——
+ *  1. 文本内容签名变化（编辑器内容变了，行号随之变化）；
+ *  2. 签名没变但首行标记丢失（TextMate 分析器在异步分析完成后
+ *     整体替换了 Styles 对象，把行样式冲掉了）。
+ *
+ * 重建方式：快照现有 LineStyles → 擦除全部 LineBackground → 按当前
+ * 内容重扫并逐行添加 → finishBuilding() 重新排序（渲染层用二分查找，
+ * 乱序会查不到行样式）→ invalidate()。
+ *
+ * 颜色与匹配都通过 runCatching 兜底：行样式 API 在不同 sora 版本上
+ * 签名若有出入，最坏结果是不显示红底，不影响编辑与保存。
+ */
+private fun ensureLineMarks(ed: CodeEditor, refs: EditorRefs, matcher: (String) -> Boolean) {
+    val styles = ed.styles ?: return
+    val text = ed.text
+    val sig = text.length.toLong() * 1_000_003L + text.lineCount
+
+    val intact = sig == refs.markSig && runCatching {
+        refs.markedLines.isEmpty() || styles.lineStyles?.any { ls ->
+            ls.line == refs.markedLines[0] && ls.findOne(LineBackground::class.java) != null
+        } == true
+    }.getOrDefault(false)
+    if (intact) return
+
+    runCatching {
+        styles.lineStyles?.toList()?.forEach { ls ->
+            styles.eraseLineStyle(ls.line, LineBackground::class.java)
+        }
+    }
+    val lineCount = text.lineCount
+    val marked = ArrayList<Int>()
+    for (i in 0 until lineCount) {
+        val line = text.getLine(i)
+        if (runCatching { matcher(line.toString()) }.getOrDefault(false)) {
+            runCatching {
+                styles.addLineStyle(LineBackground(i, ResolvableColor { LINE_MARK_BG }))
+            }
+            marked.add(i)
+        }
+    }
+    refs.markSig = sig
+    refs.markedLines = marked.toIntArray()
+    runCatching { styles.finishBuilding() }
+    ed.invalidate()
 }
 
 /**
@@ -84,10 +180,33 @@ fun TextEditorScaffold(
     load: suspend () -> Result<String>,
     save: suspend (String) -> Result<Unit>,
     onBack: () -> Unit,
+    /**
+     * 行标记匹配器：匹配整行文本的行加整行背景（红色）。
+     * smali 编辑传入 ".method/.end method" 判定，其它编辑器传 null。
+     * 标记由 [ensureLineMarks] 在装载与每次内容变化后重建，
+     * 文本分析器整体替换 Styles 后也会自动补刷（轮询校验）。
+     */
+    lineMarks: ((String) -> Boolean)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     val refs = remember { EditorRefs() }
+
+    // 深浅色直接问 Miuix：colorSchemeMode 由 ThemeController 解析（含 Monet 六种模式），
+    // 只有 System/MonetSystem 才回退到系统深浅色，绝不自己另推一套。
+    val schemeMode = MiuixTheme.colorSchemeMode ?: ColorSchemeMode.System
+    val dark = when (schemeMode) {
+        ColorSchemeMode.Light, ColorSchemeMode.MonetLight -> false
+        ColorSchemeMode.Dark, ColorSchemeMode.MonetDark -> true
+        else -> isSystemInDarkTheme()
+    }
+    // 当前解析后的 Miuix 配色；Monet 模式下是动态生成的色板（取色跟随壁纸/种子色）
+    val miuixColors = MiuixTheme.colorScheme
+
+    LaunchedEffect(dark, miuixColors.background, miuixColors.onBackground, miuixColors.surface) {
+        EditorLanguages.init(ctx)
+        applyMiuixColors(refs.editor, dark, miuixColors)
+    }
 
     // 已加载的原始文本。用「它是否为 null」表达加载完成，省掉一个额外的 state。
     var content by remember { mutableStateOf<String?>(null) }
@@ -121,6 +240,9 @@ fun TextEditorScaffold(
             val ed = refs.editor
             if (ed != null) {
                 runCatching { cursorLine = ed.cursor.leftLine + 1 }
+                // .method/.end method 整行红底：内容变化或分析器覆盖 Styles 后重建
+                val lm = lineMarks
+                if (lm != null) runCatching { ensureLineMarks(ed, refs, lm) }
                 val s = ed.searcher
                 if (runCatching { s.hasQuery() }.getOrDefault(false)) {
                     runCatching { matchCount = s.matchedPositionCount }
@@ -272,7 +394,10 @@ fun TextEditorScaffold(
                 )
                 else -> AndroidView(
                     factory = { c ->
+                        // 保证语法/主题已装载；颜色方案必须在 setEditorLanguage 之前挂上
+                        EditorLanguages.init(c)
                         CodeEditor(c).apply {
+                            applyMiuixColors(this, dark, miuixColors)
                             if (language != null) setEditorLanguage(language)
                             isWordwrap = false
                             typefaceText = Typeface.MONOSPACE

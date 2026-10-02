@@ -5,7 +5,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
@@ -20,10 +25,10 @@ import com.apkeditor.miuix.ui.component.BackNavigationIcon
 
 /**
  * 列表页统一顶栏（miuix 风格）。
- * 左：返回图标（统一格式，不再重复“返回”文字）。
+ * 左：返回图标（统一格式，不再重复“返回”文字） + [navigationExtras]（返回右侧的扩展操作位）。
  * 右：Search 图标（切换搜索/过滤） + More 图标（下拉菜单）。
  *
- * 所有列表类页面（XML 列表 / ARSC 列表 / Smali 树 / APK 内容 / 关于 等）统一使用。
+ * 所有列表类页面（XML 列表 / ARSC 列表 / Smali 树 / 类详情 / APK 内容 / 关于 等）统一使用。
  */
 @Composable
 fun MiuixTopBar(
@@ -32,13 +37,25 @@ fun MiuixTopBar(
     onBack: (() -> Unit)? = null,
     onSearch: (() -> Unit)? = null,
     menuItems: List<DropdownItem> = emptyList(),
+    /** 返回图标右侧的扩展操作位（如类详情页的“所有类”指南针） */
+    navigationExtras: (@Composable RowScope.() -> Unit)? = null,
 ) {
     TopAppBar(
         title = title,
         subtitle = subtitle,
         navigationIcon = {
-            if (onBack != null) {
-                BackNavigationIcon(onClick = onBack)
+            if (onBack != null || navigationExtras != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onBack != null) {
+                        BackNavigationIcon(onClick = onBack)
+                    }
+                    if (navigationExtras != null) {
+                        Row(
+                            modifier = Modifier.padding(start = 2.dp),
+                            content = navigationExtras,
+                        )
+                    }
+                }
             }
         },
         actions = {

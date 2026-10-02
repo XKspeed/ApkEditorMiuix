@@ -420,6 +420,62 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             }
         }
 
+    override suspend fun listSmaliClasses(dexNames: List<String>): Result<List<SmaliClassEntry>> = runCatching {
+        val tree = listSmaliMergedTree(dexNames, null).getOrThrow()
+        val out = mutableListOf<SmaliClassEntry>()
+        fun walk(nodes: List<SmaliTreeNode>) {
+            nodes.forEach { n ->
+                if (n.isDir) walk(n.children)
+                else out.add(SmaliClassEntry(n.dex, n.path, classNameOfPath(n.path)))
+            }
+        }
+        walk(tree)
+        out.sortedWith(compareBy({ it.className }, { it.dex }))
+    }
+
+    /** smali/com/x/Foo.smali → com.x.Foo（smali 前缀可能带 _classesN 后缀） */
+    private fun classNameOfPath(path: String): String {
+        val p = path.substringAfter("/", path)
+        return p.removeSuffix(".smali").replace("/", ".")
+    }
+
+    override suspend fun readSmaliClassDetail(dexName: String, filePath: String): Result<SmaliClassDetail> =
+        runCatching {
+            val text = readSmaliFile(dexName, filePath).getOrThrow()
+            SmaliParser.parse(text).detail
+        }
+
+    override suspend fun readSmaliMethod(dexName: String, filePath: String, methodIndex: Int): Result<String> =
+        runCatching {
+            val text = readSmaliFile(dexName, filePath).getOrThrow()
+            val block = SmaliParser.parse(text).blocks.getOrNull(methodIndex)
+                ?: error("方法不存在（文件可能已被修改）")
+            text.split("\n").subList(block.start, block.end + 1).joinToString("\n")
+        }
+
+    override suspend fun saveSmaliMethod(
+        dexName: String,
+        filePath: String,
+        methodIndex: Int,
+        methodHeader: String,
+        content: String,
+    ): Result<Unit> = runCatching {
+        val f = File(workDir(), "$dexName/$filePath")
+        if (!f.exists()) error("smali 文件不存在：$filePath")
+        val text = f.readText()
+        val lines = text.split("\n").toMutableList()
+        val block = SmaliParser.parse(text).blocks.getOrNull(methodIndex)
+            ?: error("方法不存在（文件可能已被修改）")
+        // 声明行校验：防止文件在别处被改动后错位覆盖
+        if (lines[block.start].trim() != methodHeader) {
+            error("方法位置已变化，请返回类详情页刷新后重试")
+        }
+        val newLines = content.trimEnd('\n').split("\n")
+        lines.subList(block.start, block.end + 1).clear()
+        lines.addAll(block.start, newLines)
+        f.writeText(lines.joinToString("\n"))
+    }
+
     override suspend fun renameSmaliFile(dexName: String, filePath: String, newClassName: String): Result<Unit> =
         runCatching {
             val oldFile = File(workDir(), "$dexName/$filePath")

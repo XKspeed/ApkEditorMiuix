@@ -1,6 +1,7 @@
 package com.apkeditor.miuix.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +34,10 @@ import com.apkeditor.miuix.ui.components.LoadingBox
 import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.components.MiuixTopBar
 import com.apkeditor.miuix.ui.components.TextField
+import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -125,6 +131,14 @@ fun SmaliTreePage(
 
     val isSearching = filter.isNotBlank()
 
+    // 主页同款 progressive 顶栏：滚动缩小 + 折叠后模糊
+    val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val lazyListState = rememberLazyListState()
+    val scrollProgress by remember {
+        derivedStateOf { if (lazyListState.firstVisibleItemIndex > 0) 1f else 0f }
+    }
+    val backdrop = rememberBlurBackdrop()
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
@@ -152,9 +166,13 @@ fun SmaliTreePage(
                         },
                     ),
                 ),
+                scrollBehavior = topAppBarScrollBehavior,
+                backdrop = backdrop,
+                scrollProgress = { scrollProgress },
             )
         }
     ) { innerPadding ->
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
         Column(Modifier.fillMaxSize().padding(innerPadding)) {
             if (showSearch) {
                 TextField(
@@ -182,7 +200,13 @@ fun SmaliTreePage(
                 )
                 isSearching -> {
                     // 搜索模式：扁平列表
-                    LazyColumn(Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier.fillMaxSize().pageScrollModifiers(
+                            showTopAppBar = true,
+                            topAppBarScrollBehavior = topAppBarScrollBehavior,
+                        ),
+                    ) {
                         items(searchResults, key = { it.second }) { (dex, path) ->
                             val className = path.removePrefix("smali/")
                                 .substringBeforeLast(".smali").replace("/", ".")
@@ -199,7 +223,13 @@ fun SmaliTreePage(
                 }
                 else -> {
                     // 树形模式
-                    LazyColumn(Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier.fillMaxSize().pageScrollModifiers(
+                            showTopAppBar = true,
+                            topAppBarScrollBehavior = topAppBarScrollBehavior,
+                        ),
+                    ) {
                         items(visibleNodes, key = { keyOf(it) }) { n ->
                             TreeRow(n, expanded, onOpenFile)
                             HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
@@ -208,6 +238,7 @@ fun SmaliTreePage(
                     }
                 }
             }
+        }
         }
     }
 

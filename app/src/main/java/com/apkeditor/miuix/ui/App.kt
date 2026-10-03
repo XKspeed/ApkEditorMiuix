@@ -402,7 +402,6 @@ private fun MainPage(
                     )
                     3 -> AboutPage(
                         onBack = {},
-                        onOpenThirdPartyLicenses = { navigate(Route.ThirdPartyLicenses) },
                     )
                 }
             }

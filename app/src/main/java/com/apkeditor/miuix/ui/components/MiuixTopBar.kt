@@ -52,7 +52,9 @@ fun MiuixTopBar(
     backdrop: LayerBackdrop? = null,
     scrollProgress: () -> Float = { 0f },
 ) {
-    val navContent: @Composable RowScope.() -> Unit = {
+    // 注意：TopAppBar / AdaptiveTopAppBar 的 navigationIcon 是无接收者的 @Composable () -> Unit，
+    // 不能声明成 RowScope 扩展（Kotlin 不会自动收窄，实测编译报 ARGUMENT_TYPE_MISMATCH）
+    val navContent: @Composable () -> Unit = {
         if (onBack != null || navigationExtras != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (onBack != null) {

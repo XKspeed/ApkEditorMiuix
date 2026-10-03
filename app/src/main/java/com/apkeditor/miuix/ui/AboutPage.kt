@@ -37,7 +37,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,7 +47,6 @@ import androidx.core.graphics.drawable.toBitmap
 import com.apkeditor.miuix.R
 import com.apkeditor.miuix.ui.component.effect.BgEffectBackground
 import com.apkeditor.miuix.ui.components.InfoRow
-import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.ColorBlendToken
 import com.apkeditor.miuix.ui.util.isInDarkTheme
@@ -66,7 +64,6 @@ import top.yukonga.miuix.kmp.blur.BlurBlendMode
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
-import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.squircle.squircleClip
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
@@ -76,7 +73,6 @@ import top.yukonga.miuix.kmp.basic.Text as MiuixText
 @Composable
 fun AboutPage(
     onBack: () -> Unit,
-    onOpenThirdPartyLicenses: () -> Unit = {},
     isBlurEnabled: Boolean = true,
 ) {
     val topAppBarScrollBehavior = MiuixScrollBehavior()
@@ -134,7 +130,6 @@ fun AboutPage(
                 lazyListState = lazyListState,
                 scrollProgressProvider = { scrollProgress },
                 onBack = onBack,
-                onOpenThirdPartyLicenses = onOpenThirdPartyLicenses,
             )
         }
     }
@@ -147,9 +142,7 @@ private fun AboutContent(
     lazyListState: LazyListState,
     scrollProgressProvider: () -> Float,
     onBack: () -> Unit,
-    onOpenThirdPartyLicenses: () -> Unit,
 ) {
-    val uriHandler = LocalUriHandler.current
     val contentBackdrop = rememberBlurBackdrop()
     var blurRadius by remember { mutableFloatStateOf(60f) }
     var noiseCoefficient by remember { mutableFloatStateOf(BlurDefaults.NoiseCoefficient) }
@@ -360,56 +353,9 @@ private fun AboutContent(
                             Color.Transparent,
                         ),
                     ) {
-                        // 应用信息（运行时读 PackageManager，版本与 build.gradle 实际值一致）
-                        InfoRow("应用名称", appName)
-                        InfoRow("版本", "v" + versionName + " (" + versionCode + ")")
-                        InfoRow("包名", ctx.packageName)
-                        InfoRow("最低系统", "Android 15（API 35）")
-                        InfoRow("界面引擎", "Miuix 0.9.4-rc01")
-                        InfoRow("编辑引擎", "sora-editor 0.23.6 · ARSCLib V1.4.0")
-                        HorizontalDivider(color = colorScheme.dividerLine)
-                        ArrowPreference(
-                            title = "查看源码",
-                            summary = "GitHub",
-                            onClick = { uriHandler.openUri("https://github.com/XKspeed/ApkEditorMiuix") },
-                        )
-                    }
-                    Card(
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp)
-                            .padding(top = 12.dp)
-                            .then(
-                                if (contentBackdrop != null) {
-                                    Modifier.textureBlur(
-                                        backdrop = contentBackdrop,
-                                        shape = RoundedCornerShape(16.dp),
-                                        blurRadius = blurRadius,
-                                        noiseCoefficient = noiseCoefficient,
-                                        colors = BlurDefaults.blurColors(
-                                            blendColors = cardBlend,
-                                            brightness = brightness,
-                                            contrast = contrast,
-                                            saturation = saturation,
-                                        ),
-                                    )
-                                } else {
-                                    Modifier
-                                },
-                            ),
-                        colors = CardDefaults.defaultColors(
-                            if (contentBackdrop != null) Color.Transparent else colorScheme.surfaceContainer,
-                            Color.Transparent,
-                        ),
-                    ) {
-                        ArrowPreference(
-                            title = "Apache License 2.0",
-                            summary = "开源许可证",
-                            onClick = { uriHandler.openUri("https://www.apache.org/licenses/LICENSE-2.0.txt") },
-                        )
-                        ArrowPreference(
-                            title = "第三方许可证",
-                            onClick = onOpenThirdPartyLicenses,
-                        )
+                        // 只展示应用版本与作者（版本运行时读 PackageManager，与 build.gradle 实际值一致）
+                        InfoRow("应用版本", "v" + versionName + " (" + versionCode + ")")
+                        InfoRow("作者", "XKspeed")
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                 }

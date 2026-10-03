@@ -1,5 +1,6 @@
 package com.apkeditor.miuix.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -12,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +31,10 @@ import com.apkeditor.miuix.ui.components.LoadingBox
 import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.components.MiuixTopBar
 import com.apkeditor.miuix.ui.components.SectionCard
+import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -67,6 +73,14 @@ fun SmaliClassPage(
             .onFailure { error = it.message ?: "解析类失败" }
     }
 
+    // 主页同款 progressive 顶栏：滚动缩小 + 折叠后模糊（此页用 verticalScroll，按偏移判断）
+    val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val scrollState = rememberScrollState()
+    val scrollProgress by remember {
+        derivedStateOf { if (scrollState.value > 0) 1f else 0f }
+    }
+    val backdrop = rememberBlurBackdrop()
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
@@ -83,13 +97,21 @@ fun SmaliClassPage(
                 menuItems = listOf(
                     DropdownItem(text = "编辑整个文件", onClick = { showFileTip = true }),
                 ),
+                scrollBehavior = topAppBarScrollBehavior,
+                backdrop = backdrop,
+                scrollProgress = { scrollProgress },
             )
         },
     ) { innerPadding ->
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
         Column(
             Modifier.fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState)
+                .pageScrollModifiers(
+                    showTopAppBar = true,
+                    topAppBarScrollBehavior = topAppBarScrollBehavior,
+                ),
         ) {
             when {
                 error != null -> ErrorBox(error!!, onRetry = null)
@@ -139,6 +161,7 @@ fun SmaliClassPage(
                     Spacer(Modifier.fillMaxWidth().height(24.dp))
                 }
             }
+        }
         }
     }
 

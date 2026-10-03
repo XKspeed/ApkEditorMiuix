@@ -38,8 +38,6 @@ import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ThemeState
 import com.apkeditor.miuix.data.ApkCacheManager
 import com.apkeditor.miuix.data.OutputConfig
-import com.apkeditor.miuix.ui.components.DialogActions
-import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
@@ -50,7 +48,6 @@ import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -129,7 +126,7 @@ fun SettingsPage(
                     top = scrollPadding.calculateTopPadding(),
                     start = scrollPadding.calculateLeftPadding(LayoutDirection.Ltr),
                     end = scrollPadding.calculateRightPadding(LayoutDirection.Ltr),
-                    bottom = innerPadding.calculateBottomPadding(),
+                    bottom = scrollPadding.calculateBottomPadding(),
                 ),
             ) {
                 item {
@@ -180,65 +177,8 @@ fun SettingsPage(
                 item {
                     OutputDirectoryPreference()
                 }
-                item {
-                    SmallTitle("其他")
-                }
-                item {
-                    CrashLogPreference()
-                }
                 item { Spacer(Modifier.height(24.dp)) }
             }
-        }
-    }
-}
-
-/** 崩溃日志查看：日志写在 files/crash_log.txt，没有 root 也能从这里直接看到堆栈 */
-@Composable
-private fun CrashLogPreference() {
-    val context = LocalContext.current
-    var logText by remember { mutableStateOf<String?>(null) }
-    var showDialog by remember { mutableStateOf(false) }
-
-    Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-            Text("崩溃日志", style = MiuixTheme.textStyles.main, modifier = Modifier.padding(vertical = 10.dp))
-            Text(
-                "应用闪退过的话，这里能看到崩溃堆栈（同时写在 files/crash_log.txt）。",
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                style = MiuixTheme.textStyles.subtitle,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "查看崩溃日志",
-                color = MiuixTheme.colorScheme.primary,
-                style = MiuixTheme.textStyles.main,
-                modifier = Modifier
-                    .clickable {
-                        logText = runCatching {
-                            val f = File(context.filesDir, "crash_log.txt")
-                            if (!f.exists()) "还没有崩溃记录" else f.readText().takeLast(8000)
-                        }.getOrElse { "读取失败：${it.message}" }
-                        showDialog = true
-                    }
-                    .padding(vertical = 8.dp),
-            )
-            Spacer(Modifier.height(6.dp))
-        }
-    }
-
-    if (showDialog) {
-        MiuixDialog(title = "崩溃日志", onDismiss = { showDialog = false }) {
-            Text(
-                logText ?: "",
-                color = MiuixTheme.colorScheme.onSurface,
-                style = MiuixTheme.textStyles.footnote2,
-            )
-            DialogActions(
-                confirmText = "好的",
-                onConfirm = { showDialog = false },
-                cancelText = "",
-                onCancel = { showDialog = false },
-            )
         }
     }
 }

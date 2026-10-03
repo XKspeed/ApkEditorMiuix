@@ -1,5 +1,6 @@
 package com.apkeditor.miuix.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -8,9 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,7 +27,11 @@ import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.LoadingBox
 import com.apkeditor.miuix.ui.components.MiuixTopBar
 import com.apkeditor.miuix.ui.components.TextField
+import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -50,6 +57,14 @@ fun XmlFilesPage(
         filter.isBlank() || it.path.contains(filter, ignoreCase = true)
     } ?: emptyList()
 
+    // 主页同款 progressive 顶栏：滚动缩小 + 折叠后模糊
+    val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val lazyListState = rememberLazyListState()
+    val scrollProgress by remember {
+        derivedStateOf { if (lazyListState.firstVisibleItemIndex > 0) 1f else 0f }
+    }
+    val backdrop = rememberBlurBackdrop()
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
@@ -57,10 +72,14 @@ fun XmlFilesPage(
                 title = "XML / res 文件",
                 onBack = onBack,
                 onSearch = { showSearch = !showSearch },
+                scrollBehavior = topAppBarScrollBehavior,
+                backdrop = backdrop,
+                scrollProgress = { scrollProgress },
             )
         }
     ) { innerPadding ->
-        when {
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
+            when {
             error != null -> ErrorBox(error!!, onRetry = null)
             files == null -> LoadingBox("读取文件列表…")
             else -> Column(
@@ -90,7 +109,13 @@ fun XmlFilesPage(
                     style = MiuixTheme.textStyles.subtitle,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
                 )
-                LazyColumn(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier.fillMaxSize().pageScrollModifiers(
+                        showTopAppBar = true,
+                        topAppBarScrollBehavior = topAppBarScrollBehavior,
+                    ),
+                ) {
                     items(visible) { f ->
                         ListItemRow(
                             title = f.path.substringAfterLast("/"),
@@ -103,6 +128,7 @@ fun XmlFilesPage(
                     item { Spacer(Modifier.height(24.dp)) }
                 }
             }
+        }
         }
     }
 }

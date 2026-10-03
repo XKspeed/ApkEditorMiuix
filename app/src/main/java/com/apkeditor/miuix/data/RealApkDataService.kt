@@ -174,6 +174,14 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 val permissions = runCatching { manifest.usesPermissions }.getOrElse { emptyList() }
                 val mainActivity = runCatching { manifest.mainActivityClassName }.getOrNull() ?: ""
                 val dexNames = listDexNamesFromZip(input)
+                // 进程重启后 work 目录仍在（按内容哈希分目录）：把上一会话已汇编的
+                // 产物（out-<dex>）重新挂回 modifiedDex。否则会出现静默丢改动：
+                // 用户看到的是改过的 smali 文本（磁盘上还在），但 modifiedDex 已清空，
+                // 打包出来的是原始 dex —— 改动"消失"且毫无提示。
+                dexNames.forEach { dex ->
+                    val out = File(File(workDir(), dex), "out-$dex")
+                    if (out.exists() && out.length() > 0) modifiedDex[dex] = out
+                }
                 val resourceCount = runCatching { countResources(m) }.getOrElse { 0 }
 
                 val info = ApkInfo(
@@ -314,14 +322,25 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 val dir = dexWorkDir(dex)
                 val smaliDir = File(dir, smaliDirName(dex))
                 if (!smaliDir.exists()) {
-                    smaliDir.mkdirs()
+                    // 先反汇编到临时目录，成功后再原子改名成正式目录。
+                    // 否则 baksmali 中途被杀（OOM/退出）会留下半截 smali 目录，
+                    // 而下面「目录存在即跳过」会永远信任这份不完整的反编译产物。
+                    val tmpDir = File(dir, smaliDirName(dex) + ".tmp")
+                    if (tmpDir.exists()) tmpDir.deleteRecursively()
+                    tmpDir.mkdirs()
                     val dexFileObj = DexFileFactory.loadDexFile(
                         File(dir, dex), Opcodes.getDefault(),
                     )
                     val options = BaksmaliOptions().apply {
                         apiLevel = currentMinSdk
                     }
-                    Baksmali.disassembleDexFile(dexFileObj, smaliDir, threadCount, options)
+                    Baksmali.disassembleDexFile(dexFileObj, tmpDir, threadCount, options)
+                    if (smaliDir.exists()) smaliDir.deleteRecursively()
+                    if (!tmpDir.renameTo(smaliDir)) {
+                        // 极端情况改名失败：清掉临时目录报错，让调用方感知失败
+                        tmpDir.deleteRecursively()
+                        throw IllegalStateException("反汇编 $dex 失败：目录改名未成功")
+                    }
                 }
                 val files = collectSmali(smaliDir)
                 smaliCache[dex] = files
@@ -503,21 +522,46 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         runCatching {
             val oldFile = File(workDir(), "$dexName/$filePath")
             if (!oldFile.exists()) error("文件不存在：$filePath")
-            // 包路径保持不变，只改类名
-            val dir = oldFile.parentFile!!
-            val newFile = File(dir, "$newClassName.smali")
-            // 读内容，替换 .class 声明里的类名
-            val oldContent = oldFile.readText()
-            val oldClassName = filePath.substringAfterLast("/").removeSuffix(".smali")
-            val newContent = oldContent.replace(
-                ".class public L$oldClassName;",
-                ".class public L$newClassName;"
-            ).replace(
-                ".class final L$oldClassName;",
-                ".class final L$newClassName;"
-            )
-            newFile.writeText(newContent)
+            // filePath 形如 smali/com/x/Old.smali：包路径保持不变，只改末级类名
+            val slash = filePath.lastIndexOf('/')
+            if (slash <= 0) error("非法的 smali 路径：$filePath")
+            val oldSimple = filePath.substring(slash + 1).removeSuffix(".smali")
+            if (newClassName == oldSimple) return@runCatching
+            // 去掉 smali / smali_classesN 根前缀得到包路径（com/x）
+            val rootPrefix = smaliDirName(dexName)
+            val dirPath = filePath.substring(0, slash)
+            val pkgPath = when {
+                dirPath == rootPrefix -> ""
+                dirPath.startsWith("$rootPrefix/") -> dirPath.removePrefix("$rootPrefix/")
+                else -> dirPath
+            }
+            val newFile = File(oldFile.parentFile, "$newClassName.smali")
+            if (newFile.exists()) error("同名文件已存在：$newClassName.smali")
+
+            // 描述符 token 必须带完整包路径：Lcom/x/Old; → Lcom/x/New;
+            // 旧实现拼的是 LOld;（只有根包类才长这样），对绝大多数类是空操作——
+            // 文件名改了、.class 声明没改，改名形同虚设；且只覆盖 public/final 两种
+            // 修饰符组合，public final / abstract / interface / enum 一律漏掉。
+            val oldToken = if (pkgPath.isEmpty()) "L$oldSimple;" else "L$pkgPath/$oldSimple;"
+            val newToken = if (pkgPath.isEmpty()) "L$newClassName;" else "L$pkgPath/$newClassName;"
+
+            // 先取全 dex 文件清单（改名前拿，避免边改边枚举）
+            val files = smaliCache[dexName] ?: decompileAll(listOf(dexName))[dexName].orEmpty()
+
+            // 1) 本文件：.class 声明行与文件内全部自我引用一并替换（任意修饰符组合都覆盖）
+            newFile.writeText(oldFile.readText().replace(oldToken, newToken))
             oldFile.delete()
+
+            // 2) 同 dex 内其他文件对该类的引用同步替换，
+            //    否则汇编出的 dex 会残留指向旧类名的悬空引用（运行期 NoClassDefFound）
+            files.forEach { rel ->
+                if (rel == filePath) return@forEach
+                val f = File(workDir(), "$dexName/$rel")
+                if (!f.exists()) return@forEach
+                val text = runCatching { f.readText() }.getOrNull() ?: return@forEach
+                if (text.contains(oldToken)) f.writeText(text.replace(oldToken, newToken))
+            }
+
             // 清缓存让树重建
             smaliCache.remove(dexName)
             clearTreeCaches()
@@ -746,6 +790,9 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     override suspend fun saveResourceValue(id: Int, qualifiers: String?, newValue: String): Result<Unit> =
         runCatching {
             locked { m ->
+                // 只有真正命中变体才标记 arsc 被修改：否则 id 找不到 / 限定符不匹配时
+                // 也会把 arsc 拉进替换清单，白白触发一次全表 refreshTable + 重编码。
+                var changed = false
                 m.tableBlock.resources.forEach { r ->
                     if (r.resourceId != id) return@forEach
                     // qualifiers 为空 = 只改 default 变体；非空 = 精确改指定限定符变体
@@ -757,10 +804,11 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                         val match = if (qNorm.isEmpty()) isDefault else cfgNorm == qNorm
                         if (match) {
                             setEntryValueAuto(e, newValue)
+                            changed = true
                         }
                     }
                 }
-                modifiedArsc = true
+                if (changed) modifiedArsc = true
             }
         }
 
@@ -800,12 +848,14 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     override suspend fun renameResource(id: Int, newName: String): Result<Unit> = runCatching {
         locked { m ->
+            var found = false
             m.tableBlock.resources.forEach { r ->
                 if (r.resourceId == id) {
                     r.setName(newName)
+                    found = true
                 }
             }
-            modifiedArsc = true
+            if (found) modifiedArsc = true
         }
     }
 
@@ -825,36 +875,106 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     override suspend fun readXmlFile(path: String): Result<String> = runCatching {
         val apkFile = rawApkFile ?: throw IllegalStateException("尚未打开 APK")
-        // NP 管理器方案：用 AssetManager.addAssetPath 加载 APK，然后 XmlResourceParser 解码 AXML
+        // NP 管理器方案：用 AssetManager.addAssetPath 加载 APK，然后 XmlResourceParser 解码 AXML。
+        //
+        // ⚠️ 输出必须是「命名空间完备 + 正确转义 + 文本忠实」的合法 XML，否则回编必坏：
+        // 回编端（ARSCLib XMLFileParserSource → XMLFactory.newPullParser）开着
+        // FEATURE_PROCESS_NAMESPACES，属性按 xmlns 绑定还原成命名空间 URI。旧实现只输出
+        // local name（丢 android: 前缀与 URI，xmlns 声明也会被拼成残缺形式）、属性值不做
+        // XML 转义（含 & / " 的值直接产出非法 XML）、还在每个元素里强插换行并 trim 文本
+        // （<string> 等纯文本元素的值会被污染）—— 编辑过的 manifest/layout/strings
+        // 回编后 android:xxx 属性全部变成无命名空间属性，资源整体失效。
         val am = AssetManager::class.java.newInstance()
-        val addAssetPath = AssetManager::class.java.getMethod("addAssetPath", String::class.java)
-        addAssetPath.invoke(am, apkFile.absolutePath)
-        val res = Resources(am, null, null)
-        val parser = res.getAssets().openXmlResourceParser(path)
+        try {
+            val addAssetPath = AssetManager::class.java.getMethod("addAssetPath", String::class.java)
+            addAssetPath.invoke(am, apkFile.absolutePath)
+            val res = Resources(am, null, null)
+            val parser = res.getAssets().openXmlResourceParser(path)
+            try {
+                xmlTextFromParser(parser)
+            } finally {
+                runCatching { parser.close() }
+            }
+        } finally {
+            runCatching { am.close() }
+        }
+    }
+
+    /**
+     * 把 XmlResourceParser 解码出的 AXML 事件流组装成规范 XML 文本。
+     *
+     * - 命名空间：二进制 XML 只存 URI 不存前缀，这里按 URI 重新绑定前缀
+     *   （android URI 固定用 android，其余按出现顺序 ns0/ns1…，前缀拼写无关紧要，
+     *   回编只认 URI），并在**用到它的元素上**声明 xmlns，作用域永远正确；
+     *   若二进制里原生带 xmlns 声明属性则原样保留。
+     * - 转义：属性值与文本分别按 XML 规则转义。
+     * - 文本：原样输出（不 trim、不插换行），保证 <string> 等值零污染。
+     */
+    private fun xmlTextFromParser(parser: XmlPullParser): String {
         val sb = StringBuilder()
+        val nsPrefix = HashMap<String, String>() // URI → 本次输出使用的前缀（文档级稳定）
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
             when (event) {
-                XmlPullParser.START_DOCUMENT -> sb.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+                XmlPullParser.START_DOCUMENT -> sb.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
                 XmlPullParser.START_TAG -> {
-                    sb.append("<").append(parser.name)
+                    val tag = parser.name
+                    val decls = LinkedHashMap<String, String>()  // 前缀 → URI（本元素声明）
+                    val attrs = ArrayList<Pair<String, String>>() // qname → 值
                     for (i in 0 until parser.attributeCount) {
-                        val name = parser.getAttributeName(i)
+                        val ns = parser.getAttributeNamespace(i) ?: ""
+                        val local = parser.getAttributeName(i)
                         val value = parser.getAttributeValue(i)
-                        sb.append(" ").append(name).append("=\"").append(value).append("\"")
+                        when {
+                            ns.isEmpty() -> attrs.add(local to value)
+                            ns == XMLNS_NS -> {
+                                // 原生 xmlns 声明属性：原样保留并登记映射
+                                nsPrefix[value] = local
+                                decls[local] = value
+                            }
+                            else -> {
+                                val prefix = nsPrefix.getOrPut(ns) {
+                                    if (ns == ANDROID_NS) "android" else "ns${nsPrefix.size}"
+                                }
+                                decls[prefix] = ns
+                                attrs.add("$prefix:$local" to value)
+                            }
+                        }
                     }
-                    sb.append(">\n")
+                    sb.append('<').append(tag)
+                    for ((prefix, uri) in decls) {
+                        sb.append(" xmlns:").append(prefix).append("=\"").append(escapeXmlAttr(uri)).append('"')
+                    }
+                    for ((qname, value) in attrs) {
+                        sb.append(' ').append(qname).append("=\"").append(escapeXmlAttr(value)).append('"')
+                    }
+                    sb.append('>')
                 }
-                XmlPullParser.END_TAG -> sb.append("</").append(parser.name).append(">\n")
-                XmlPullParser.TEXT -> {
-                    val text = parser.text?.trim() ?: ""
-                    if (text.isNotEmpty()) sb.append(text).append("\n")
-                }
+                XmlPullParser.END_TAG -> sb.append("</").append(parser.name).append('>')
+                XmlPullParser.TEXT -> sb.append(escapeXmlText(parser.text ?: ""))
             }
             event = parser.next()
         }
-        parser.close()
-        sb.toString()
+        return sb.toString()
+    }
+
+    private fun escapeXmlAttr(v: String): String = buildString {
+        for (c in v) when (c) {
+            '<' -> append("&lt;")
+            '>' -> append("&gt;")
+            '&' -> append("&amp;")
+            '"' -> append("&quot;")
+            else -> append(c)
+        }
+    }
+
+    private fun escapeXmlText(v: String): String = buildString {
+        for (c in v) when (c) {
+            '<' -> append("&lt;")
+            '>' -> append("&gt;")
+            '&' -> append("&amp;")
+            else -> append(c)
+        }
     }
 
     override suspend fun saveXmlFile(path: String, content: String): Result<Unit> = runCatching {
@@ -1109,6 +1229,11 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     }
 
     private companion object {
+        /** XML 命名空间声明属性的保留命名空间（xmlns:*） */
+        const val XMLNS_NS = "http://www.w3.org/2000/xmlns/"
+        /** Android 资源属性命名空间 */
+        const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+
         /** 当前活跃的服务实例（清除缓存时用它清内存树） */
         @Volatile
         var activeInstance: RealApkDataService? = null

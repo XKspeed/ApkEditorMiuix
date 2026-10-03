@@ -901,61 +901,155 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     }
 
     /**
-     * 把 XmlResourceParser 解码出的 AXML 事件流组装成规范 XML 文本。
+     * 把 XmlResourceParser 解码出的 AXML 事件流组装成**可读**的规范 XML 文本。
      *
-     * - 命名空间：二进制 XML 只存 URI 不存前缀，这里按 URI 重新绑定前缀
-     *   （android URI 固定用 android，其余按出现顺序 ns0/ns1…，前缀拼写无关紧要，
-     *   回编只认 URI），并在**用到它的元素上**声明 xmlns，作用域永远正确；
-     *   若二进制里原生带 xmlns 声明属性则原样保留。
-     * - 转义：属性值与文本分别按 XML 规则转义。
-     * - 文本：原样输出（不 trim、不插换行），保证 <string> 等值零污染。
+     * - 可读性：先建轻量节点树，再做带缩进的美化序列化（4 空格缩进，纯元素内容逐行展开，
+     *   AndroidManifest / layout 一目了然）；带文本的叶子元素保持单行
+     *   （<string name="x">值</string> 不拆行），混合内容（<string>a<b>c</b>d</string>）
+     *   整段内联零换行 —— 绝不往文本值里塞排版字符。
+     * - 命名空间：二进制 XML 只存 URI 不存前缀，按 URI 重新绑定前缀（android URI 固定用
+     *   android，其余按出现顺序 ns0/ns1…，前缀拼写无关紧要，回编只认 URI），全部 xmlns
+     *   统一声明在根元素上，作用域覆盖整棵树、输出形态与常规 manifest 一致；
+     *   前缀所有权冲突时自动改派新前缀，保证任意 URI 绑定不串。
+     * - 转义：属性值与文本分别按 XML 规则转义（含 & / " 的值不再产出非法 XML）。
+     * - 文本：原样保留（不 trim），保证 <string> 等值零污染。
      */
     private fun xmlTextFromParser(parser: XmlPullParser): String {
-        val sb = StringBuilder()
-        val nsPrefix = HashMap<String, String>() // URI → 本次输出使用的前缀（文档级稳定）
+        val (root, nsDecls) = xmlTreeFromParser(parser)
+        val sb = StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+        serializeXml(root, nsDecls, 0, sb)
+        sb.append('\n')
+        return sb.toString()
+    }
+
+    /**
+     * 轻量 XML 节点。[content] 按出现顺序混排 String（原文文本段）与子节点，
+     * 保证混合内容的文本-元素交错关系无损，美化时可以放心决定换行与否。
+     */
+    private class XmlNode(val tag: String) {
+        val attrs = ArrayList<Pair<String, String>>()  // qname → 值
+        val content = ArrayList<Any>()                 // String =文本段；XmlNode =子元素
+        val children: List<XmlNode> get() = content.filterIsInstance<XmlNode>()
+        val text: String get() = content.filterIsInstance<String>().joinToString("")
+    }
+
+    /** 事件流 → 节点树 + 全量命名空间绑定（prefix → uri，统一在根元素声明）。 */
+    private fun xmlTreeFromParser(parser: XmlPullParser): Pair<XmlNode, LinkedHashMap<String, String>> {
+        val nsPrefix = HashMap<String, String>()        // URI → 前缀（文档级稳定）
+        val prefixOwner = HashMap<String, String>()     // 前缀 → URI（防同一前缀被两个 URI 共用）
+        val nsDecls = LinkedHashMap<String, String>()   // 前缀 → URI（根元素统一声明）
+
+        fun bindPrefix(uri: String, preferred: String?): String {
+            nsPrefix[uri]?.let { return it }
+            val candidates = ArrayList<String>()
+            preferred?.let { candidates.add(it) }
+            if (uri == ANDROID_NS) candidates.add("android")
+            var i = 0
+            while (candidates.size < 64) {
+                candidates.add("ns$i")
+                i++
+            }
+            for (c in candidates) {
+                val owner = prefixOwner[c]
+                if (owner == null || owner == uri) {
+                    prefixOwner[c] = uri
+                    nsPrefix[uri] = c
+                    nsDecls[c] = uri
+                    return c
+                }
+            }
+            throw IllegalStateException("命名空间前缀分配失败：$uri")
+        }
+
+        var root: XmlNode? = null
+        val stack = ArrayDeque<XmlNode>()
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
             when (event) {
-                XmlPullParser.START_DOCUMENT -> sb.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
                 XmlPullParser.START_TAG -> {
-                    val tag = parser.name
-                    val decls = LinkedHashMap<String, String>()  // 前缀 → URI（本元素声明）
-                    val attrs = ArrayList<Pair<String, String>>() // qname → 值
+                    val node = XmlNode(parser.name)
                     for (i in 0 until parser.attributeCount) {
                         val ns = parser.getAttributeNamespace(i) ?: ""
                         val local = parser.getAttributeName(i)
                         val value = parser.getAttributeValue(i)
                         when {
-                            ns.isEmpty() -> attrs.add(local to value)
-                            ns == XMLNS_NS -> {
-                                // 原生 xmlns 声明属性：原样保留并登记映射
-                                nsPrefix[value] = local
-                                decls[local] = value
-                            }
+                            ns.isEmpty() -> node.attrs.add(local to value)
+                            // 原生 xmlns 声明属性：只登记绑定，输出时统一提升到根元素
+                            ns == XMLNS_NS -> bindPrefix(value, local)
                             else -> {
-                                val prefix = nsPrefix.getOrPut(ns) {
-                                    if (ns == ANDROID_NS) "android" else "ns${nsPrefix.size}"
-                                }
-                                decls[prefix] = ns
-                                attrs.add("$prefix:$local" to value)
+                                val prefix = bindPrefix(ns, null)
+                                node.attrs.add("$prefix:$local" to value)
                             }
                         }
                     }
-                    sb.append('<').append(tag)
-                    for ((prefix, uri) in decls) {
-                        sb.append(" xmlns:").append(prefix).append("=\"").append(escapeXmlAttr(uri)).append('"')
-                    }
-                    for ((qname, value) in attrs) {
-                        sb.append(' ').append(qname).append("=\"").append(escapeXmlAttr(value)).append('"')
-                    }
-                    sb.append('>')
+                    if (stack.isEmpty()) root = node else stack.last().content.add(node)
+                    stack.addLast(node)
                 }
-                XmlPullParser.END_TAG -> sb.append("</").append(parser.name).append('>')
-                XmlPullParser.TEXT -> sb.append(escapeXmlText(parser.text ?: ""))
+                XmlPullParser.TEXT -> {
+                    val t = parser.text
+                    if (!t.isNullOrEmpty()) stack.lastOrNull()?.content?.add(t)
+                }
+                XmlPullParser.END_TAG -> if (stack.isNotEmpty()) stack.removeLast()
             }
             event = parser.next()
         }
-        return sb.toString()
+        return (root ?: throw IllegalStateException("XML 解析结果为空")) to nsDecls
+    }
+
+    /**
+     * 带缩进的美化序列化。
+     *
+     * @param indent 缩进层级（每层 4 空格；-1 = 内联模式：不缩进不换行，混合内容子树用）
+     */
+    private fun serializeXml(node: XmlNode, nsDecls: Map<String, String>, indent: Int, sb: StringBuilder) {
+        val inline = indent < 0
+        val pad = if (inline) "" else " ".repeat(indent * 4)
+        sb.append(pad).append('<').append(node.tag)
+        if (indent == 0) {
+            // 根元素统一声明全部命名空间
+            for ((prefix, uri) in nsDecls) {
+                sb.append(" xmlns:").append(prefix).append("=\"").append(escapeXmlAttr(uri)).append('"')
+            }
+        }
+        for ((qname, value) in node.attrs) {
+            sb.append(' ').append(qname).append("=\"").append(escapeXmlAttr(value)).append('"')
+        }
+        val children = node.children
+        if (children.isEmpty()) {
+            // 叶子：单行，文本原样（<string>值</string> 不拆行）
+            val text = node.text
+            if (text.isEmpty()) sb.append("/>")
+            else sb.append('>').append(escapeXmlText(text)).append("</").append(node.tag).append('>')
+            return
+        }
+        if (!inline && node.text.isBlank()) {
+            // 纯元素内容：子元素逐行展开 + 4 空格缩进
+            // （节点间原有的纯空白文本视为排版噪音丢弃 —— 对 Android 资源语义无影响）
+            sb.append('>')
+            for (item in node.content) {
+                when (item) {
+                    is XmlNode -> {
+                        sb.append('\n')
+                        serializeXml(item, nsDecls, indent + 1, sb)
+                    }
+                    is String -> if (item.isNotBlank()) {
+                        sb.append('\n')
+                        sb.append(escapeXmlText(item))
+                    }
+                }
+            }
+            sb.append('\n').append(pad).append("</").append(node.tag).append('>')
+        } else {
+            // 混合内容 / 内联模式：整段内联，文本原样、零换行零缩进（零污染）
+            sb.append('>')
+            for (item in node.content) {
+                when (item) {
+                    is XmlNode -> serializeXml(item, nsDecls, -1, sb)
+                    is String -> sb.append(escapeXmlText(item))
+                }
+            }
+            sb.append("</").append(node.tag).append('>')
+        }
     }
 
     private fun escapeXmlAttr(v: String): String = buildString {

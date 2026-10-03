@@ -43,6 +43,8 @@ import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Button
@@ -63,7 +65,10 @@ fun SavedApksPage(padding: PaddingValues) {
     val isWideScreen = LocalIsWideScreen.current
     var records by remember { mutableStateOf(SavedApkStore.list()) }
 
-    LaunchedEffect(Unit) { records = SavedApkStore.list() }
+    // 进入页面时清理已被外部删除的失效记录（文件可能被其他应用删掉），IO 线程执行
+    LaunchedEffect(Unit) {
+        records = withContext(Dispatchers.IO) { SavedApkStore.pruneMissing() }
+    }
 
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val lazyListState = rememberLazyListState()

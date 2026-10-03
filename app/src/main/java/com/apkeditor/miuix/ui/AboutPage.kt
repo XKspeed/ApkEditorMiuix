@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,13 +47,13 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.apkeditor.miuix.R
 import com.apkeditor.miuix.ui.component.effect.BgEffectBackground
-import com.apkeditor.miuix.ui.components.InfoRow
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.ColorBlendToken
 import com.apkeditor.miuix.ui.util.isInDarkTheme
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -73,6 +74,7 @@ import top.yukonga.miuix.kmp.basic.Text as MiuixText
 @Composable
 fun AboutPage(
     onBack: () -> Unit,
+    onOpenThirdPartyLicenses: () -> Unit = {},
     isBlurEnabled: Boolean = true,
 ) {
     val topAppBarScrollBehavior = MiuixScrollBehavior()
@@ -130,6 +132,7 @@ fun AboutPage(
                 lazyListState = lazyListState,
                 scrollProgressProvider = { scrollProgress },
                 onBack = onBack,
+                onOpenThirdPartyLicenses = onOpenThirdPartyLicenses,
             )
         }
     }
@@ -142,6 +145,7 @@ private fun AboutContent(
     lazyListState: LazyListState,
     scrollProgressProvider: () -> Float,
     onBack: () -> Unit,
+    onOpenThirdPartyLicenses: () -> Unit,
 ) {
     val contentBackdrop = rememberBlurBackdrop()
     var blurRadius by remember { mutableFloatStateOf(60f) }
@@ -166,6 +170,7 @@ private fun AboutContent(
         extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),
     )
 
+    val uriHandler = LocalUriHandler.current
     val isInDark = isInDarkTheme()
 
     val cardBlend = if (isInDark) ColorBlendToken.Overlay_Thin_Light else ColorBlendToken.Pured_Regular_Light
@@ -353,9 +358,56 @@ private fun AboutContent(
                             Color.Transparent,
                         ),
                     ) {
-                        // 只展示应用版本与作者（版本运行时读 PackageManager，与 build.gradle 实际值一致）
-                        InfoRow("应用版本", "v" + versionName + " (" + versionCode + ")")
-                        InfoRow("作者", "XKspeed")
+                        // 应用版本与作者（版本运行时读 PackageManager，与 build.gradle 实际值一致）；点击跳转项目 GitHub 主页
+                        ArrowPreference(
+                            title = "应用版本",
+                            summary = "v" + versionName + " (" + versionCode + ")",
+                            onClick = { uriHandler.openUri("https://github.com/XKspeed/ApkEditorMiuix") },
+                        )
+                        ArrowPreference(
+                            title = "作者",
+                            summary = "XKspeed",
+                            onClick = { uriHandler.openUri("https://github.com/XKspeed/ApkEditorMiuix") },
+                        )
+                    }
+                    Card(
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .padding(top = 12.dp)
+                            .then(
+                                if (contentBackdrop != null) {
+                                    Modifier.textureBlur(
+                                        backdrop = contentBackdrop,
+                                        shape = RoundedCornerShape(16.dp),
+                                        blurRadius = blurRadius,
+                                        noiseCoefficient = noiseCoefficient,
+                                        colors = BlurDefaults.blurColors(
+                                            blendColors = cardBlend,
+                                            brightness = brightness,
+                                            contrast = contrast,
+                                            saturation = saturation,
+                                        ),
+                                    )
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                        colors = CardDefaults.defaultColors(
+                            if (contentBackdrop != null) Color.Transparent else colorScheme.surfaceContainer,
+                            Color.Transparent,
+                        ),
+                    ) {
+                        // 本项目许可证（与仓库根目录 LICENSE 实际内容一致：GNU General Public License v3.0）
+                        ArrowPreference(
+                            title = "GNU General Public License v3.0",
+                            summary = "开源许可证",
+                            onClick = { uriHandler.openUri("https://www.gnu.org/licenses/gpl-3.0.html") },
+                        )
+                        ArrowPreference(
+                            title = "第三方许可证",
+                            summary = "依赖库版权声明",
+                            onClick = onOpenThirdPartyLicenses,
+                        )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                 }

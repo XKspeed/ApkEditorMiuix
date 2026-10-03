@@ -76,13 +76,13 @@ private val libraries = listOf(
         name = "Miuix",
         version = "0.9.4-rc01",
         license = "Apache License 2.0",
-        website = "https://github.com/YuKongA/miuix",
+        website = "https://github.com/compose-miuix-ui/miuix",
     ),
     Library(
         name = "miuix-nav（内嵌源码）",
         version = "0.9.4-rc01",
         license = "Apache License 2.0",
-        website = "https://github.com/YuKongA/miuix",
+        website = "https://github.com/compose-miuix-ui/miuix",
     ),
     Library(
         name = "Navigation Event",
@@ -149,6 +149,12 @@ private val libraries = listOf(
         version = "4.6.2",
         license = "Apache License 2.0",
         website = "https://github.com/noties/Markwon",
+    ),
+    Library(
+        name = "Guava（smali 传递依赖）",
+        version = "传递依赖",
+        license = "Apache License 2.0",
+        website = "https://github.com/google/guava",
     ),
     Library(
         name = "Haze",

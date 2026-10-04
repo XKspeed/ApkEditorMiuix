@@ -95,7 +95,7 @@ class ApkCacheManager(private val context: Context) {
         /** 全局内存清理回调（跨实例共享：设置页与服务层是不同实例） */
         private val globalCleaners = mutableListOf<() -> Unit>()
 
-        /** 服务层注册内存缓存清理回调（清 smaliCache / smaliTreeCache） */
+        /** 服务层注册内存缓存清理回调（清 smaliCache / 目录树缓存） */
         fun registerMemoryCleaner(cleaner: () -> Unit) {
             synchronized(globalCleaners) { globalCleaners.add(cleaner) }
         }

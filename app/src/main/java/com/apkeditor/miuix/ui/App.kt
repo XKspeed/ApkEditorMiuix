@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.RealApkDataService
 import com.apkeditor.miuix.ui.component.liquid.IosLiquidGlassNavigationBar
+import com.apkeditor.miuix.ui.components.TextEditorScaffold
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
@@ -67,6 +68,21 @@ import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.abs
 
+/**
+ * smali 整行红底标记：每个方法的起止行（.method / .end method）。
+ * 由 TextEditorScaffold 的行标记引擎按此匹配器维护。
+ */
+private val SmaliMethodLineMark: (String) -> Boolean = { line ->
+    val t = line.trim()
+    t.startsWith(".method") || t.startsWith(".end method")
+}
+
+/** 从方法声明行取方法名：".method public foo(I)V" → "foo" */
+private fun methodNameOf(header: String): String {
+    val last = header.trim().substringAfterLast(' ')
+    return last.substringBefore('(').ifEmpty { "方法" }
+}
+
 /** 底部导航 tab */
 private enum class BottomTab(val title: String) {
     HOME("主页"),
@@ -84,7 +100,11 @@ fun App(service: ApkDataService? = null) {
         remember { RealApkDataService(ctx) }
     }
 
-    LaunchedEffect(Unit) { UiConfigState.load(ctx) }
+    LaunchedEffect(Unit) {
+        UiConfigState.load(ctx)
+        // smali/XML 语法与深浅主题（幂等，编辑器创建前也会再兜底调用一次）
+        EditorLanguages.init(ctx)
+    }
 
     CompositionLocalProvider(
         LocalSquircleEnabled provides true,
@@ -112,6 +132,9 @@ fun App(service: ApkDataService? = null) {
                 MainPage(
                     service = svc,
                     navigate = { backStack.add(it) },
+                    // 只有导航栈顶（没进二级页）时，主页的返回键拦截才生效，
+                    // 避免在详情页等场景下抢走系统的“返回上一页”
+                    isNavTop = backStack.size == 1,
                 )
             }
 
@@ -133,16 +156,79 @@ fun App(service: ApkDataService? = null) {
                     dexNames = route.dexNames,
                     service = svc,
                     onBack = { backStack.removeLastOrNull() },
-                    onOpenFile = { dex, path -> backStack.add(Route.SmaliEdit(route.apkPath, dex, path)) },
+                    // 点 smali 文件 → 默认整文件编辑（方法列表走编辑器顶栏 method 导航）
+                    onOpenFile = { dex, path ->
+                        backStack.add(Route.SmaliEdit(route.apkPath, dex, path, route.dexNames))
+                    },
+                )
+            }
+            // 类详情页：方法列表 + 顶栏指南针（→ 所有类）
+            entry<Route.SmaliClass> { route ->
+                SmaliClassPage(
+                    dexName = route.dexName,
+                    filePath = route.filePath,
+                    dexNames = route.dexNames,
+                    service = svc,
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenClassList = {
+                        backStack.add(Route.SmaliClassList(route.apkPath, route.dexNames))
+                    },
+                    onOpenMethod = { index, header ->
+                        backStack.add(
+                            Route.SmaliMethod(route.apkPath, route.dexName, route.filePath, index, header)
+                        )
+                    },
+                    onEditFile = {
+                        backStack.add(
+                            Route.SmaliEdit(route.apkPath, route.dexName, route.filePath, route.dexNames)
+                        )
+                    },
+                )
+            }
+            // 所有类列表（指南针进入）：选类后替换栈顶的类详情页
+            entry<Route.SmaliClassList> { route ->
+                SmaliClassListPage(
+                    dexNames = route.dexNames,
+                    service = svc,
+                    onBack = { backStack.removeLastOrNull() },
+                    onSelectClass = { dex, path ->
+                        backStack.removeLastOrNull()
+                        backStack.add(Route.SmaliClass(route.apkPath, dex, path, route.dexNames))
+                    },
+                )
+            }
+            // 单方法编辑：只加载/回写一个 .method 块，红线标记 .method/.end method
+            entry<Route.SmaliMethod> { route ->
+                TextEditorScaffold(
+                    title = methodNameOf(route.methodHeader),
+                    subtitle = route.filePath.substringAfterLast("/") + " · 方法",
+                    language = remember { EditorLanguages.smali() },
+                    lineMarks = SmaliMethodLineMark,
+                    load = { svc.readSmaliMethod(route.dexName, route.filePath, route.methodIndex) },
+                    save = { text ->
+                        svc.saveSmaliMethod(
+                            route.dexName, route.filePath,
+                            route.methodIndex, route.methodHeader, text,
+                        )
+                    },
+                    onBack = { backStack.removeLastOrNull() },
                 )
             }
             entry<Route.SmaliEdit> { route ->
-                TextEditorPage(
+                TextEditorScaffold(
                     title = route.filePath.substringAfterLast("/"),
                     subtitle = route.filePath,
+                    language = remember { EditorLanguages.smali() },
+                    lineMarks = SmaliMethodLineMark,
                     load = { svc.readSmaliFile(route.dexName, route.filePath) },
                     save = { text -> svc.saveSmaliFile(route.dexName, route.filePath, text) },
                     onBack = { backStack.removeLastOrNull() },
+                    // method 导航：顶栏返回右侧图标 / More 菜单 → 方法列表页
+                    onOpenMethodNav = {
+                        backStack.add(
+                            Route.SmaliClass(route.apkPath, route.dexName, route.filePath, route.dexNames)
+                        )
+                    },
                 )
             }
             entry<Route.ArscTypes> { route ->
@@ -167,9 +253,10 @@ fun App(service: ApkDataService? = null) {
                 )
             }
             entry<Route.XmlEdit> { route ->
-                TextEditorPage(
+                TextEditorScaffold(
                     title = route.path.substringAfterLast("/"),
                     subtitle = route.path,
+                    language = remember { EditorLanguages.xml() },
                     load = { svc.readXmlFile(route.path) },
                     save = { text -> svc.saveXmlFile(route.path, text) },
                     onBack = { backStack.removeLastOrNull() },
@@ -190,6 +277,7 @@ fun App(service: ApkDataService? = null) {
 private fun MainPage(
     service: ApkDataService,
     navigate: (Route) -> Unit,
+    isNavTop: Boolean = true,
 ) {
     val pagerState = rememberPagerState(pageCount = { 4 })
     var selectedIndex by remember { mutableIntStateOf(0) }
@@ -305,6 +393,7 @@ private fun MainPage(
                     0 -> HomePage(
                         padding = globalPadding,
                         onPickApk = { uri -> navigate(Route.ApkInfo(uri)) },
+                        enableBackToParent = isNavTop,
                     )
                     1 -> SavedApksPage(padding = globalPadding)
                     2 -> SettingsPage(

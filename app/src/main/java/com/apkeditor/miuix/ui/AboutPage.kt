@@ -36,8 +36,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,6 +53,7 @@ import com.apkeditor.miuix.ui.util.isInDarkTheme
 import com.apkeditor.miuix.ui.util.pageContentPadding
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -64,7 +65,6 @@ import top.yukonga.miuix.kmp.blur.BlurBlendMode
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
-import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.squircle.squircleClip
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
@@ -147,7 +147,6 @@ private fun AboutContent(
     onBack: () -> Unit,
     onOpenThirdPartyLicenses: () -> Unit,
 ) {
-    val uriHandler = LocalUriHandler.current
     val contentBackdrop = rememberBlurBackdrop()
     var blurRadius by remember { mutableFloatStateOf(60f) }
     var noiseCoefficient by remember { mutableFloatStateOf(BlurDefaults.NoiseCoefficient) }
@@ -171,6 +170,7 @@ private fun AboutContent(
         extraEnd = WindowInsets.displayCutout.asPaddingValues().calculateRightPadding(LayoutDirection.Ltr),
     )
 
+    val uriHandler = LocalUriHandler.current
     val isInDark = isInDarkTheme()
 
     val cardBlend = if (isInDark) ColorBlendToken.Overlay_Thin_Light else ColorBlendToken.Pured_Regular_Light
@@ -201,9 +201,19 @@ private fun AboutContent(
             .toBitmap(iconSizePx, iconSizePx)
             .asImageBitmap()
     }
-    val versionName = try {
-        ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "1.0"
-    } catch (_: Exception) { "1.0" }
+    // 真实应用信息（与 build.gradle / PackageManager 保持一致，杜绝写死的过期数据）
+    val versionName = remember(ctx) {
+        try {
+            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "0.1"
+        } catch (_: Exception) { "0.1" }
+    }
+    val versionCode = remember(ctx) {
+        try {
+            val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
+            @Suppress("DEPRECATION")
+            if (android.os.Build.VERSION.SDK_INT >= 28) pi.longVersionCode else pi.versionCode.toLong()
+        } catch (_: Exception) { 0L }
+    }
 
     BgEffectBackground(
         dynamicBackground = true,
@@ -348,9 +358,15 @@ private fun AboutContent(
                             Color.Transparent,
                         ),
                     ) {
+                        // 应用版本与作者（版本运行时读 PackageManager，与 build.gradle 实际值一致）；点击跳转项目 GitHub 主页
                         ArrowPreference(
-                            title = "查看源码",
-                            summary = "GitHub",
+                            title = "应用版本",
+                            summary = "v" + versionName + " (" + versionCode + ")",
+                            onClick = { uriHandler.openUri("https://github.com/XKspeed/ApkEditorMiuix") },
+                        )
+                        ArrowPreference(
+                            title = "作者",
+                            summary = "XKspeed",
                             onClick = { uriHandler.openUri("https://github.com/XKspeed/ApkEditorMiuix") },
                         )
                     }
@@ -381,13 +397,15 @@ private fun AboutContent(
                             Color.Transparent,
                         ),
                     ) {
+                        // 本项目许可证（与仓库根目录 LICENSE 实际内容一致：GNU General Public License v3.0）
                         ArrowPreference(
-                            title = "Apache License 2.0",
+                            title = "GNU General Public License v3.0",
                             summary = "开源许可证",
-                            onClick = { uriHandler.openUri("https://www.apache.org/licenses/LICENSE-2.0.txt") },
+                            onClick = { uriHandler.openUri("https://www.gnu.org/licenses/gpl-3.0.html") },
                         )
                         ArrowPreference(
                             title = "第三方许可证",
+                            summary = "依赖库版权声明",
                             onClick = onOpenThirdPartyLicenses,
                         )
                     }

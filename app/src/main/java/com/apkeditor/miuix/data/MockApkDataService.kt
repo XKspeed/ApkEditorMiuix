@@ -37,6 +37,12 @@ class MockApkDataService : ApkDataService {
         )
     }
 
+    override suspend fun loadApkIcon(uri: String): Result<android.graphics.drawable.Drawable?> {
+        mockDelay()
+        // 演示数据没有真实 APK，回退首字母占位
+        return Result.success(null)
+    }
+
     override suspend fun listDexFiles(): Result<List<DexEntry>> {
         mockDelay()
         return Result.success(
@@ -67,25 +73,23 @@ class MockApkDataService : ApkDataService {
         )
     }
 
-    override suspend fun listSmaliTree(
+    override suspend fun listSmaliMergedTree(
         dexNames: List<String>,
         onProgress: ((Int, Int) -> Unit)?,
-    ): Result<Map<String, List<SmaliTreeNode>>> {
+    ): Result<List<SmaliTreeNode>> {
         mockDelay()
-        val map = LinkedHashMap<String, List<SmaliTreeNode>>()
+        val merged = mutableListOf<SmaliTreeNode>()
         dexNames.forEachIndexed { index, dex ->
             onProgress?.invoke(index, dexNames.size)
             val files = listSmaliFiles(dex).getOrThrow()
-            map[dex] = listOf(
-                SmaliTreeNode(name = "smali", path = dex, isDir = true, dex = dex,
-                    children = files.map { f ->
-                        SmaliTreeNode(name = f.substringAfterLast("/"), path = f, isDir = false, dex = dex)
-                    }
-                )
+            merged.addAll(
+                files.map { f ->
+                    SmaliTreeNode(name = f.substringAfterLast("/"), path = f, isDir = false, dex = dex)
+                }
             )
         }
         onProgress?.invoke(dexNames.size, dexNames.size)
-        return Result.success(map)
+        return Result.success(merged)
     }
 
     override suspend fun searchResources(type: String?, keyword: String, maxResults: Int): Result<List<ResourceEntryInfo>> {
@@ -135,6 +139,45 @@ class MockApkDataService : ApkDataService {
         return Result.success(Unit)
     }
 
+    override suspend fun listSmaliClasses(dexNames: List<String>): Result<List<SmaliClassEntry>> {
+        mockDelay()
+        val out = mutableListOf<SmaliClassEntry>()
+        dexNames.forEach { dex ->
+            listSmaliFiles(dex).getOrThrow().forEach { p ->
+                val cls = p.substringAfter("/", p).removeSuffix(".smali").replace("/", ".")
+                out.add(SmaliClassEntry(dex, p, cls))
+            }
+        }
+        return Result.success(out.sortedBy { it.className })
+    }
+
+    override suspend fun readSmaliClassDetail(dexName: String, filePath: String): Result<SmaliClassDetail> {
+        mockDelay()
+        val text = readSmaliFile(dexName, filePath).getOrThrow()
+        return Result.success(SmaliParser.parse(text).detail)
+    }
+
+    override suspend fun readSmaliMethod(dexName: String, filePath: String, methodIndex: Int): Result<String> {
+        mockDelay()
+        val text = readSmaliFile(dexName, filePath).getOrThrow()
+        val block = SmaliParser.parse(text).blocks.getOrNull(methodIndex)
+            ?: return Result.failure(IllegalArgumentException("方法不存在"))
+        return Result.success(
+            text.split("\n").subList(block.start, block.end + 1).joinToString("\n")
+        )
+    }
+
+    override suspend fun saveSmaliMethod(
+        dexName: String,
+        filePath: String,
+        methodIndex: Int,
+        methodHeader: String,
+        content: String,
+    ): Result<Unit> {
+        mockDelay()
+        return Result.success(Unit)
+    }
+
     override suspend fun renameSmaliFile(dexName: String, filePath: String, newClassName: String): Result<Unit> {
         mockDelay()
         return Result.success(Unit)
@@ -146,6 +189,11 @@ class MockApkDataService : ApkDataService {
     }
 
     override suspend fun assembleDex(dexName: String): Result<Unit> {
+        mockDelay()
+        return Result.success(Unit)
+    }
+
+    override suspend fun discardModifications(): Result<Unit> {
         mockDelay()
         return Result.success(Unit)
     }

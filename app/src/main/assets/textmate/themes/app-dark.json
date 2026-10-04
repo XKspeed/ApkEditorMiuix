@@ -1,0 +1,55 @@
+{
+  "name": "ApkEditor Dark",
+  "type": "dark",
+  "settings": [
+    {
+      "settings": {
+        "foreground": "#D6D9DE",
+        "background": "#1B1B1F",
+        "caret": "#D6D9DE",
+        "lineHighlight": "#242428",
+        "selection": "#2F4F7F"
+      }
+    },
+    {
+      "scope": ["comment", "comment.line", "comment.block"],
+      "settings": { "foreground": "#7F8792", "fontStyle": "italic" }
+    },
+    {
+      "scope": ["string", "string.quoted.double"],
+      "settings": { "foreground": "#6FD39A" }
+    },
+    {
+      "scope": ["constant.numeric", "constant.language"],
+      "settings": { "foreground": "#E4A06A" }
+    },
+    {
+      "scope": ["keyword", "keyword.control", "storage.modifier"],
+      "settings": { "foreground": "#E8A15C" }
+    },
+    {
+      "scope": ["entity.name.type", "entity.name.tag"],
+      "settings": { "foreground": "#7BA7F7" }
+    },
+    {
+      "scope": ["entity.name.function", "entity.name.label"],
+      "settings": { "foreground": "#C39BF0" }
+    },
+    {
+      "scope": ["variable", "variable.other.register"],
+      "settings": { "foreground": "#C79BEB" }
+    },
+    {
+      "scope": ["entity.other.attribute-name"],
+      "settings": { "foreground": "#D3A2E8" }
+    },
+    {
+      "scope": ["punctuation", "punctuation.definition.tag"],
+      "settings": { "foreground": "#9AA1AB" }
+    },
+    {
+      "scope": ["meta.tag.preprocessor", "markup.cdata"],
+      "settings": { "foreground": "#8A919B" }
+    }
+  ]
+}

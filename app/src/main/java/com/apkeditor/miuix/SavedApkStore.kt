@@ -1,6 +1,8 @@
 package com.apkeditor.miuix
 
 import android.content.Context
+import android.net.Uri
+import java.io.File
 
 /**
  * "保存的 APK"记录存储：记录用户打包输出的 APK（SAF Uri + 文件名 + 时间）。
@@ -45,6 +47,40 @@ object SavedApkStore {
                 time = p[3].toLongOrNull() ?: 0L,
             )
         }
+    }
+
+    /**
+     * 清理指向已不存在文件的记录（文件被其他应用删除时），返回清理后的最新列表。
+     * 包含磁盘 IO，请在后台线程调用。
+     */
+    fun pruneMissing(): List<SavedApkInfo> {
+        val ctx = appContext ?: error("SavedApkStore.init() 必须先调用")
+        val all = list()
+        if (all.isEmpty()) return all
+        val alive = all.filter { recordExists(ctx, it) }
+        if (alive.size != all.size) {
+            val data = alive.joinToString("\n") { "${it.uri}$SEP${it.name}$SEP${it.size}$SEP${it.time}" }
+            prefs().edit().putString(KEY, data).apply()
+        }
+        return alive
+    }
+
+    /**
+     * 记录指向的文件是否仍存在。
+     * - 本地路径（公共目录 / 私有目录）：直接查 [File.exists]；
+     * - content://（SAF）：查 ContentResolver，查不到（0 行）或抛 FileNotFoundException 才判失效；
+     *   其他异常（如瞬时权限错误）保守保留，避免误删。
+     */
+    private fun recordExists(ctx: Context, r: SavedApkInfo): Boolean {
+        if (r.uri.startsWith("content://")) {
+            return runCatching {
+                ctx.contentResolver.query(Uri.parse(r.uri), null, null, null, null)?.use { c ->
+                    c.count > 0
+                } ?: false
+            }.getOrElse { e -> e is java.io.FileNotFoundException }
+        }
+        val path = if (r.uri.startsWith("file:")) Uri.parse(r.uri).path else r.uri
+        return !path.isNullOrBlank() && File(path).exists()
     }
 
     fun remove(uri: String) {

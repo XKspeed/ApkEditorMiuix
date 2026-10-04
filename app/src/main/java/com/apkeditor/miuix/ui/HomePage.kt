@@ -4,7 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -31,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
@@ -38,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.MiuixDialog
+import com.apkeditor.miuix.ui.components.TextField
 import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
@@ -56,6 +60,8 @@ import java.io.File
 fun HomePage(
     padding: PaddingValues,
     onPickApk: (String) -> Unit,
+    /** 是否允许“返回键=上一级目录”（仅导航栈顶时生效，二级页内不抢返回键） */
+    enableBackToParent: Boolean = true,
 ) {
     val context = LocalContext.current
     val isWideScreen = LocalIsWideScreen.current
@@ -63,6 +69,15 @@ fun HomePage(
     var selectedApk by remember { mutableStateOf<File?>(null) }
     var needPermission by remember {
         mutableStateOf(!Environment.isExternalStorageManager())
+    }
+    /** 长按顶栏弹出的路径跳转对话框 */
+    var showJump by remember { mutableStateOf(false) }
+    var jumpPath by remember { mutableStateOf("") }
+    var jumpError by remember { mutableStateOf<String?>(null) }
+
+    /** 返回上一级目录（点顶栏 / 系统返回键共用） */
+    fun goUp() {
+        currentDir.parentFile?.let { if (it.canRead()) currentDir = it }
     }
 
     if (needPermission) {
@@ -93,6 +108,16 @@ fun HomePage(
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val lazyListState = rememberLazyListState()
 
+    // 在具体目录里按系统返回键 → 返回上一级目录（存储根目录 / 已进二级页时不拦截，交给外层）
+    val storageRoot = remember { Environment.getExternalStorageDirectory().absolutePath }
+    BackHandler(
+        enabled = enableBackToParent &&
+            currentDir.absolutePath != storageRoot &&
+            currentDir.parentFile != null,
+    ) {
+        goUp()
+    }
+
     val scrollProgress by remember {
         derivedStateOf {
             when {
@@ -120,13 +145,29 @@ fun HomePage(
                 if (collapsed) MiuixTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent
             }
             BlurredBar(backdrop, blurActive) {
-                AdaptiveTopAppBar(
-                    title = currentDir.absolutePath,
-                    showTopAppBar = true,
-                    isWideScreen = isWideScreen,
-                    scrollBehavior = topAppBarScrollBehavior,
-                    color = barColor,
-                )
+                // 点顶栏 = 返回上一级；长按顶栏 = 弹窗输入目录路径跳转
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .pointerInput(currentDir) {
+                            detectTapGestures(
+                                onTap = { goUp() },
+                                onLongPress = {
+                                    jumpPath = currentDir.absolutePath
+                                    jumpError = null
+                                    showJump = true
+                                },
+                            )
+                        }
+                ) {
+                    AdaptiveTopAppBar(
+                        title = currentDir.absolutePath,
+                        showTopAppBar = true,
+                        isWideScreen = isWideScreen,
+                        scrollBehavior = topAppBarScrollBehavior,
+                        color = barColor,
+                    )
+                }
             }
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
@@ -155,17 +196,6 @@ fun HomePage(
                     bottom = scrollPadding.calculateBottomPadding(),
                 ),
             ) {
-                item {
-                    Row(
-                        Modifier.fillMaxWidth().clickable {
-                            currentDir.parentFile?.let { if (it.canRead()) currentDir = it }
-                        }.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("..", fontWeight = FontWeight.Medium)
-                    }
-                    HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
-                }
                 items(files) { file ->
                     val isApk = file.extension.equals("apk", true)
                     ListItemRow(
@@ -183,6 +213,51 @@ fun HomePage(
                     HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
                 }
             }
+        }
+    }
+
+    if (showJump) {
+        MiuixDialog(
+            title = "跳转到目录",
+            onDismiss = { showJump = false },
+        ) {
+            TextField(
+                value = jumpPath,
+                onValueChange = { jumpPath = it },
+                label = "目录路径",
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (jumpError != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    jumpError!!,
+                    color = MiuixTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.subtitle,
+                )
+            }
+            DialogActions(
+                confirmText = "跳转",
+                onConfirm = {
+                    val raw = jumpPath.trim()
+                    val f = File(raw)
+                    when {
+                        raw.isEmpty() -> jumpError = "请输入目录路径"
+                        !f.exists() -> jumpError = "路径不存在：$raw"
+                        !f.isDirectory -> jumpError = "不是目录：$raw"
+                        !f.canRead() -> jumpError = "没有读取权限：$raw"
+                        else -> {
+                            currentDir = f
+                            jumpError = null
+                            showJump = false
+                        }
+                    }
+                },
+                cancelText = "取消",
+                onCancel = {
+                    jumpError = null
+                    showJump = false
+                },
+            )
         }
     }
 

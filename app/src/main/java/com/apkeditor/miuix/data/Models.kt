@@ -75,3 +75,41 @@ data class BuildResult(
     /** 产物位置：SAF content Uri 或本地文件绝对路径 */
     val outputPath: String = "",
 )
+
+/** smali 类条目（"所有类"列表页用，跨 DEX 合并的扁平列表） */
+data class SmaliClassEntry(
+    /** 所属 DEX，如 classes2.dex */
+    val dex: String,
+    /** smali 文件相对路径，如 smali/com/x/Foo.smali */
+    val filePath: String,
+    /** 点分全名，如 com.x.Foo */
+    val className: String,
+)
+
+/** smali 类详情：类头信息 + 方法列表（类详情页用） */
+data class SmaliClassDetail(
+    /** 点分全名 */
+    val className: String,
+    /** 类访问标志，如 "public final" */
+    val access: String,
+    /** 父类点分名，如 java.lang.Object */
+    val superName: String,
+    /** 实现的接口点分名列表 */
+    val interfaces: List<String>,
+    /** 方法列表（按文件中出现顺序） */
+    val methods: List<SmaliMethodInfo>,
+)
+
+/** smali 方法条目 */
+data class SmaliMethodInfo(
+    /** 方法序号：文件中第 index 个 .method 块（0 起），单方法编辑按此定位 */
+    val index: Int,
+    /** 完整声明行（".method public foo(I)V"），保存时用于校验方法未挪位 */
+    val header: String,
+    /** 访问标志，如 "public static" */
+    val access: String,
+    /** 方法名，如 foo / <init> */
+    val name: String,
+    /** 参数与返回值原型，如 (Ljava/lang/String;)V */
+    val proto: String,
+)

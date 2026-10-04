@@ -6,11 +6,15 @@
 
 ## 功能
 
-- [x] Miuix / HyperOS 风格 UI（主页 / 保存的 APK / 设置三栏，主题跟随系统与手动切换）
+- [x] Miuix / HyperOS 风格 UI（主页 / 保存的 APK / 设置 / 关于 四栏，主题跟随系统与手动切换，支持莫奈动态取色）
 - [x] 打开 APK 直接 zip 解压预览文件树（快），进入具体编辑页才深度解析
 - [x] 多 DEX 同时反编译（baksmali），目录以 `smali` / `smali_classesN` 标签一一对应 `classesN.dex`
 - [x] smali 反编译缓存：返回不重复编译
 - [x] DEX 汇编回编译（smali）后自动替换回 APK
+- [x] MT 式类/方法导航：smali 文件 → 类详情（类头 + 方法列表）→ 单方法编辑；跨 DEX「所有类」列表
+- [x] smali / XML 语法高亮 + 查找替换（sora-editor，.method 起止行整行红底标记）
+- [x] 主页文件浏览器：点顶栏返回上一级、长按顶栏输入路径跳转、返回键逐级退出
+- [x] 保存的 APK：文件被外部删除后失效记录自动清理
 - [x] resources.arsc 资源浏览 / 值修改 / 资源重命名
 - [x] 二进制 XML（含 AndroidManifest.xml）解码为文本编辑后编码回写
 - [x] res/ 下 XML 文件列表搜索
@@ -22,10 +26,11 @@
 | 层 | 技术 |
 | --- | --- |
 | 语言 | Kotlin 2.4.20 |
-| UI | Jetpack Compose + Miuix 0.9.3（HyperOS 风格） |
+| UI | Jetpack Compose + [Miuix](https://github.com/compose-miuix-ui/miuix) 0.9.4-rc01（HyperOS 风格） |
 | 引擎 | ARSCLib V1.4.0（resources.arsc / 二进制 XML） |
 | 引擎 | smali / baksmali / dexlib2 2.5.2（DEX ↔ smali） |
 | 签名 | apksig 8.13.2 + BouncyCastle 自签证书 |
+| 编辑器 | sora-editor 0.23.6（smali/XML 高亮、查找替换） |
 | 最低系统 | Android 15（API 35）及以上（无需兼容旧设备） |
 
 ## 构建方法
@@ -67,4 +72,6 @@ push 到 `main` 分支后自动在云端编译并上传 APK 制品（见 `.githu
 
 ## 许可证
 
-[Apache License 2.0](LICENSE)（第三方库版权声明见 [NOTICE](NOTICE)）
+[GNU General Public License v3.0](LICENSE)
+
+第三方库版权声明见 [NOTICE](NOTICE)，各依赖沿用其自身许可证。

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Smali",
+  "scopeName": "source.smali",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#directive" },
+    { "include": "#method-ref" },
+    { "include": "#label" },
+    { "include": "#instruction" },
+    { "include": "#register" },
+    { "include": "#type" },
+    { "include": "#access-modifier" },
+    { "include": "#number" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "#.*$",
+      "name": "comment.line.number-sign.smali"
+    },
+    "string": {
+      "match": "\"(?:\\\\.|[^\"\\\\])*\"",
+      "name": "string.quoted.double.smali"
+    },
+    "directive": {
+      "match": "^\\s*\\.[a-zA-Z_][a-zA-Z0-9_]*",
+      "name": "keyword.control.smali"
+    },
+    "method-ref": {
+      "match": "->[a-zA-Z_$][\\w$]*(?=\\()",
+      "name": "entity.name.function.smali"
+    },
+    "label": {
+      "match": ":[A-Za-z_][\\w.$-]*",
+      "name": "entity.name.label.smali"
+    },
+    "instruction": {
+      "match": "\\b(?:invoke-[a-z0-9]+(?:/range)?|move[a-z0-9/-]*|const[a-z0-9/-]*|return[a-z-]*|if-[a-z]+|goto(?:/\\d+)?|new-(?:instance|array)|filled-new-array(?:/range)?|check-cast|instance-of|array-length|throw|monitor-(?:enter|exit)|packed-switch|sparse-switch|fill-array-data|cmp[a-z-]+|s[ag]et-[a-z0-9-]+|i[ag]et-[a-z0-9-]+|neg-[a-z]+|not-[a-z]+|[a-z]+-to-[a-z]+|rsub-int(?:/lit\\d+)?|(?:add|sub|mul|div|rem|and|or|xor|shl|shr|ushr)-[a-z0-9/-]+|nop)\\b",
+      "name": "keyword.control.flow.smali"
+    },
+    "register": {
+      "match": "\\b[vp]\\d+\\b",
+      "name": "variable.other.register.smali"
+    },
+    "type": {
+      "match": "\\b(?:L[\\w/$]+;|\\[[A-Z][\\w/$;]*|[VZBSCIJF](?=[\\s;,)\\]]))",
+      "name": "entity.name.type.smali"
+    },
+    "access-modifier": {
+      "match": "\\b(?:public|private|protected|static|final|synchronized|bridge|varargs|native|abstract|strictfp|synthetic|constructor|declared|enum|interface|annotation|transient|volatile|runtime|inline|optimized)\\b",
+      "name": "storage.modifier.smali"
+    },
+    "number": {
+      "match": "\\b(?:0x[0-9a-fA-F]+|0b[01]+|\\d+)(?:[lL])?\\b",
+      "name": "constant.numeric.smali"
+    }
+  }
+}

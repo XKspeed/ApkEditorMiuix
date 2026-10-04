@@ -10,6 +10,12 @@ interface ApkDataService {
     /** 从 SAF Uri 加载 APK，返回基本信息 */
     suspend fun loadApk(uri: String): Result<ApkInfo>
 
+    /**
+     * 读取 APK 应用图标（从已缓存的 APK 文件抽取，PM.getApplicationArchiveIcon）。
+     * 未加载 / 取不到时返回 success(null)，UI 回退首字母占位。
+     */
+    suspend fun loadApkIcon(uri: String): Result<android.graphics.drawable.Drawable?>
+
     /** 列出 APK 内的 DEX 文件 */
     suspend fun listDexFiles(): Result<List<DexEntry>>
 
@@ -31,17 +37,54 @@ interface ApkDataService {
     /** 将修改后的 smali 汇编回 DEX 并替换到 APK */
     suspend fun assembleDex(dexName: String): Result<Unit>
 
+    /**
+     * 列出所有类（跨 DEX 合并的扁平列表，类名点分）。
+     * 复用合并树缓存：树构建过则不会重复反编译。
+     */
+    suspend fun listSmaliClasses(dexNames: List<String>): Result<List<SmaliClassEntry>>
+
+    /** 读取类详情：类头（类名/访问标志/父类/接口）+ 方法列表 */
+    suspend fun readSmaliClassDetail(dexName: String, filePath: String): Result<SmaliClassDetail>
+
+    /** 读取单个方法的 smali 文本（.method … .end method 块，含首尾行） */
+    suspend fun readSmaliMethod(dexName: String, filePath: String, methodIndex: Int): Result<String>
+
+    /**
+     * 保存单个方法：按 [methodIndex] 定位 + [methodHeader] 声明行校验后整块回写原文件。
+     * 校验失败（文件已被别处改动）返回错误而不是静默覆盖。
+     */
+    suspend fun saveSmaliMethod(
+        dexName: String,
+        filePath: String,
+        methodIndex: Int,
+        methodHeader: String,
+        content: String,
+    ): Result<Unit>
+
+    /**
+     * 放弃当前 APK 的所有待应用修改，回到原始状态。
+     *
+     * 同一 APK 的加载状态与待应用修改会跨页面保留（否则从编辑页返回信息页会丢失修改），
+     * 所以需要一个显式的"重新开始"入口来丢弃它们。
+     */
+    suspend fun discardModifications(): Result<Unit>
+
     /** 列出 ARSC 资源类型 */
     suspend fun listResourceTypes(): Result<List<ResourceTypeInfo>>
 
     /**
-     * 列出指定 DEX 的 smali 目录树（构建一次后缓存，切换界面回来直接复用）。
-     * onProgress 回调：每完成一个 DEX 的反编译时调用，参数 (已完成数, 总数)
+     * 列出指定 DEX **合并后**的 smali 目录树（构建一次后缓存，切换界面回来直接复用）。
+     *
+     * 多个 DEX 的同名包目录会递归合并成一棵统一的树，直接返回顶层子节点；
+     * 合并结果与各 dex 的原始树都在数据层缓存，UI 不需要自己再合并一遍。
+     *
+     * [onProgress] 只在**真的发生反编译**时回调（缓存命中不会回调），
+     * UI 可据此区分"读取中"与"正在反编译"。
      */
-    suspend fun listSmaliTree(
+    suspend fun listSmaliMergedTree(
         dexNames: List<String>,
         onProgress: ((Int, Int) -> Unit)? = null,
-    ): Result<Map<String, List<SmaliTreeNode>>>
+    ): Result<List<SmaliTreeNode>>
 
     /** 列出指定类型的资源条目 */
     suspend fun listResources(type: String): Result<List<ResourceEntryInfo>>

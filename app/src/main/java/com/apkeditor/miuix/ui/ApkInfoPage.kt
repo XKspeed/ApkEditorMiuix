@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,7 +27,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -34,21 +39,32 @@ import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.ApkEntry
 import com.apkeditor.miuix.data.ApkInfo
 import com.apkeditor.miuix.data.BuildResult
-import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ErrorBox
 import com.apkeditor.miuix.ui.components.InfoRow
 import com.apkeditor.miuix.ui.components.LoadingBox
+import android.graphics.drawable.Drawable
+import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.components.SectionCard
+import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
+import com.apkeditor.miuix.ui.util.BlurredBar
+import com.apkeditor.miuix.ui.util.LocalIsWideScreen
+import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.icon.extended.File
 import top.yukonga.miuix.kmp.icon.extended.Folder
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -76,7 +92,22 @@ fun ApkInfoPage(
     var buildResult by remember { mutableStateOf<BuildResult?>(null) }
     var buildError by remember { mutableStateOf<String?>(null) }
     var unsupported by remember { mutableStateOf<String?>(null) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
+    var discardTip by remember { mutableStateOf<String?>(null) }
+    /** APK 真实图标（从缓存的 APK 文件抽取；取不到时回退首字母占位） */
+    var apkIcon by remember { mutableStateOf<Drawable?>(null) }
     val scope = rememberCoroutineScope()
+
+    // 主页同款顶栏行为：滚动自动缩小 + 折叠后模糊
+    val isWideScreen = LocalIsWideScreen.current
+    val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val lazyListState = rememberLazyListState()
+    val scrollProgress by remember {
+        derivedStateOf { if (lazyListState.firstVisibleItemIndex > 0) 1f else 0f }
+    }
+    val backdrop = rememberBlurBackdrop()
+    val collapsed by remember { derivedStateOf { scrollProgress == 1f } }
+    val blurActive by remember(backdrop) { derivedStateOf { backdrop != null && scrollProgress == 1f } }
 
     LaunchedEffect(uri) {
         service.loadApk(uri)
@@ -85,29 +116,63 @@ fun ApkInfoPage(
         // 直接解压 APK 做内容预览（快）：与解析并行，不等解析完成
         service.listApkContents()
             .onSuccess { contents = it }
+        // 真实应用图标（失败保持 null，头部回退首字母）
+        service.loadApkIcon(uri)
+            .onSuccess { d -> if (d != null) apkIcon = d }
     }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
-                title = info?.label ?: "APK 内容",
-                navigationIcon = {
-                    BackNavigationIcon(onClick = onBack)
-                },
-            )
+            val barColor = when {
+                blurActive -> Color.Transparent
+                collapsed -> MiuixTheme.colorScheme.surface
+                else -> Color.Transparent
+            }
+            BlurredBar(backdrop, blurActive) {
+                AdaptiveTopAppBar(
+                    title = "详情",
+                    showTopAppBar = true,
+                    isWideScreen = isWideScreen,
+                    scrollBehavior = topAppBarScrollBehavior,
+                    color = barColor,
+                    navigationIcon = { BackNavigationIcon(onClick = onBack) },
+                    actions = {
+                        val entry = DropdownEntry(
+                            items = listOf(
+                                DropdownItem(
+                                    text = "放弃所有修改",
+                                    onClick = { showDiscardConfirm = true },
+                                ),
+                            ),
+                        )
+                        OverlayIconDropdownMenu(entry = entry) {
+                            Icon(
+                                imageVector = MiuixIcons.More,
+                                contentDescription = "更多",
+                                tint = MiuixTheme.colorScheme.onBackground,
+                            )
+                        }
+                    },
+                )
+            }
         }
     ) { innerPadding ->
         when {
             error != null -> ErrorBox(error!!, onRetry = null)
             info == null -> LoadingBox("正在解析 APK…")
             else -> LazyColumn(
+                state = lazyListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
+                    .pageScrollModifiers(
+                        showTopAppBar = true,
+                        topAppBarScrollBehavior = topAppBarScrollBehavior,
+                    )
             ) {
                 item {
-                    ApkHeader(info!!)
+                    ApkHeader(info!!, apkIcon)
                     Spacer(Modifier.height(8.dp))
                 }
                 item {
@@ -215,6 +280,38 @@ fun ApkInfoPage(
                 onConfirm = { unsupported = null },
                 cancelText = "",
                 onCancel = { unsupported = null },
+            )
+        }
+    }
+    // 待应用修改会跨页面保留（避免返回信息页丢修改），所以给一个显式的"重新开始"入口
+    if (showDiscardConfirm) {
+        MiuixDialog(title = "放弃所有修改", onDismiss = { showDiscardConfirm = false }) {
+            Text(
+                "将丢弃对 DEX / 资源 / XML 的全部未打包修改，回到原始 APK 状态。",
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+            DialogActions(
+                confirmText = "放弃",
+                onConfirm = {
+                    showDiscardConfirm = false
+                    scope.launch {
+                        service.discardModifications()
+                            .onSuccess { discardTip = "已放弃所有修改" }
+                            .onFailure { discardTip = "操作失败：${it.message}" }
+                    }
+                },
+                onCancel = { showDiscardConfirm = false },
+            )
+        }
+    }
+    if (discardTip != null) {
+        MiuixDialog(title = "结果", onDismiss = { discardTip = null }) {
+            Text(discardTip!!, color = MiuixTheme.colorScheme.onSurface)
+            DialogActions(
+                confirmText = "好的",
+                onConfirm = { discardTip = null },
+                cancelText = "",
+                onCancel = { discardTip = null },
             )
         }
     }
@@ -334,9 +431,9 @@ private fun formatSize(size: Long): String {
     }
 }
 
-/** MT 风格头部：应用图标 + 名称 + 版本/包名概览 */
+/** MT 风格头部：应用图标（APK 内真实图标，取不到才回退首字符） + 名称 + 版本/包名概览 */
 @Composable
-private fun ApkHeader(info: ApkInfo) {
+private fun ApkHeader(info: ApkInfo, icon: Drawable? = null) {
     SectionCard {
         Row(
             modifier = Modifier
@@ -344,19 +441,30 @@ private fun ApkHeader(info: ApkInfo) {
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 应用图标（占位：名称首字符）
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.size(52.dp),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        info.label.take(1).ifBlank { "A" },
-                        color = MiuixTheme.colorScheme.onPrimary,
-                        style = MiuixTheme.textStyles.title2,
-                        fontWeight = FontWeight.Bold,
+                if (icon != null) {
+                    // 从 APK 抽出的真实图标（getApplicationArchiveIcon）
+                    val bmp = remember(icon) {
+                        icon.toBitmap(160, 160).asImageBitmap()
+                    }
+                    Image(
+                        bitmap = bmp,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
                     )
+                } else {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            info.label.take(1).ifBlank { "A" },
+                            color = MiuixTheme.colorScheme.onPrimary,
+                            style = MiuixTheme.textStyles.title2,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.width(14.dp))

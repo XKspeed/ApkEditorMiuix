@@ -1,7 +1,7 @@
 package com.apkeditor.miuix.ui
-import com.apkeditor.miuix.ui.component.BackNavigationIcon
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,14 +27,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.SmaliTreeNode
+import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ErrorBox
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.LoadingBox
+import com.apkeditor.miuix.ui.components.MiuixDialog
+import com.apkeditor.miuix.ui.components.MiuixTopBar
 import com.apkeditor.miuix.ui.components.TextField
+import com.apkeditor.miuix.ui.util.pageScrollModifiers
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,9 +64,12 @@ fun SmaliTreePage(
     var topNodes by remember { mutableStateOf<List<SmaliTreeNode>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var filter by remember { mutableStateOf("") }
+    var showSearch by remember { mutableStateOf(false) }
     var assembling by remember { mutableStateOf(false) }
     var assembleResult by remember { mutableStateOf<String?>(null) }
     var progressText by remember { mutableStateOf("") }
+    /** 是否真的在反编译（缓存命中时为 false，避免误报"首次打开需要几分钟"） */
+    var decompiling by remember { mutableStateOf(false) }
     var searchResults by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var searching by remember { mutableStateOf(false) }
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
@@ -66,15 +77,13 @@ fun SmaliTreePage(
 
     LaunchedEffect(dexNames) {
         error = null
-        service.listSmaliTree(dexNames) { done, total ->
+        // 合并已在数据层完成并缓存，这里直接用；onProgress 只在真的反编译时回调，
+        // 缓存命中不会回调，所以据此决定要不要显示"首次打开需要几分钟"的提示。
+        service.listSmaliMergedTree(dexNames) { done, total ->
+            decompiling = true
             progressText = "正在反编译… ($done/$total)"
         }
-            .onSuccess { perDex ->
-                // 合并所有 DEX 的包名文件夹（NP 风格：相同包名合并）
-                val allChildren = perDex.values.flatMap { roots ->
-                    roots.flatMap { it.children }
-                }
-                val merged = mergeTrees(allChildren)
+            .onSuccess { merged ->
                 topNodes = listOf(
                     SmaliTreeNode(
                         name = "smali",
@@ -122,25 +131,26 @@ fun SmaliTreePage(
 
     val isSearching = filter.isNotBlank()
 
+    // 主页同款 progressive 顶栏：滚动缩小 + 折叠后模糊
+    val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val lazyListState = rememberLazyListState()
+    val scrollProgress by remember {
+        derivedStateOf { if (lazyListState.firstVisibleItemIndex > 0) 1f else 0f }
+    }
+    val backdrop = rememberBlurBackdrop()
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
+            MiuixTopBar(
                 title = "Smali",
-                navigationIcon = {
-                    BackNavigationIcon(onClick = onBack)
-                    Text("返回",
-                        color = MiuixTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            .clickable(onClick = onBack),
-                    )
-                },
-                actions = {
-                    Text("汇编",
-                        color = if (assembling) MiuixTheme.colorScheme.onSurfaceVariantActions
-                        else MiuixTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            .clickable(enabled = !assembling) {
+                onBack = onBack,
+                onSearch = { showSearch = !showSearch },
+                menuItems = listOf(
+                    DropdownItem(
+                        text = if (assembling) "汇编中…" else "汇编",
+                        onClick = {
+                            if (!assembling) {
                                 assembling = true
                                 scope.launch {
                                     val errs = mutableListOf<String>()
@@ -152,19 +162,26 @@ fun SmaliTreePage(
                                     else "部分失败：${errs.joinToString("；")}"
                                     assembling = false
                                 }
-                            },
-                    )
-                },
+                            }
+                        },
+                    ),
+                ),
+                scrollBehavior = topAppBarScrollBehavior,
+                backdrop = backdrop,
+                scrollProgress = { scrollProgress },
             )
         }
     ) { innerPadding ->
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
         Column(Modifier.fillMaxSize().padding(innerPadding)) {
-            TextField(
-                value = filter,
-                onValueChange = { filter = it },
-                label = "搜索类名",
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+            if (showSearch) {
+                TextField(
+                    value = filter,
+                    onValueChange = { filter = it },
+                    label = "搜索类名",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             Text(
                 when {
                     searching -> "搜索中…"
@@ -177,10 +194,19 @@ fun SmaliTreePage(
             )
             when {
                 error != null -> ErrorBox(error!!, onRetry = null)
-                topNodes == null -> LoadingBox(progressText.ifBlank { "正在反编译 DEX…（首次打开需要几分钟）" })
+                topNodes == null -> LoadingBox(
+                    if (decompiling) progressText.ifBlank { "正在反编译 DEX…（首次打开需要几分钟）" }
+                    else "读取 smali 目录…"
+                )
                 isSearching -> {
                     // 搜索模式：扁平列表
-                    LazyColumn(Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier.fillMaxSize().pageScrollModifiers(
+                            showTopAppBar = true,
+                            topAppBarScrollBehavior = topAppBarScrollBehavior,
+                        ),
+                    ) {
                         items(searchResults, key = { it.second }) { (dex, path) ->
                             val className = path.removePrefix("smali/")
                                 .substringBeforeLast(".smali").replace("/", ".")
@@ -197,7 +223,13 @@ fun SmaliTreePage(
                 }
                 else -> {
                     // 树形模式
-                    LazyColumn(Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier.fillMaxSize().pageScrollModifiers(
+                            showTopAppBar = true,
+                            topAppBarScrollBehavior = topAppBarScrollBehavior,
+                        ),
+                    ) {
                         items(visibleNodes, key = { keyOf(it) }) { n ->
                             TreeRow(n, expanded, onOpenFile)
                             HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
@@ -207,33 +239,24 @@ fun SmaliTreePage(
                 }
             }
         }
+        }
     }
 
     if (assembleResult != null) {
-        top.yukonga.miuix.kmp.basic.Text(
-            assembleResult!!,
-            modifier = Modifier.padding(16.dp),
-        )
+        MiuixDialog(title = "汇编结果", onDismiss = { assembleResult = null }) {
+            Text(assembleResult!!, color = MiuixTheme.colorScheme.onSurface)
+            DialogActions(
+                confirmText = "好的",
+                onConfirm = { assembleResult = null },
+                cancelText = "",
+                onCancel = { assembleResult = null },
+            )
+        }
     }
 }
 
 private fun toggle(expanded: MutableMap<String, Boolean>, key: String) {
     expanded[key] = (expanded[key] != true)
-}
-
-/** 合并多个树的顶层节点，同名文件夹递归合并 */
-private fun mergeTrees(nodes: List<SmaliTreeNode>): List<SmaliTreeNode> {
-    val map = LinkedHashMap<String, SmaliTreeNode>()
-    nodes.forEach { node ->
-        val existing = map[node.name]
-        if (existing == null) {
-            map[node.name] = node
-        } else if (existing.isDir && node.isDir) {
-            val mergedChildren = mergeTrees(existing.children + node.children)
-            map[node.name] = existing.copy(children = mergedChildren)
-        }
-    }
-    return map.values.toList()
 }
 
 private fun keyOf(node: SmaliTreeNode): String {

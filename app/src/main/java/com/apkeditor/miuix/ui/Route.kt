@@ -30,8 +30,43 @@ sealed interface Route : NavKey {
     @Serializable
     data class SmaliTree(val apkPath: String, val dexNames: List<String> = emptyList()) : Route
 
+    /**
+     * 整文件 smali 编辑（点 smali 文件的默认落点）。
+     * [dexNames] 供顶栏 method 导航进入类详情页时带上上下文 DEX 列表。
+     */
     @Serializable
-    data class SmaliEdit(val apkPath: String, val dexName: String, val filePath: String) : Route
+    data class SmaliEdit(
+        val apkPath: String,
+        val dexName: String,
+        val filePath: String,
+        val dexNames: List<String> = emptyList(),
+    ) : Route
+
+    /** 类详情页：类头信息 + 方法列表（点 smali 文件进入） */
+    @Serializable
+    data class SmaliClass(
+        val apkPath: String,
+        val dexName: String,
+        val filePath: String,
+        /** 上下文 DEX 列表（指南针 → 所有类列表用，避免重复反编译其它 DEX） */
+        val dexNames: List<String> = emptyList(),
+    ) : Route
+
+    /** “所有类”列表页（类详情页顶栏指南针进入，快速切换类） */
+    @Serializable
+    data class SmaliClassList(val apkPath: String, val dexNames: List<String> = emptyList()) : Route
+
+    /** 单方法编辑页（方法列表点击进入，保存只回写该方法块） */
+    @Serializable
+    data class SmaliMethod(
+        val apkPath: String,
+        val dexName: String,
+        val filePath: String,
+        /** 第 N 个 .method 块（0 起） */
+        val methodIndex: Int,
+        /** 方法声明行，保存时校验方法未挪位 */
+        val methodHeader: String,
+    ) : Route
 
     @Serializable
     data class ArscTypes(val apkPath: String) : Route

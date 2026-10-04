@@ -52,6 +52,7 @@ import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -158,7 +159,9 @@ fun ApkInfoPage(
             }
         }
     ) { innerPadding ->
-        when {
+        // backdrop 必须有内容来源：没有这层 layerBackdrop，BlurredBar 采样为空 → 模糊不可见
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
+            when {
             error != null -> ErrorBox(error!!, onRetry = null)
             info == null -> LoadingBox("正在解析 APK…")
             else -> LazyColumn(
@@ -230,6 +233,7 @@ fun ApkInfoPage(
                     }
                     Spacer(Modifier.height(24.dp))
                 }
+            }
             }
         }
     }

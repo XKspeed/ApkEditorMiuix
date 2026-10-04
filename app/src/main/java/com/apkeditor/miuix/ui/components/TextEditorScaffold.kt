@@ -52,6 +52,12 @@ import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 
 /**
  * 编辑器内部可变引用集合。
@@ -340,6 +346,11 @@ fun TextEditorScaffold(
             .onFailure { Toast.makeText(ctx, "全部替换失败：${it.message}", Toast.LENGTH_SHORT).show() }
     }
 
+    // 主页同款 progressive 顶栏：编辑器内部是 View 滚动，由滚动监听驱动进度与顶栏折叠
+    val topAppBarScrollBehavior = MiuixScrollBehavior()
+    val backdrop = rememberBlurBackdrop()
+    var editorScrollY by mutableIntStateOf(0)
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
@@ -369,6 +380,9 @@ fun TextEditorScaffold(
                     add(DropdownItem(text = "保存", onClick = { doSave() }))
                     add(DropdownItem(text = "退出", onClick = onBack))
                 },
+                scrollBehavior = topAppBarScrollBehavior,
+                backdrop = backdrop,
+                scrollProgress = { if (editorScrollY > 0) 1f else 0f },
             )
         },
         bottomBar = {
@@ -401,7 +415,7 @@ fun TextEditorScaffold(
             }
         },
     ) { innerPadding ->
-        Box(Modifier.fillMaxSize().padding(innerPadding)) {
+        Box(Modifier.fillMaxSize().padding(innerPadding).then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)) {
             when {
                 error != null -> Text(
                     text = "读取失败：${error!!}",
@@ -419,6 +433,17 @@ fun TextEditorScaffold(
                             typefaceText = Typeface.MONOSPACE
                             setLineNumberEnabled(true)
                             refs.editor = this
+                            // View 滚动 → 驱动 Compose 顶栏：上滑(sy 增大)收起、回滑展开，
+                            // 语义与主页 nestedScroll 手势一致（onPreScroll 收起 / onPostScroll 展开）
+                            setOnScrollChangeListener { _, _, sy, _, _ ->
+                                val dy = editorScrollY - sy
+                                editorScrollY = sy
+                                val conn = topAppBarScrollBehavior.nestedScrollConnection
+                                when {
+                                    dy < 0 -> conn.onPreScroll(Offset(0f, dy.toFloat()), NestedScrollSource.UserInput)
+                                    dy > 0 -> conn.onPostScroll(Offset.Zero, Offset(0f, dy.toFloat()), NestedScrollSource.UserInput)
+                                }
+                            }
                             subscribeEvent(ContentChangeEvent::class.java) { event, _ ->
                                 // 装载初始内容也会触发该事件，那不算用户改动
                                 if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT) dirty = true

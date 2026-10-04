@@ -42,7 +42,6 @@ import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.components.TextField
-import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
@@ -52,6 +51,7 @@ import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
@@ -160,10 +160,8 @@ fun HomePage(
                             )
                         }
                 ) {
-                    AdaptiveTopAppBar(
+                    SmallTopAppBar(
                         title = currentDir.absolutePath,
-                        showTopAppBar = true,
-                        isWideScreen = isWideScreen,
                         scrollBehavior = topAppBarScrollBehavior,
                         color = barColor,
                     )

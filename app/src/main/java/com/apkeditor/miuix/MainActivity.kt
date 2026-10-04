@@ -28,6 +28,8 @@ class MainActivity : ComponentActivity() {
         installCrashLogger()
         enableEdgeToEdge()
         SavedApkStore.init(this)
+        // 主题选择持久化：先读用户上次的选择，再进 setContent(否则重启永远回到跟随系统)
+        ThemeState.load(this)
         com.apkeditor.miuix.data.OutputConfig.init(this)
         setContent {
             // 主题模式（0 跟随系统 / 1 浅色 / 2 深色 / 3 莫奈跟随系统 / 4 莫奈浅色 / 5 莫奈深色）

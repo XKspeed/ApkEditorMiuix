@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ThemeState
 import com.apkeditor.miuix.data.ApkCacheManager
 import com.apkeditor.miuix.data.OutputConfig
-import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
@@ -52,6 +51,7 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -69,6 +69,7 @@ fun SettingsPage(
     padding: PaddingValues,
     onOpenUiSettings: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val isWideScreen = LocalIsWideScreen.current
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val lazyListState = rememberLazyListState()
@@ -94,10 +95,8 @@ fun SettingsPage(
                 if (collapsed) MiuixTheme.colorScheme.surface else Color.Transparent
             }
             BlurredBar(backdrop, blurActive) {
-                AdaptiveTopAppBar(
+                SmallTopAppBar(
                     title = "设置",
-                    showTopAppBar = true,
-                    isWideScreen = isWideScreen,
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,
                 )
@@ -142,7 +141,7 @@ fun SettingsPage(
                                         DropdownItem(
                                             text = text,
                                             selected = ThemeState.mode == index,
-                                            onClick = { ThemeState.mode = index },
+                                            onClick = { ThemeState.mode = index; ThemeState.save(context) },
                                         )
                                     },
                                 ),
@@ -151,7 +150,7 @@ fun SettingsPage(
                                         DropdownItem(
                                             text = text,
                                             selected = ThemeState.mode == (index + 3),
-                                            onClick = { ThemeState.mode = index + 3 },
+                                            onClick = { ThemeState.mode = index + 3; ThemeState.save(context) },
                                         )
                                     },
                                 ),

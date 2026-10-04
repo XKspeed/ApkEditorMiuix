@@ -47,9 +47,7 @@ import android.graphics.drawable.Drawable
 import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.components.SectionCard
-import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
-import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
@@ -61,6 +59,7 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -100,7 +99,6 @@ fun ApkInfoPage(
     val scope = rememberCoroutineScope()
 
     // 主页同款顶栏行为：滚动自动缩小 + 折叠后模糊
-    val isWideScreen = LocalIsWideScreen.current
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val lazyListState = rememberLazyListState()
     val scrollProgress by remember {
@@ -131,10 +129,8 @@ fun ApkInfoPage(
                 else -> Color.Transparent
             }
             BlurredBar(backdrop, blurActive) {
-                AdaptiveTopAppBar(
+                SmallTopAppBar(
                     title = "详情",
-                    showTopAppBar = true,
-                    isWideScreen = isWideScreen,
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,
                     navigationIcon = { BackNavigationIcon(onClick = onBack) },

@@ -4,15 +4,19 @@ import android.graphics.Typeface
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,7 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.lang.Language
@@ -48,6 +54,12 @@ import top.yukonga.miuix.kmp.theme.Colors
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Search
+import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
@@ -78,6 +90,29 @@ private class EditorRefs {
     /** 行标记（如 .method/.end method 红底）的内容签名与已标记行，用于增量维护 */
     var markSig: Long = -1L
     var markedLines: IntArray = IntArray(0)
+}
+
+/** 方法/字段导航条目：label = 去掉 .method/.field 前缀后的签名，line = 0 基行号（与 sora setSelection 对齐） */
+private data class NavEntry(val label: String, val line: Int)
+
+@Composable
+private fun NavRow(entry: NavEntry, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = entry.label,
+            color = MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.main,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
 
 /** 行标记背景色：40% 红（0x66FF0000），整行绘制在文字之下 */
@@ -233,6 +268,11 @@ fun TextEditorScaffold(
     var showGoto by remember { mutableStateOf(false) }
     var gotoLineInput by remember { mutableStateOf("") }
 
+    // 方法/字段导航 BottomSheet（不跳新页面，点击直接在当前编辑器内定位）
+    var showNavSheet by remember { mutableStateOf(false) }
+    var showNavSearch by remember { mutableStateOf(false) }
+    var navQuery by remember { mutableStateOf("") }
+
     var cursorLine by remember { mutableStateOf(1) }
     var matchCount by remember { mutableStateOf(0) }
     var matchIndex by remember { mutableStateOf(-1) }
@@ -241,6 +281,48 @@ fun TextEditorScaffold(
         load()
             .onSuccess { content = it }
             .onFailure { error = it.message ?: "读取失败" }
+    }
+
+    // 从已加载全文解析 方法/字段 清单（零额外 IO）；行号 0 基，与 sora setSelection 对齐
+    val navMethods = remember(content) {
+        content?.lineSequence()?.withIndex()?.mapNotNull { (i, l) ->
+            val t = l.trim()
+            if (t.startsWith(".method")) NavEntry(t.removePrefix(".method").trim(), i) else null
+        }?.toList() ?: emptyList()
+    }
+    val navFields = remember(content) {
+        content?.lineSequence()?.withIndex()?.mapNotNull { (i, l) ->
+            val t = l.trim()
+            if (t.startsWith(".field")) NavEntry(t.removePrefix(".field").trim(), i) else null
+        }?.toList() ?: emptyList()
+    }
+    val navKeyword = navQuery.trim()
+    val shownMethods = if (navKeyword.isEmpty()) navMethods else navMethods.filter { it.label.contains(navKeyword, true) }
+    val shownFields = if (navKeyword.isEmpty()) navFields else navFields.filter { it.label.contains(navKeyword, true) }
+
+    fun dismissNavSheet() {
+        showNavSheet = false
+        showNavSearch = false
+        navQuery = ""
+    }
+
+    fun locateInEditor(line: Int) {
+        showNavSheet = false
+        showNavSearch = false
+        navQuery = ""
+        // setSelection 会把光标滚进可视区；post 等弹窗关闭让出布局
+        refs.editor?.let { ed -> ed.post { runCatching { ed.setSelection(line, 0) } } }
+    }
+
+    // 键盘弹出后把光标行滚进可视区（根级 imePadding 只垫布局，编辑器内部不会自己上翻）
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    LaunchedEffect(imeVisible) {
+        if (imeVisible) {
+            delay(150)
+            refs.editor?.let { ed ->
+                ed.post { runCatching { ed.setSelection(ed.cursor.leftLine, ed.cursor.leftColumn) } }
+            }
+        }
     }
 
     // 轮询循环：状态行的光标行号，以及 sora 异步查找的匹配数/当前序号。
@@ -362,7 +444,7 @@ fun TextEditorScaffold(
                 onSearch = { showSearchBar = !showSearchBar },
                 navigationExtras = if (onOpenMethodNav != null) {
                     {
-                        IconButton(onClick = onOpenMethodNav) {
+                        IconButton(onClick = { showNavSheet = true }) {
                             MethodNavIcon(tint = MiuixTheme.colorScheme.onBackground)
                         }
                     }
@@ -371,7 +453,7 @@ fun TextEditorScaffold(
                 },
                 menuItems = buildList {
                     if (onOpenMethodNav != null) {
-                        add(DropdownItem(text = "方法列表", onClick = onOpenMethodNav))
+                        add(DropdownItem(text = "方法列表", onClick = { showNavSheet = true }))
                     }
                     add(DropdownItem(text = "查找替换", onClick = { showSearchBar = true }))
                     add(DropdownItem(text = "跳转到行", onClick = { showGoto = true }))
@@ -461,6 +543,73 @@ fun TextEditorScaffold(
                     },
                     modifier = Modifier.fillMaxSize(),
                 )
+            }
+        }
+    }
+
+    // 方法/字段导航弹出窗：左侧标题「方法列表」，右上角 搜索 + 关闭；分类列举、点击原地定位
+    OverlayBottomSheet(
+        show = showNavSheet,
+        onDismissRequest = { dismissNavSheet() },
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "方法列表",
+                    color = MiuixTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.title2,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = { showNavSearch = !showNavSearch }) {
+                    Icon(
+                        imageVector = MiuixIcons.Search,
+                        contentDescription = "搜索",
+                        tint = MiuixTheme.colorScheme.onSurface,
+                    )
+                }
+                IconButton(onClick = { dismissNavSheet() }) {
+                    Icon(
+                        imageVector = MiuixIcons.Close,
+                        contentDescription = "关闭",
+                        tint = MiuixTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+            if (showNavSearch) {
+                TextField(
+                    value = navQuery,
+                    onValueChange = { navQuery = it },
+                    label = "搜索方法 / 字段",
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                )
+            }
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                if (shownMethods.isNotEmpty()) {
+                    item(key = "nav-m-title") { SmallTitle("方法") }
+                    items(shownMethods, key = { "m${it.line}" }) { e ->
+                        NavRow(e) { locateInEditor(e.line) }
+                    }
+                }
+                if (shownFields.isNotEmpty()) {
+                    item(key = "nav-f-title") { SmallTitle("字段") }
+                    items(shownFields, key = { "f${it.line}" }) { e ->
+                        NavRow(e) { locateInEditor(e.line) }
+                    }
+                }
+                if (shownMethods.isEmpty() && shownFields.isEmpty()) {
+                    item(key = "nav-empty") {
+                        Text(
+                            text = if (navKeyword.isEmpty()) "该文件没有方法或字段" else "无匹配结果",
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            style = MiuixTheme.textStyles.subtitle,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                        )
+                    }
+                }
+                item(key = "nav-pad") { Spacer(Modifier.height(20.dp)) }
             }
         }
     }

@@ -2,6 +2,10 @@ package com.apkeditor.miuix
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.Modifier
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.remember
@@ -41,7 +45,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
             MiuixTheme(controller = controller) {
-                App()
+                // 键盘避让：edge-to-edge / 部分 ROM 下 adjustResize 不缩窗时，
+                // 根内容按 IME 高度垫底，保证最底部（状态行/列表末尾）可观测；
+                // 窗口真的被 adjustResize 缩过时 ime inset 为 0，不会双重避让。
+                Box(Modifier.fillMaxSize().imePadding()) {
+                    App()
+                }
             }
         }
     }

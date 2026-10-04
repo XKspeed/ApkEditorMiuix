@@ -72,8 +72,10 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     // ---------- 修改记录（zip 拷贝 + 只替换修改文件 的核心） ----------
     /** 被修改过的 dex：dexName → 汇编产物文件 */
     private val modifiedDex = HashMap<String, File>()
-    /** 被修改过的 xml：路径 → 编码后二进制字节 */
+    /** 被修改过的 xml：路径 → 编码后二进制字节（打包替换用） */
     private val modifiedXml = HashMap<String, ByteArray>()
+    /** 被修改过的 xml：路径 → 保存时的文本（重开时回读，否则又显示原 APK 里的旧内容） */
+    private val modifiedXmlText = HashMap<String, String>()
     /** resources.arsc 是否被修改 */
     private var modifiedArsc = false
 
@@ -161,6 +163,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
                 // 走到这里说明换了一个 APK（或首次打开），上一个 APK 的待应用修改已无意义
                 modifiedDex.clear()
                 modifiedXml.clear()
+                modifiedXmlText.clear()
                 modifiedArsc = false
                 loadedUri = uri
 
@@ -592,6 +595,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             mutex.withLock {
                 modifiedDex.clear()
                 modifiedXml.clear()
+                modifiedXmlText.clear()
                 modifiedArsc = false
                 // 从原始 APK 重新解析模块，丢掉内存里已经应用的 arsc / xml 修改
                 rawApkFile?.let { module = ApkModule.loadApkFile(it) }
@@ -874,6 +878,8 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     }
 
     override suspend fun readXmlFile(path: String): Result<String> = runCatching {
+        // 本次会话内保存过 → 直接回读保存的文本（否则重开会显示保存前的旧内容）
+        modifiedXmlText[path]?.let { return@runCatching it }
         val apkFile = rawApkFile ?: throw IllegalStateException("尚未打开 APK")
         // NP 管理器方案：用 AssetManager.addAssetPath 加载 APK，然后 XmlResourceParser 解码 AXML。
         //
@@ -1080,6 +1086,9 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             val source = XMLEncodeSource(pkg, XMLFileParserSource(path, tmp))
             // 记录编码后的二进制字节：重打包时替换原 xml
             modifiedXml[path] = source.getBytes()
+            // 同时记住保存时的文本：readXmlFile 重开该文件时直接回读，
+            // 否则会从原始 APK 重新解码 —— 表现为"保存后重开又是旧内容"
+            modifiedXmlText[path] = content
         }
     }
 

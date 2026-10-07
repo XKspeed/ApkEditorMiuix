@@ -25,6 +25,7 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppLog.init(this)
         installCrashLogger()
         enableEdgeToEdge()
         SavedApkStore.init(this)
@@ -67,8 +68,10 @@ private fun ComponentActivity.installCrashLogger() {
             throwable.printStackTrace(PrintWriter(sw))
             val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
             val log = "[$time]\n$sw\n\n"
+            // 崩溃日志同时落两处：crash_log.txt 保留原始栈，app.log 便于统一分享
             val file = File(filesDir, "crash_log.txt")
             file.appendText(log)
+            AppLog.e("Crash", "未捕获异常: " + (throwable.message ?: throwable.javaClass.name), throwable)
         } catch (_: Exception) {
         }
         defaultHandler?.uncaughtException(thread, throwable)

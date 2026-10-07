@@ -6,6 +6,7 @@ import android.content.res.Resources
 import android.util.TypedValue
 import org.xmlpull.v1.XmlPullParser
 import android.net.Uri
+import com.apkeditor.miuix.AppLog
 import com.apkeditor.miuix.SavedApkStore
 import com.android.apksig.ApkSigner
 import com.reandroid.apk.ApkModule
@@ -136,7 +137,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
     // ---------- APK 加载 ----------
 
     override suspend fun loadApk(uri: String): Result<ApkInfo> = withContext(Dispatchers.IO) {
-        runCatching {
+        AppLog.logResult("loadApk") {
             mutex.withLock {
                 // 同一个 APK 再次打开 —— 最典型的就是「从反编译编辑页返回 APK 信息页」，
                 // 而 ApkInfoPage 每次进入都会调 loadApk。此时必须直接复用已加载的 ApkModule
@@ -273,7 +274,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     // ---------- DEX ----------
 
-    override suspend fun listDexFiles(): Result<List<DexEntry>> = runCatching {
+    override suspend fun listDexFiles(): Result<List<DexEntry>> = AppLog.logResult("listDexFiles") {
         rawApkFile?.let { f ->
             ZipFile(f).use { zf ->
                 zf.entries().asSequence()
@@ -365,8 +366,8 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         return files.sorted()
     }
 
-    override suspend fun listSmaliFiles(dexName: String): Result<List<String>> = runCatching {
-        smaliCache[dexName]?.let { return@runCatching it }
+    override suspend fun listSmaliFiles(dexName: String): Result<List<String>> = AppLog.logResult("listSmaliFiles") {
+        smaliCache[dexName]?.let { return@logResult it }
         val r = decompileAll(listOf(dexName))[dexName] ?: emptyList()
         smaliCache[dexName] = r
         r
@@ -451,7 +452,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         return byName.values.toList()
     }
 
-    override suspend fun readSmaliFile(dexName: String, filePath: String): Result<String> = runCatching {
+    override suspend fun readSmaliFile(dexName: String, filePath: String): Result<String> = AppLog.logResult("readSmaliFile") {
         val f = File(workDir(), "$dexName/$filePath")
         if (!f.exists()) error("smali 文件不存在：${f.relativeToOrNull(workDir()) ?: f.path}")
         f.readText()
@@ -465,7 +466,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             }
         }
 
-    override suspend fun listSmaliClasses(dexNames: List<String>): Result<List<SmaliClassEntry>> = runCatching {
+    override suspend fun listSmaliClasses(dexNames: List<String>): Result<List<SmaliClassEntry>> = AppLog.logResult("listSmaliClasses") {
         val tree = listSmaliMergedTree(dexNames, null).getOrThrow()
         val out = mutableListOf<SmaliClassEntry>()
         fun walk(nodes: List<SmaliTreeNode>) {
@@ -570,7 +571,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
             clearTreeCaches()
         }
 
-    override suspend fun deleteSmaliFile(dexName: String, filePath: String): Result<Unit> = runCatching {
+    override suspend fun deleteSmaliFile(dexName: String, filePath: String): Result<Unit> = AppLog.logResult("deleteSmaliFile") {
         val f = File(workDir(), "$dexName/$filePath")
         if (!f.exists()) error("文件不存在：$filePath")
         f.delete()
@@ -578,7 +579,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         clearTreeCaches()
     }
 
-    override suspend fun assembleDex(dexName: String): Result<Unit> = runCatching {
+    override suspend fun assembleDex(dexName: String): Result<Unit> = AppLog.logResult("assembleDex") {
         val dir = dexWorkDir(dexName)
         val smaliDir = File(dir, smaliDirName(dexName))
         if (!smaliDir.exists()) throw IllegalStateException("请先反汇编 $dexName")
@@ -612,7 +613,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     // ---------- ARSC 资源 ----------
 
-    override suspend fun listResourceTypes(): Result<List<ResourceTypeInfo>> = runCatching {
+    override suspend fun listResourceTypes(): Result<List<ResourceTypeInfo>> = AppLog.logResult("listResourceTypes") {
         locked { m ->
             val map = LinkedHashMap<String, Int>()
             m.tableBlock.resources.forEach { r ->
@@ -623,7 +624,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         }
     }
 
-    override suspend fun listResources(type: String): Result<List<ResourceEntryInfo>> = runCatching {
+    override suspend fun listResources(type: String): Result<List<ResourceEntryInfo>> = AppLog.logResult("listResources") {
         locked { m ->
             val list = mutableListOf<ResourceEntryInfo>()
             m.tableBlock.resources.forEach { r ->
@@ -850,7 +851,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         }
     }
 
-    override suspend fun renameResource(id: Int, newName: String): Result<Unit> = runCatching {
+    override suspend fun renameResource(id: Int, newName: String): Result<Unit> = AppLog.logResult("renameResource") {
         locked { m ->
             var found = false
             m.tableBlock.resources.forEach { r ->
@@ -865,7 +866,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
 
     // ---------- XML ----------
 
-    override suspend fun listXmlFiles(): Result<List<XmlFileInfo>> = runCatching {
+    override suspend fun listXmlFiles(): Result<List<XmlFileInfo>> = AppLog.logResult("listXmlFiles") {
         val src = rawApkFile ?: throw IllegalStateException("尚未打开 APK")
         ZipFile(src).use { zf ->
             zf.entries().asSequence()
@@ -877,9 +878,9 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         }
     }
 
-    override suspend fun readXmlFile(path: String): Result<String> = runCatching {
+    override suspend fun readXmlFile(path: String): Result<String> = AppLog.logResult("readXmlFile") {
         // 本次会话内保存过 → 直接回读保存的文本（否则重开会显示保存前的旧内容）
-        modifiedXmlText[path]?.let { return@runCatching it }
+        modifiedXmlText[path]?.let { return@logResult it }
         val apkFile = rawApkFile ?: throw IllegalStateException("尚未打开 APK")
         // NP 管理器方案：用 AssetManager.addAssetPath 加载 APK，然后 XmlResourceParser 解码 AXML。
         //
@@ -1077,7 +1078,7 @@ class RealApkDataService(private val context: Context) : ApkDataService {
         }
     }
 
-    override suspend fun saveXmlFile(path: String, content: String): Result<Unit> = runCatching {
+    override suspend fun saveXmlFile(path: String, content: String): Result<Unit> = AppLog.logResult("saveXmlFile") {
         locked { m ->
             val tmp = File(workDir(), "tmp/${path.substringAfterLast('/')}.xml")
             tmp.parentFile?.mkdirs()

@@ -12,8 +12,8 @@ android {
         applicationId = "com.apkeditor.miuix"
         minSdk = 35
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.11"
     }
 
     buildTypes {
@@ -39,8 +39,35 @@ android {
         compose = true
     }
 
+    // ── 打包瘦身 ──
+    //
+    // 背景：R8 只优化代码，shrinkResources 只处理 res/，**两者都管不到依赖 jar 里的
+    // 根级资源文件** —— 这些资源会原样进 APK，是体积浪费的主要来源。
+    //
+    // ⚠️ 绝不能排除 frameworks/** —— ARSCLib 的 InternalFrameworks 在回编 XML 时会用
+    //    getResourceAsStream("/frameworks/android/android-XX.apk") 读取平台资源表来解析
+    //    android:* 属性，排除后回编必然失败。
+    //
+    // 说明：resources.excludes 只作用于**非 class 资源**（class 已编译进 dex），
+    // 因此这里的排除不影响任何类的加载。
     packaging {
-        resources.excludes += "META-INF/*"
+        resources {
+            excludes += "META-INF/*"
+            // 依赖 jar 内嵌的 Java 源码文件（如 eclipse jdt 的注解源码），运行期无用
+            excludes += "src/**"
+            // ANTLR 的代码生成模板（*.stg）：只有"运行时生成 parser"才需要，本工程不用
+            excludes += "org/antlr/codegen/**"
+            // JRuby jcodings 的 Unicode 属性表（3MB）：仅在正则里用 \p{...} / \P{...}
+            // 这类 Unicode 属性转义时才会经 ArrayReader 懒加载。本工程用到的两个语法
+            // （smali / xml textmate）经检索都不含 \p{...}，故可安全剔除。
+            // ⚠️ 若日后新增使用 Unicode 属性转义的语法文件，必须删掉这行，否则该语法
+            //    装载会抛异常（现象为高亮失效）。
+            excludes += "tables/**"
+            // BouncyCastle 的后量子密码（PQC）查找表，约 1.15MB。
+            // 本工程只用到 BC 的证书构造与签名（X500Name / JcaX509v3CertificateBuilder /
+            // JcaContentSignerBuilder / JcaX509CertificateConverter），不涉及后量子算法。
+            excludes += "org/bouncycastle/pqc/**"
+        }
     }
 }
 
@@ -75,24 +102,28 @@ dependencies {
     implementation("org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
 
-    implementation("com.github.REAndroid:ARSCLib:V1.4.0")
+    // ARSCLib：本地 jar，由上游 main 分支（commit 089ec68）自行编译。
+    //
+    // 为何不用 Maven 上的 V1.4.0：该 tag 缺提交 31d559ff78（*XML Support DYNAMIC_REFERENCE
+    // and DYNAMIC_ATTRIBUTE data types #108*）。缺该修复时，动态资源转换不会保留动态标签，
+    // 而是把它错误转成静态资源，导致回编译产物在设备上致命报错。
+    //
+    // 为何不用 JitPack 指向 commit：JitPack 产出的是 jar，而 jar **不会自动携带** ARSCLib 自带的
+    // proguard 规则（见 src/main/resources/META-INF/proguard/arsclib.pro）。改用本地 jar 后，
+    // 对应规则在 app/proguard-rules.pro 里显式声明（org.xmlpull.v1 / AttributeSet /
+    // XmlResourceParser），避免 R8 裁剪掉 AXML 解析所依赖的接口。
+    //
+    // 重新编译方式：拉 https://github.com/REAndroid/ARSCLib main 分支，
+    //   ./gradlew clean build -x test   → 取 build/libs/ARSCLib-1.4.0.jar 覆盖 app/libs/ARSCLib.jar
+    implementation(files("libs/ARSCLib.jar"))
     implementation("org.smali:baksmali:2.5.2")
     implementation("org.smali:smali:2.5.2")
     implementation("com.android.tools.build:apksig:8.13.2")
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
 
+    // sora-editor：只保留编辑器核心 + TextMate 语法支持。
+    // language-java 未使用（代码里零引用），它会把 Eclipse JDT / ANTLR / ICU 数据表打进来。
     implementation("io.github.Rosemoe.sora-editor:editor:0.23.6")
-    implementation("io.github.Rosemoe.sora-editor:language-java:0.23.6")
     implementation("io.github.Rosemoe.sora-editor:language-textmate:0.23.6")
-
-    implementation("com.github.chrisbanes:PhotoView:2.3.0")
-    implementation("com.davemorrissey.labs:subsampling-scale-image-view:3.10.0")
-
-    implementation("io.noties.markwon:core:4.6.2") {
-        exclude(group = "androidx.vectordrawable", module = "vectordrawable")
-        exclude(group = "androidx.vectordrawable", module = "vectordrawable-animated")
-    }
-
-    implementation("dev.chrisbanes.haze:haze:1.7.3")
 }

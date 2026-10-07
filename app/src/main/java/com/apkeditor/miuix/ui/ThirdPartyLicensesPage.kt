@@ -132,36 +132,6 @@ private val libraries = listOf(
         license = "GNU Lesser General Public License v3.0",
         website = "https://github.com/Rosemoe/sora-editor",
     ),
-    Library(
-        name = "PhotoView",
-        version = "2.3.0",
-        license = "Apache License 2.0",
-        website = "https://github.com/Baseflow/PhotoView",
-    ),
-    Library(
-        name = "Subsampling Scale Image View",
-        version = "3.10.0",
-        license = "Apache License 2.0",
-        website = "https://github.com/davemorrissey/subsampling-scale-image-view",
-    ),
-    Library(
-        name = "Markwon",
-        version = "4.6.2",
-        license = "Apache License 2.0",
-        website = "https://github.com/noties/Markwon",
-    ),
-    Library(
-        name = "Guava（smali 传递依赖）",
-        version = "传递依赖",
-        license = "Apache License 2.0",
-        website = "https://github.com/google/guava",
-    ),
-    Library(
-        name = "Haze",
-        version = "1.7.3",
-        license = "Apache License 2.0",
-        website = "https://github.com/chrisbanes/haze",
-    ),
 )
 
 @Composable

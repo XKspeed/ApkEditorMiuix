@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.apkeditor.miuix.AppLog
 import com.apkeditor.miuix.BuildSignature
 import com.apkeditor.miuix.ThemeState
 import com.apkeditor.miuix.data.ApkCacheManager
@@ -70,6 +71,8 @@ fun SettingsPage(
     padding: PaddingValues,
     onOpenUiSettings: () -> Unit = {},
     onOpenTest: () -> Unit = {},
+    /** 打开运行日志页（debug 与 release 均可用） */
+    onOpenLogs: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isWideScreen = LocalIsWideScreen.current
@@ -190,6 +193,13 @@ fun SettingsPage(
                 item {
                     CachePreference()
                 }
+                // 日志分组：**debug 与 release 都显示** —— 线上排障必须能拿到日志
+                item {
+                    SmallTitle("日志")
+                }
+                item {
+                    LogPreference(onOpenLogs = onOpenLogs)
+                }
                 item {
                     SmallTitle("输出")
                 }
@@ -198,6 +208,44 @@ fun SettingsPage(
                 }
                 item { Spacer(Modifier.height(24.dp)) }
             }
+        }
+    }
+}
+
+/**
+ * 日志分组：级别切换 + 进入日志页。
+ *
+ * **刻意不做任何签名/构建类型门控** —— 正式版用户遇到问题时要能自己拿到日志，
+ * 否则线上问题只能靠猜。
+ */
+@Composable
+private fun LogPreference(onOpenLogs: () -> Unit) {
+    val context = LocalContext.current
+    var level by remember { mutableStateOf(AppLog.currentLevel()) }
+
+    Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            OverlayDropdownPreference(
+                title = "日志级别",
+                summary = when (level) {
+                    AppLog.Level.VERBOSE -> "详细：记录每一步操作（排查最有效，日志增长快）"
+                    AppLog.Level.BRIEF -> "简略：只记关键节点与全部错误（默认）"
+                    AppLog.Level.OFF -> "关闭：不记录日志，出问题将无从排查"
+                },
+                items = AppLog.Level.entries.map { it.label },
+                selectedIndex = level.id,
+                modifier = Modifier.fillMaxWidth(),
+                onSelectedIndexChange = { idx ->
+                    val nl = AppLog.Level.fromId(idx)
+                    level = nl
+                    AppLog.setLevel(nl)
+                },
+            )
+            ArrowPreference(
+                title = "查看 / 分享日志",
+                summary = "查看运行日志，可一键分享或复制",
+                onClick = onOpenLogs,
+            )
         }
     }
 }

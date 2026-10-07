@@ -1,74 +1,159 @@
 # ApkEditor·Miuix
 
-类 MT 管理器的 APK 反编译编辑工具（仅 APK 编辑模块，无文件管理器），UI 采用 **Miuix（小米 HyperOS 风格 Compose 组件库）**。支持 DEX/Smali 反编译编辑、resources.arsc 资源修改、二进制 XML 编辑、回编译签名。
+一个类 MT 管理器的 **APK 反编译编辑模块**（不含文件管理器），UI 基于
+[Miuix](https://github.com/compose-miuix-ui/miuix)（小米 HyperOS 风格 Compose 组件库）。
 
-> 版本号固定 **v0.1**（按用户要求不再变更）
+围绕「打开 APK → 改内容 → 回编译 → 得到可用产物」这条主链路设计：支持 DEX/Smali
+反编译编辑、`resources.arsc` 资源修改、二进制 XML 编辑、快速改版本号，以及回编译签名。
+
+- 当前版本：**0.11**（`versionCode 2`）
+- 最低系统：**Android 15（API 35）** 及以上
+- 仅支持**未加固**的 APK
+
+---
 
 ## 功能
 
-- [x] Miuix / HyperOS 风格 UI（主页 / 保存的 APK / 设置 / 关于 四栏，主题跟随系统与手动切换，支持莫奈动态取色）
-- [x] 打开 APK 直接 zip 解压预览文件树（快），进入具体编辑页才深度解析
-- [x] 多 DEX 同时反编译（baksmali），目录以 `smali` / `smali_classesN` 标签一一对应 `classesN.dex`
-- [x] smali 反编译缓存：返回不重复编译
-- [x] DEX 汇编回编译（smali）后自动替换回 APK
-- [x] MT 式类/方法导航：smali 文件 → 类详情（类头 + 方法列表）→ 单方法编辑；跨 DEX「所有类」列表
-- [x] smali / XML 语法高亮 + 查找替换（sora-editor，.method 起止行整行红底标记）
-- [x] 主页文件浏览器：点顶栏返回上一级、长按顶栏输入路径跳转、返回键逐级退出
-- [x] 保存的 APK：文件被外部删除后失效记录自动清理
-- [x] resources.arsc 资源浏览 / 值修改 / 资源重命名
-- [x] 二进制 XML（含 AndroidManifest.xml）解码为文本编辑后编码回写
-- [x] res/ 下 XML 文件列表搜索
-- [x] 回编译 + apksig 签名（v1+v2），输出统一目录（全部文件权限 / SAF / 私有目录三级容错）
-- [x] 重打包采用「zip 拷贝 + 只替换修改过的文件」：未修改的内容直接回编译 = 原 APK 拷贝 + 重签名，保证产物可用
+### 打开与浏览
+
+- 内置文件浏览器：打开 APK 后先以 zip 解压方式预览文件树（快），进入具体编辑页才做深度解析
+- 「保存的 APK」栏集中查看回编译产物，文件被外部删除后失效记录自动清理
+- 主页交互：点顶栏返回上一级、长按顶栏输入路径跳转、返回键逐级退出
+
+### DEX / Smali
+
+- 多 DEX 并行反编译（baksmali），目录以 `smali` / `smali_classesN` 与 `classesN.dex` 一一对应
+- 反编译结果缓存，返回上一页不重复编译
+- MT 式类/方法导航：smali 文件 → 类详情（类头 + 方法列表）→ 单方法编辑，另提供跨 DEX「所有类」列表
+- 汇编回编译（smali）后自动替换回待打包内容
+
+### 资源与 XML
+
+- `resources.arsc` 资源浏览、值修改、资源重命名
+- 二进制 XML（含 `AndroidManifest.xml`）解码为文本编辑，再编码回写
+- `res/` 下 XML 文件列表与搜索
+
+### 快速编辑
+
+- 就地读取 / 修改 `versionName` 与 `versionCode`，直接产出新 APK，无需走完整反编译流程
+
+### 编辑体验
+
+- smali / XML 语法高亮与查找替换（sora-editor），`.method` 起止行整行标记
+
+### 日志
+
+- **正式版同样记录日志** —— 用户遇到问题时可直接在应用内导出
+- 三档级别：**详细**（记录每一步操作，排查最有效）/ **简略**（关键节点与全部错误，默认）/ **关闭**
+- 日志页支持分享文件、分享文本、复制全部、清空
+- 单文件循环写入（上限 2 MB，超出自动截断前段），后台线程写盘，不阻塞界面
+
+---
 
 ## 技术栈
 
-| 层 | 技术 |
+| 用途 | 技术 |
 | --- | --- |
 | 语言 | Kotlin 2.4.20 |
-| UI | Jetpack Compose + [Miuix](https://github.com/compose-miuix-ui/miuix) 0.9.4-rc01（HyperOS 风格） |
-| 引擎 | ARSCLib V1.4.0（resources.arsc / 二进制 XML） |
-| 引擎 | smali / baksmali / dexlib2 2.5.2（DEX ↔ smali） |
-| 签名 | apksig 8.13.2 + BouncyCastle 自签证书 |
-| 编辑器 | sora-editor 0.23.6（smali/XML 高亮、查找替换） |
-| 最低系统 | Android 15（API 35）及以上（无需兼容旧设备） |
+| UI | Jetpack Compose + Miuix 0.9.4-rc01（HyperOS 风格） |
+| 资源 / 二进制 XML | [ARSCLib](https://github.com/REAndroid/ARSCLib)（见下方「依赖说明」） |
+| DEX ↔ smali | smali / baksmali / dexlib2 2.5.2 |
+| 签名 | apksig 8.13.2 + BouncyCastle |
+| 编辑器 | sora-editor 0.23.6 |
 
-## 构建方法
+### 依赖说明：ARSCLib
 
-### Android Studio（推荐）
-1. Android Studio（Hedgehog 或更新版本）打开项目根目录
-2. 等待 Gradle 同步完成（首次需下载依赖，约 3~8 GB 缓存，正常现象）
+`com.github.REAndroid:ARSCLib:31d559ff78`（锚定具体提交，非 tag）
+
+上游 `V1.4.0` 标签缺少提交 `31d559ff78`（*XML Support DYNAMIC_REFERENCE and
+DYNAMIC_ATTRIBUTE data types*）。该修复之前，处理动态资源转换时不会保留动态标签，而是把它
+错误地转成静态资源，导致回编译产物在设备上致命报错。因此这里指向包含修复的提交以保证产物正确。
+
+---
+
+## 构建
+
+### Android Studio
+
+1. 用 Android Studio 打开项目根目录
+2. 等待 Gradle 同步完成（首次需下载依赖）
 3. Run ▶ 安装到设备（Android 15+）
 
 ### 命令行
+
 ```bash
-# 需要 JDK 17 与 Android SDK 35/36/37
-export JAVA_HOME=<jdk17路径>
-export ANDROID_HOME=<sdk路径>
-./gradlew :app:assembleDebug
-# 产物: app/build/outputs/apk/debug/app-debug.apk（versionName 固定 0.1）
+# 需要 JDK 17 与 Android SDK
+export JAVA_HOME=<jdk17 路径>
+export ANDROID_HOME=<sdk 路径>
+
+./gradlew :app:assembleDebug        # 产物 app/build/outputs/apk/debug/
+./gradlew :app:assembleRelease      # 产物未签名，需自行签名
 ```
 
-### GitHub Actions 自动构建
-push 到 `main` 分支后自动在云端编译并上传 APK 制品（见 `.github/workflows/build.yml`），也可在 Actions 页手动触发（Workflow dispatch）。
+### 云编译
 
-## 界面结构
+仓库内置两条 GitHub Actions 工作流：
+
+| 工作流 | 触发 | 产物 |
+| --- | --- | --- |
+| `build.yml` | push 到 `main` 或手动触发 | 已用 debug 密钥签名的 debug APK |
+| `build_release.yml` | push 到 `main` 或手动触发 | Release APK（R8 混淆 + 固定密钥 **V2 签名**） |
+
+Release 工作流从仓库 Secrets 读取签名密钥，**密钥不进入代码库**。流程为：R8 构建出未签名包
+→ 从 Secrets 解出密钥 → `zipalign` → `apksigner` 仅启用 V2 签名 → 校验签名方案
+（断言 V1/V3 为 false、V2 为 true）后上传制品。
+
+---
+
+## 签名与升级
+
+- 正式版使用**固定密钥**签名，因此后续版本可以直接覆盖安装升级
+- 升级前提：`versionCode` 必须递增、`applicationId` 不可变更
+- 更换签名密钥会导致已安装用户无法覆盖升级（需卸载重装），请勿随意更换
+
+### 测试界面可见性
+
+「界面测试」页仅对**非官方签名**的构建显示：应用在运行时读取自身签名证书指纹，与内置的
+官方指纹比对，命中则隐藏入口。因此 debug 包与自签名测试包可见，官方发布包不可见。
+
+> 该机制用于产品体验（正式用户看不到开发入口），**不是安全边界** —— 相关代码仍在包内。
+
+---
+
+## 项目结构
 
 ```
-首页            → 选择 APK 文件（SAF 文件选择器）
-  └ APK 信息    → zip 解压预览文件树（AndroidManifest / classes*.dex / resources.arsc / res/ …）
-      ├ DEX / Smali 编辑 → dex 列表 → smali 文件树（smali / smali_classesN）→ 代码编辑器
-      ├ ARSC 资源编辑    → 资源类型 → 资源条目 → 编辑值与重命名
-      ├ XML 文件编辑     → 文件列表（可搜索）→ 文本编辑器
-      └ 打包并签名       → 输出到统一目录（设置页可配置）
+app/src/main/java/com/apkeditor/miuix/
+├── ui/                  界面层
+│   ├── App.kt           导航与底栏
+│   ├── Route.kt         类型安全路由
+│   ├── HomePage.kt      文件浏览 / 打开 APK
+│   ├── ApkInfoPage.kt   APK 信息与内容树
+│   ├── *Page.kt         DEX / Smali / ARSC / XML / 日志等页面
+│   └── components/      通用组件
+├── data/                数据与引擎层
+│   ├── ApkDataService.kt      服务接口
+│   ├── RealApkDataService.kt  实现：反编译 / 解析 / 打包 / 签名
+│   ├── ApkVersionService.kt   快速编辑（版本号）
+│   ├── AxmlVersion.kt         二进制 AXML 版本号读写
+│   └── OutputConfig.kt        输出目录与签名开关
+├── AppLog.kt            日志系统
+└── BuildSignature.kt    签名指纹识别
 ```
 
-## 说明与免责声明
+---
 
-- 仅支持**未加固**的 APK；仅适配 Android 15+，不考虑旧设备
-- 所有文件操作均在应用私有缓存目录进行，回编译产物输出到用户配置的目录
-- 本工具仅供学习、研究与个人修改使用，**请勿用于侵权或盗版**；修改他人应用请遵守相关法律法规并尊重开发者权益
-- 首次运行自动生成自签名密钥，签名后的 APK 与原签名不一致属正常现象
+## 说明
+
+- 仅支持未加固的 APK；仅适配 Android 15+
+- 文件操作在应用私有缓存目录进行，回编译产物输出到用户配置的目录（公共目录 / SAF / 私有目录三级容错）
+- 重打包采用「zip 拷贝 + 只替换修改过的文件」策略：未修改内容的回编译结果等价于原 APK 副本 + 重签名，保证产物可用
+- 打包是否签名由设置页开关决定
+
+## 免责声明
+
+本工具仅供学习、研究与个人修改使用，**请勿用于侵权或盗版**。修改他人应用请遵守相关法律法规，
+尊重开发者权益。
 
 ## 许可证
 

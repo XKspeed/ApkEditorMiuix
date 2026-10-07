@@ -89,4 +89,8 @@ sealed interface Route : NavKey {
     /** 界面测试：Miuix 组件预览（参考 miuix example） */
     @Serializable
     data object Test : Route
+
+    /** 运行日志：查看 / 分享 / 清空（debug 与 release 均可用） */
+    @Serializable
+    data object Logs : Route
 }

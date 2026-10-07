@@ -545,71 +545,70 @@ fun TextEditorScaffold(
                 )
             }
         }
-    }
-
-    // 方法/字段导航弹出窗：左侧标题「方法列表」，右上角 搜索 + 关闭；分类列举、点击原地定位
-    OverlayBottomSheet(
-        show = showNavSheet,
-        onDismissRequest = { dismissNavSheet() },
-    ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "方法列表",
-                    color = MiuixTheme.colorScheme.onSurface,
-                    style = MiuixTheme.textStyles.title2,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = { showNavSearch = !showNavSearch }) {
-                    Icon(
-                        imageVector = MiuixIcons.Search,
-                        contentDescription = "搜索",
-                        tint = MiuixTheme.colorScheme.onSurface,
+        // 方法/字段导航弹出窗：左侧标题「方法列表」，右上角 搜索 + 关闭；分类列举、点击原地定位
+        OverlayBottomSheet(
+            show = showNavSheet,
+            onDismissRequest = { dismissNavSheet() },
+        ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "方法列表",
+                        color = MiuixTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.title2,
+                        modifier = Modifier.weight(1f),
                     )
-                }
-                IconButton(onClick = { dismissNavSheet() }) {
-                    Icon(
-                        imageVector = MiuixIcons.Close,
-                        contentDescription = "关闭",
-                        tint = MiuixTheme.colorScheme.onSurface,
-                    )
-                }
-            }
-            if (showNavSearch) {
-                TextField(
-                    value = navQuery,
-                    onValueChange = { navQuery = it },
-                    label = "搜索方法 / 字段",
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                )
-            }
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
-                if (shownMethods.isNotEmpty()) {
-                    item(key = "nav-m-title") { SmallTitle("方法") }
-                    items(shownMethods, key = { "m${it.line}" }) { e ->
-                        NavRow(e) { locateInEditor(e.line) }
+                    IconButton(onClick = { showNavSearch = !showNavSearch }) {
+                        Icon(
+                            imageVector = MiuixIcons.Search,
+                            contentDescription = "搜索",
+                            tint = MiuixTheme.colorScheme.onSurface,
+                        )
                     }
-                }
-                if (shownFields.isNotEmpty()) {
-                    item(key = "nav-f-title") { SmallTitle("字段") }
-                    items(shownFields, key = { "f${it.line}" }) { e ->
-                        NavRow(e) { locateInEditor(e.line) }
-                    }
-                }
-                if (shownMethods.isEmpty() && shownFields.isEmpty()) {
-                    item(key = "nav-empty") {
-                        Text(
-                            text = if (navKeyword.isEmpty()) "该文件没有方法或字段" else "无匹配结果",
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            style = MiuixTheme.textStyles.subtitle,
-                            modifier = Modifier.padding(vertical = 12.dp),
+                    IconButton(onClick = { dismissNavSheet() }) {
+                        Icon(
+                            imageVector = MiuixIcons.Close,
+                            contentDescription = "关闭",
+                            tint = MiuixTheme.colorScheme.onSurface,
                         )
                     }
                 }
-                item(key = "nav-pad") { Spacer(Modifier.height(20.dp)) }
+                if (showNavSearch) {
+                    TextField(
+                        value = navQuery,
+                        onValueChange = { navQuery = it },
+                        label = "搜索方法 / 字段",
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    )
+                }
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                    if (shownMethods.isNotEmpty()) {
+                        item(key = "nav-m-title") { SmallTitle("方法") }
+                        items(shownMethods, key = { "m${it.line}" }) { e ->
+                            NavRow(e) { locateInEditor(e.line) }
+                        }
+                    }
+                    if (shownFields.isNotEmpty()) {
+                        item(key = "nav-f-title") { SmallTitle("字段") }
+                        items(shownFields, key = { "f${it.line}" }) { e ->
+                            NavRow(e) { locateInEditor(e.line) }
+                        }
+                    }
+                    if (shownMethods.isEmpty() && shownFields.isEmpty()) {
+                        item(key = "nav-empty") {
+                            Text(
+                                text = if (navKeyword.isEmpty()) "该文件没有方法或字段" else "无匹配结果",
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.subtitle,
+                                modifier = Modifier.padding(vertical = 12.dp),
+                            )
+                        }
+                    }
+                    item(key = "nav-pad") { Spacer(Modifier.height(20.dp)) }
+                }
             }
         }
     }

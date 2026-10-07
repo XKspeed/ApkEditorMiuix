@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -38,14 +39,29 @@ import com.apkeditor.miuix.ui.util.pageScrollModifiers
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Checkbox
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.FloatingActionButton
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.RadioButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ToggleableState
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.CheckboxPreference
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
+import top.yukonga.miuix.kmp.preference.RadioButtonPreference
+import top.yukonga.miuix.kmp.preference.SliderPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -100,26 +116,70 @@ fun TestHomePage(
                     bottom = scrollPadding.calculateBottomPadding(),
                 ),
             ) {
+                // ---------- Button ----------
                 item { SmallTitle("Button") }
                 item {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Button(
-                            onClick = {},
-                            modifier = Modifier.weight(1f),
-                        ) { Text("主要按钮") }
-                        Button(
-                            onClick = {},
-                            modifier = Modifier.weight(1f),
-                            enabled = false,
-                        ) { Text("禁用") }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Button(
+                                onClick = {},
+                                modifier = Modifier.weight(1f),
+                            ) { Text("主要按钮") }
+                            Button(
+                                onClick = {},
+                                modifier = Modifier.weight(1f),
+                                enabled = false,
+                            ) { Text("禁用") }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            TextButton(
+                                text = "文本按钮",
+                                onClick = {},
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(
+                                text = "文本按钮（禁用）",
+                                onClick = {},
+                                modifier = Modifier.weight(1f),
+                                enabled = false,
+                            )
+                        }
                     }
                 }
 
+                // ---------- FloatingActionButton ----------
+                item { SmallTitle("FloatingActionButton") }
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            FloatingActionButton(onClick = {}) {
+                                Text("+", style = MiuixTheme.textStyles.main)
+                            }
+                        }
+                    }
+                }
+
+                // ---------- Switch ----------
                 item { SmallTitle("Switch") }
                 item {
                     var checked by remember { mutableStateOf(true) }
@@ -138,6 +198,142 @@ fun TestHomePage(
                     }
                 }
 
+                // ---------- Switch (basic) ----------
+                item { SmallTitle("Switch (basic)") }
+                item {
+                    var checked by remember { mutableStateOf(false) }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "基础开关",
+                                style = MiuixTheme.textStyles.main,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Switch(
+                                checked = checked,
+                                onCheckedChange = { checked = it },
+                            )
+                        }
+                    }
+                }
+
+                // ---------- Checkbox ----------
+                item { SmallTitle("Checkbox") }
+                item {
+                    var checked by remember { mutableStateOf(true) }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        CheckboxPreference(
+                            title = "示例复选框",
+                            summary = "展示 Miuix CheckboxPreference",
+                            checked = checked,
+                            onCheckedChange = { checked = it },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                // ---------- Checkbox (basic) ----------
+                item { SmallTitle("Checkbox (basic)") }
+                item {
+                    var state by remember { mutableStateOf(true) }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "基础复选框",
+                                style = MiuixTheme.textStyles.main,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Checkbox(
+                                state = if (state) ToggleableState.On else ToggleableState.Off,
+                                onClick = { state = !state },
+                            )
+                        }
+                    }
+                }
+
+                // ---------- RadioButton ----------
+                item { SmallTitle("RadioButton") }
+                item {
+                    var selected by remember { mutableIntStateOf(0) }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        ) {
+                            RadioButtonPreference(
+                                title = "选项一",
+                                summary = "展示 Miuix RadioButtonPreference",
+                                selected = selected == 0,
+                                onClick = { selected = 0 },
+                            )
+                            RadioButtonPreference(
+                                title = "选项二",
+                                selected = selected == 1,
+                                onClick = { selected = 1 },
+                            )
+                        }
+                    }
+                }
+
+                // ---------- RadioButton (basic) ----------
+                item { SmallTitle("RadioButton (basic)") }
+                item {
+                    var selected by remember { mutableIntStateOf(0) }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = selected == 0,
+                                    onClick = { selected = 0 },
+                                )
+                                Spacer(Modifier.weight(1f))
+                                Text("选项一", style = MiuixTheme.textStyles.main)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = selected == 1,
+                                    onClick = { selected = 1 },
+                                )
+                                Spacer(Modifier.weight(1f))
+                                Text("选项二", style = MiuixTheme.textStyles.main)
+                            }
+                        }
+                    }
+                }
+
+                // ---------- Slider ----------
                 item { SmallTitle("Slider") }
                 item {
                     var sliderValue by remember { mutableFloatStateOf(0.5f) }
@@ -168,6 +364,128 @@ fun TestHomePage(
                     }
                 }
 
+                // ---------- SliderPreference ----------
+                item { SmallTitle("SliderPreference") }
+                item {
+                    var sliderValue by remember { mutableFloatStateOf(50f) }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        SliderPreference(
+                            value = sliderValue,
+                            onValueChange = { sliderValue = it },
+                            title = "示例滑块偏好",
+                            summary = "展示 Miuix SliderPreference",
+                            valueRange = 0f..100f,
+                            steps = 4,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                // ---------- ProgressIndicator ----------
+                item { SmallTitle("ProgressIndicator") }
+                item {
+                    var progress by remember { mutableFloatStateOf(0.6f) }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                CircularProgressIndicator(
+                                    progress = progress,
+                                )
+                                CircularProgressIndicator(
+                                    progress = null,
+                                )
+                            }
+                            LinearProgressIndicator(
+                                progress = progress,
+                            )
+                            LinearProgressIndicator(
+                                progress = null,
+                            )
+                            Slider(
+                                value = progress,
+                                onValueChange = { progress = it },
+                                valueRange = 0f..1f,
+                            )
+                        }
+                    }
+                }
+
+                // ---------- DropdownPreference ----------
+                item { SmallTitle("DropdownPreference") }
+                item {
+                    var selectedIndex by remember { mutableIntStateOf(0) }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        OverlayDropdownPreference(
+                            items = listOf("选项一", "选项二", "选项三", "选项四"),
+                            selectedIndex = selectedIndex,
+                            title = "下拉偏好",
+                            summary = "展示 Miuix OverlayDropdownPreference",
+                            modifier = Modifier.fillMaxWidth(),
+                            onSelectedIndexChange = { selectedIndex = it },
+                        )
+                    }
+                }
+
+                // ---------- SpinnerPreference ----------
+                item { SmallTitle("SpinnerPreference") }
+                item {
+                    var selectedIndex by remember { mutableIntStateOf(0) }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        OverlaySpinnerPreference(
+                            items = listOf(
+                                DropdownItem(text = "选项一"),
+                                DropdownItem(text = "选项二"),
+                                DropdownItem(text = "选项三"),
+                            ),
+                            selectedIndex = selectedIndex,
+                            title = "弹窗偏好",
+                            summary = "展示 Miuix OverlaySpinnerPreference",
+                            modifier = Modifier.fillMaxWidth(),
+                            onSelectedIndexChange = { selectedIndex = it },
+                        )
+                    }
+                }
+
+                // ---------- ArrowPreference ----------
+                item { SmallTitle("ArrowPreference") }
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        ArrowPreference(
+                            title = "箭头偏好",
+                            summary = "展示 Miuix ArrowPreference",
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {},
+                        )
+                    }
+                }
+
+                // ---------- Card ----------
                 item { SmallTitle("Card") }
                 item {
                     Card(
@@ -187,6 +505,7 @@ fun TestHomePage(
                     }
                 }
 
+                // ---------- TextField ----------
                 item { SmallTitle("TextField") }
                 item {
                     var text by remember { mutableStateOf("") }
@@ -207,6 +526,7 @@ fun TestHomePage(
                     }
                 }
 
+                // ---------- Dialog ----------
                 item { SmallTitle("Dialog") }
                 item {
                     var showDialog by remember { mutableStateOf(false) }

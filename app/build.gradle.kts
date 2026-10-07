@@ -18,7 +18,15 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8：开启代码压缩与资源压缩
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            // 刻意不配 signingConfig：产出未签名包，由 CI 用 apksigner 精确只打 V2 签名。
+            // 这样签名算法完全可控，且密钥不需要进仓库/不需要 Gradle 属性注入。
         }
     }
 

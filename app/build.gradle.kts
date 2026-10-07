@@ -84,7 +84,13 @@ configurations.all {
 }
 
 dependencies {
-    implementation("androidx.activity:activity-compose:1.11.0")
+    // ⚠️ 不能降级：activity 从 1.13.0 起才依赖并装配 androidx.navigationevent，
+    // 从而在 View 树上提供 ViewTreeNavigationEventDispatcherOwner。
+    // 1.11.0 的 POM 里完全没有 navigationevent 依赖 → 无人注入 dispatcher →
+    // LocalNavigationEventDispatcherOwner 恒为 null → App.kt 的 NavigationBackHandler
+    // 抛 IllegalStateException（No NavigationEventDispatcher was provided）→ 启动即崩。
+    // 与 miuix-example 保持同一版本组合（activity 1.13.0 + navigationevent 1.1.2）。
+    implementation("androidx.activity:activity-compose:1.13.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     // Miuix - Xiaomi HyperOS style UI

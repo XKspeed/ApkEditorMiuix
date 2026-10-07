@@ -57,12 +57,14 @@ android {
             excludes += "src/**"
             // ANTLR 的代码生成模板（*.stg）：只有"运行时生成 parser"才需要，本工程不用
             excludes += "org/antlr/codegen/**"
-            // JRuby jcodings 的 Unicode 属性表（3MB）：仅在正则里用 \p{...} / \P{...}
-            // 这类 Unicode 属性转义时才会经 ArrayReader 懒加载。本工程用到的两个语法
-            // （smali / xml textmate）经检索都不含 \p{...}，故可安全剔除。
-            // ⚠️ 若日后新增使用 Unicode 属性转义的语法文件，必须删掉这行，否则该语法
-            //    装载会抛异常（现象为高亮失效）。
-            excludes += "tables/**"
+            // ⚠️ 绝不能排除 tables/** —— 这是 JRuby jcodings 的运行时数据表。
+            // language-textmate 内嵌 oniguruma，其 OnigRegExp/OnigString 直接使用
+            // jcodings/specific/UTF8Encoding；而 UnicodeEncoding 的静态初始化会经
+            // org.jcodings.util.ArrayReader 以 getResourceAsStream("/tables/*.bin") 读取它。
+            // 缺表 → oniguruma 初始化抛异常 → TextMateLanguage.create 失败 →
+            // EditorLanguages.smali() 返回 null → 编辑器静默退化为「无语法高亮」。
+            // （曾因误判「语法文件不含 \p{...} 即可删」而排除过此目录，导致高亮全失。）
+            //
             // BouncyCastle 的后量子密码（PQC）查找表，约 1.15MB。
             // 本工程只用到 BC 的证书构造与签名（X500Name / JcaX509v3CertificateBuilder /
             // JcaContentSignerBuilder / JcaX509CertificateConverter），不涉及后量子算法。

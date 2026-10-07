@@ -43,6 +43,7 @@ import io.github.rosemoe.sora.widget.EditorSearcher
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import io.github.rosemoe.sora.widget.EditorSearcher.SearchOptions
 import androidx.compose.ui.graphics.toArgb
+import com.apkeditor.miuix.AppLog
 import com.apkeditor.miuix.ui.EditorLanguages
 import com.apkeditor.miuix.ui.component.MethodNavIcon
 import kotlinx.coroutines.delay
@@ -145,7 +146,10 @@ private fun applyMiuixColors(ed: CodeEditor?, dark: Boolean, colors: Colors) {
         scheme.setColor(EditorColorScheme.COMPLETION_WND_BACKGROUND, colors.surface.toArgb())
         scheme.setColor(EditorColorScheme.COMPLETION_WND_TEXT_PRIMARY, colors.onSurface.toArgb())
         scheme.setColor(EditorColorScheme.COMPLETION_WND_TEXT_SECONDARY, colors.onSurfaceVariantSummary.toArgb())
-    }.onFailure { it.printStackTrace() }
+    }.onFailure {
+        it.printStackTrace()
+        AppLog.e("TextEditor", "颜色方案创建失败（编辑器将使用默认配色）", it)
+    }
     ed.colorScheme = scheme
     ed.invalidate()
 }
@@ -510,7 +514,12 @@ fun TextEditorScaffold(
                         EditorLanguages.init(c)
                         CodeEditor(c).apply {
                             applyMiuixColors(this, dark, miuixColors)
-                            if (language != null) setEditorLanguage(language)
+                            if (language != null) {
+                                setEditorLanguage(language)
+                                AppLog.i("TextEditor", "语法已挂载: " + title)
+                            } else {
+                                AppLog.e("TextEditor", "语法为 null，无高亮: " + title)
+                            }
                             isWordwrap = false
                             typefaceText = Typeface.MONOSPACE
                             setLineNumberEnabled(true)

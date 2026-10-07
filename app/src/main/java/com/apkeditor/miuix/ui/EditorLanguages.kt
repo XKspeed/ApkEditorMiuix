@@ -1,6 +1,7 @@
 package com.apkeditor.miuix.ui
 
 import android.content.Context
+import com.apkeditor.miuix.AppLog
 import io.github.rosemoe.sora.lang.Language
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
@@ -29,6 +30,9 @@ object EditorLanguages {
     const val THEME_DARK = "app-dark"
 
     private const val LANGUAGES_JSON = "textmate/languages.json"
+
+    /** 日志标签（见 设置 → 日志） */
+    private const val TAG = "EditorLanguages"
 
     @Volatile
     private var initialized = false
@@ -103,13 +107,22 @@ object EditorLanguages {
                             name,
                         ).apply { isDark = dark }
                     )
-                }.onFailure { it.printStackTrace() }
+                    AppLog.i(TAG, "主题已装载: " + name)
+                }.onFailure {
+                    // 只进 logcat 会让人无从排障（高亮坏了却查不到原因），必须落 app.log
+                    it.printStackTrace()
+                    AppLog.e(TAG, "主题装载失败: " + name, it)
+                }
             }
             themeRegistry.setTheme(THEME_LIGHT)
 
             GrammarRegistry.getInstance().loadGrammars(LANGUAGES_JSON)
             initialized = true
-        }.onFailure { it.printStackTrace() }
+            AppLog.i(TAG, "语法装载完成: " + LANGUAGES_JSON)
+        }.onFailure {
+            it.printStackTrace()
+            AppLog.e(TAG, "语法初始化失败（编辑器将无高亮）: " + LANGUAGES_JSON, it)
+        }
     }
 
     /** 随 app 深浅色切换 TextMate 主题（同名重复 setTheme 无害） */
@@ -125,11 +138,17 @@ object EditorLanguages {
         TextMateLanguage.create("source.smali", true).apply {
             setCompleterKeywords(smaliKeywords)
         }
+    }.onFailure {
+        it.printStackTrace()
+        AppLog.e(TAG, "smali 语法创建失败（该文件将无高亮）", it)
     }.getOrNull()
 
     /** XML 语言；语法未装载成功时返回 null */
     fun xml(): Language? = runCatching {
         TextMateLanguage.create("text.xml", true)
+    }.onFailure {
+        it.printStackTrace()
+        AppLog.e(TAG, "xml 语法创建失败（该文件将无高亮）", it)
     }.getOrNull()
 
     /** 缓存的颜色方案：ThemeRegistry 每注册一个监听就长期持有，避免反复创建泄漏 */

@@ -68,6 +68,7 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色", "莫奈�
 fun SettingsPage(
     padding: PaddingValues,
     onOpenUiSettings: () -> Unit = {},
+    onOpenTest: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isWideScreen = LocalIsWideScreen.current
@@ -162,6 +163,20 @@ fun SettingsPage(
                             summary = "底栏模糊 · 悬浮底栏 · 液态玻璃",
                             onClick = onOpenUiSettings,
                         )
+                    }
+                }
+                item {
+                    SmallTitle("测试")
+                }
+                item {
+                    Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                            ArrowPreference(
+                                title = "界面测试",
+                                summary = "Miuix 组件预览（Button / Switch / Slider / Card / Dialog）",
+                                onClick = onOpenTest,
+                            )
+                        }
                     }
                 }
                 item {

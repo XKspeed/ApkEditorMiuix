@@ -85,4 +85,8 @@ sealed interface Route : NavKey {
 
     @Serializable
     data object ThirdPartyLicenses : Route
+
+    /** 界面测试：Miuix 组件预览（参考 miuix example） */
+    @Serializable
+    data object Test : Route
 }

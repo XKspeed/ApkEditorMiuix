@@ -265,6 +265,9 @@ fun App(service: ApkDataService? = null) {
             entry<Route.UiSettings> {
                 UiSettingsPage(onBack = { backStack.removeLastOrNull() })
             }
+            entry<Route.Test> {
+                TestHomePage(onBack = { backStack.removeLastOrNull() })
+            }
             entry<Route.ThirdPartyLicenses> {
                 ThirdPartyLicensesPage(onBack = { backStack.removeLastOrNull() })
             }
@@ -399,6 +402,7 @@ private fun MainPage(
                     2 -> SettingsPage(
                         padding = globalPadding,
                         onOpenUiSettings = { navigate(Route.UiSettings) },
+                        onOpenTest = { navigate(Route.Test) },
                     )
                     3 -> AboutPage(
                         onBack = {},

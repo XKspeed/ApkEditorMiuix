@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -49,10 +50,12 @@ import com.apkeditor.miuix.ui.util.pageScrollModifiers
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
 
@@ -211,6 +214,45 @@ fun HomePage(
                     HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
                 }
             }
+
+            selectedApk?.let { apk ->
+                OverlayDialog(
+                    show = true,
+                    title = apk.name,
+                    summary = apk.absolutePath,
+                    largeScreen = true,
+                    onDismissRequest = { selectedApk = null },
+                ) {
+                    Text(
+                        "大小: ${formatSize(apk.length())}",
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.subtitle,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        // 快速编辑：待接入专用快速编辑源码（占位）
+                        Button(
+                            onClick = {
+                                // TODO: 接入快速编辑流程（由用户提供的专用快速编辑源码实现）
+                                selectedApk = null
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) { Text("快速编辑") }
+
+                        Button(
+                            onClick = {
+                                onPickApk(Uri.fromFile(apk).toString())
+                                selectedApk = null
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) { Text("反编译") }
+                    }
+                }
+            }
         }
     }
 
@@ -259,38 +301,6 @@ fun HomePage(
         }
     }
 
-    selectedApk?.let { apk ->
-        MiuixDialog(
-            title = apk.name,
-            onDismiss = { selectedApk = null },
-        ) {
-            Text("大小: ${formatSize(apk.length())}",
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                style = MiuixTheme.textStyles.subtitle,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text("路径: ${apk.absolutePath}",
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                style = MiuixTheme.textStyles.subtitle,
-            )
-            DialogActions(
-                confirmText = "反编译",
-                onConfirm = {
-                    onPickApk(Uri.fromFile(apk).toString())
-                    selectedApk = null
-                },
-                cancelText = "安装",
-                onCancel = {
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(Uri.fromFile(apk), "application/vnd.android.package-archive")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                    selectedApk = null
-                },
-            )
-        }
-    }
 }
 
 private fun formatSize(bytes: Long): String {

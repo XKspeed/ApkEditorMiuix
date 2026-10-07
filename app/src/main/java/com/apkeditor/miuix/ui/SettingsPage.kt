@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.apkeditor.miuix.BuildSignature
 import com.apkeditor.miuix.ThemeState
 import com.apkeditor.miuix.data.ApkCacheManager
 import com.apkeditor.miuix.data.OutputConfig
@@ -165,17 +166,21 @@ fun SettingsPage(
                         )
                     }
                 }
-                item {
-                    SmallTitle("测试")
-                }
-                item {
-                    Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                            ArrowPreference(
-                                title = "界面测试",
-                                summary = "Miuix 组件预览（Button / Switch / Slider / Card / Dialog）",
-                                onClick = onOpenTest,
-                            )
+                // 测试分组：仅非官方签名（debug / 自签测试版）可见。
+                // 官方密钥签名的正式版里整组不渲染，用户看不到入口。
+                if (BuildSignature.showTestUi(context)) {
+                    item {
+                        SmallTitle("测试")
+                    }
+                    item {
+                        Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                            Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                ArrowPreference(
+                                    title = "界面测试",
+                                    summary = "Miuix 组件预览（Button / Switch / Slider / Card / Dialog）",
+                                    onClick = onOpenTest,
+                                )
+                            }
                         }
                     }
                 }

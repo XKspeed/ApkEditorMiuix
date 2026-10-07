@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.apkeditor.miuix.BuildSignature
 import com.apkeditor.miuix.data.ApkDataService
 import com.apkeditor.miuix.data.RealApkDataService
 import com.apkeditor.miuix.ui.component.liquid.IosLiquidGlassNavigationBar
@@ -266,7 +267,11 @@ fun App(service: ApkDataService? = null) {
                 UiSettingsPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.Test> {
-                TestHomePage(onBack = { backStack.removeLastOrNull() })
+                // 双保险：即使有人绕过设置页的入口守卫，官方正式版也不渲染测试页。
+                // （签名判断对同一进程有缓存，这里再读一次不产生额外开销）
+                if (BuildSignature.showTestUi(ctx)) {
+                    TestHomePage(onBack = { backStack.removeLastOrNull() })
+                }
             }
             entry<Route.ThirdPartyLicenses> {
                 ThirdPartyLicensesPage(onBack = { backStack.removeLastOrNull() })

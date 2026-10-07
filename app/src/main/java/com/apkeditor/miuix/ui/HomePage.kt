@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -31,6 +32,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +41,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.apkeditor.miuix.data.ApkVersionService
+import com.apkeditor.miuix.data.OutputConfig
 import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.MiuixDialog
@@ -58,6 +62,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomePage(
@@ -77,6 +82,16 @@ fun HomePage(
     var showJump by remember { mutableStateOf(false) }
     var jumpPath by remember { mutableStateOf("") }
     var jumpError by remember { mutableStateOf<String?>(null) }
+
+    // ---- 快速编辑（版本号）----
+    val scope = rememberCoroutineScope()
+    /** 正在快速编辑的 APK；null = 弹窗关闭 */
+    var quickEditApk by remember { mutableStateOf<File?>(null) }
+    var veName by remember { mutableStateOf("") }
+    var veCode by remember { mutableStateOf("") }
+    var veBusy by remember { mutableStateOf(false) }
+    var veError by remember { mutableStateOf<String?>(null) }
+    var veInfo by remember { mutableStateOf<String?>(null) }
 
     /** 返回上一级目录（点顶栏 / 系统返回键共用） */
     fun goUp() {
@@ -234,11 +249,33 @@ fun HomePage(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        // 快速编辑：待接入专用快速编辑源码（占位）
+                        // 快速编辑：读/改版本号（versionName / versionCode），签名与否由设置开关决定
                         Button(
                             onClick = {
-                                // TODO: 接入快速编辑流程（由用户提供的专用快速编辑源码实现）
+                                quickEditApk = apk
+                                veName = ""
+                                veCode = ""
+                                veError = null
+                                veInfo = "读取版本号…"
+                                veBusy = false
                                 selectedApk = null
+                                scope.launch {
+                                    runCatching { ApkVersionService.readVersion(apk) }
+                                        .onSuccess { v ->
+                                            veName = v.versionName ?: ""
+                                            veCode = v.versionCode ?: ""
+                                            veInfo = if (v.versionName == null && v.versionCode == null) {
+                                                "该 APK 清单中没有版本号属性"
+                                            } else {
+                                                "当前: versionName=" + (v.versionName ?: "—") +
+                                                    " / versionCode=" + (v.versionCode ?: "—")
+                                            }
+                                        }
+                                        .onFailure {
+                                            veInfo = null
+                                            veError = "读取失败：" + it.message
+                                        }
+                                }
                             },
                             modifier = Modifier.weight(1f),
                         ) { Text("快速编辑") }
@@ -250,6 +287,110 @@ fun HomePage(
                             },
                             modifier = Modifier.weight(1f),
                         ) { Text("反编译") }
+                    }
+                }
+            }
+            // ---- 快速编辑弹窗：版本号编辑 ----
+            quickEditApk?.let { apk ->
+                OverlayDialog(
+                    show = true,
+                    title = "快速编辑",
+                    summary = apk.name,
+                    largeScreen = true,
+                    onDismissRequest = { if (!veBusy) quickEditApk = null },
+                ) {
+                    Text(
+                        "APK 版本号",
+                        color = MiuixTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.main,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (veInfo != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            veInfo!!,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            style = MiuixTheme.textStyles.subtitle,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    TextField(
+                        value = veName,
+                        onValueChange = { veName = it },
+                        label = "versionName（留空=不改）",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !veBusy,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    TextField(
+                        value = veCode,
+                        onValueChange = { veCode = it.filter { c -> c.isDigit() }.take(10) },
+                        label = "versionCode（留空=不改）",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !veBusy,
+                    )
+                    if (veError != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            veError!!,
+                            color = MiuixTheme.colorScheme.error,
+                            style = MiuixTheme.textStyles.subtitle,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (OutputConfig.isSignEnabled()) "输出：签名（可在设置中关闭）"
+                        else "输出：未签名（可在设置中开启签名）",
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.subtitle,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(
+                            onClick = { if (!veBusy) quickEditApk = null },
+                            modifier = Modifier.weight(1f),
+                            enabled = !veBusy,
+                        ) { Text("取消") }
+
+                        Button(
+                            onClick = {
+                                val name = veName.trim().ifBlank { null }
+                                val code = veCode.trim().toIntOrNull()
+                                if (name == null && code == null) {
+                                    veError = "请至少填写一项（versionName 或 versionCode）"
+                                    return@Button
+                                }
+                                veError = null
+                                veBusy = true
+                                veInfo = "正在重打包…"
+                                scope.launch {
+                                    runCatching { ApkVersionService.quickEdit(context, apk, name, code) }
+                                        .onSuccess { res ->
+                                            veBusy = false
+                                            val signTag = if (res.signed) "已签名" else "未签名"
+                                            veInfo = "完成（" + signTag + "）：" + res.outputPath
+                                            Toast.makeText(
+                                                context,
+                                                "快速编辑完成：" + res.outputName,
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                        }
+                                        .onFailure { e ->
+                                            veBusy = false
+                                            veInfo = null
+                                            veError = "失败：" + e.message
+                                        }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = !veBusy,
+                        ) { Text(if (veBusy) "处理中…" else "保存") }
                     }
                 }
             }

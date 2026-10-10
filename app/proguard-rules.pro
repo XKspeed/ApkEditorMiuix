@@ -91,6 +91,27 @@
 # TextMate 依赖的 grammar / 主题资源（反射读取，禁止压缩重命名）
 -keep class io.github.rosemoe.sora.langs.textmate.** { *; }
 
+# ── tm4e（TextMate 引擎核心，包名是 org.eclipse.tm4e，不是 rosemoe！）──
+# 病灶：GrammarRegistry 用 Gson 反序列化 languages.json / tmLanguage.json，
+# R8 裁剪+混淆 tm4e 模型类后，Gson 抛
+#   "Abstract classes can't be instantiated! ... Class name: t61"
+# → 语法装载失败 → TextMateLanguage.create 返回 null → 编辑器全无高亮。
+# tm4e 大量使用多态反序列化（adapter/TokenType/ThemeModel 等），必须整体保留。
+-keep class org.eclipse.tm4e.** { *; }
+-keepclassmembers class org.eclipse.tm4e.** { <init>(...); <fields>; }
+
+# ── Gson 对 tm4e 模型的反射反序列化兜底 ──
+# Gson 需要无参构造 + 字段名不混淆；TypeToken 子类需保留签名。
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+-keepattributes Signature
+# gson 的 R8 官方建议规则（minified 版）
+-dontwarn com.google.gson.**
+# 保留被 Gson 反序列化的类的字段名（tm4e 全量 keep 已覆盖字段；此处兜底 json 字段映射）
+-keepclassmembers,allowobfuscation class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+}
+
 # Markwon / 图片库
 -dontwarn io.noties.markwon.**
 -dontwarn com.github.chrisbanes.photoview.**

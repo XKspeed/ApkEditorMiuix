@@ -12,8 +12,13 @@
          App.kt 的 NavigationBackHandler 会从 LocalNavigationEventDispatcherOwner 取该
          dispatcher。若缺失，取值得到 null，NavigationEventHandler 会直接抛
          IllegalStateException（No NavigationEventDispatcher was provided），应用启动即崩。 -->
+    <!-- largeHeap 必须开：本工具要整块解析 resources.arsc（MiuiSystemUI 级别的表
+         解压后数百 MB）。默认堆上限 256MB 不够，TableBlock.load 中途 OOM
+         （表现为打开 arsc 闪退）。日志实锤：
+         "Failed to allocate a 32 byte allocation ... target footprint 268435456"。 -->
     <application
         android:allowBackup="true"
+        android:largeHeap="true"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -30,6 +35,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 崩溃汇报页：主进程崩溃后拉起，显示错误摘要 + 分享按钮。
+             separateProcess 不可用（Android 已禁止为同一 app 的 activity 声明独立进程），
+             因此必须用传统 View 尽量少依赖崩溃前的状态。 -->
+        <activity
+            android:name=".CrashReportActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
 
         <!-- 分享本地输出 APK 用 -->
         <provider

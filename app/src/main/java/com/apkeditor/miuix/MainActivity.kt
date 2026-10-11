@@ -2,6 +2,10 @@ package com.apkeditor.miuix
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.Modifier
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.remember
@@ -11,19 +15,17 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeColorSpec
 import top.yukonga.miuix.kmp.theme.ThemeController
 import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
-import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        installCrashLogger()
+        AppLog.init(this)
+        // 崩溃不再闪退：写日志后弹出「错误摘要 + 分享」页（见 CrashHandler/CrashReportActivity）
+        CrashHandler.install(this)
         enableEdgeToEdge()
         SavedApkStore.init(this)
+        // 主题选择持久化：先读用户上次的选择，再进 setContent(否则重启永远回到跟随系统)
+        ThemeState.load(this)
         com.apkeditor.miuix.data.OutputConfig.init(this)
         setContent {
             // 主题模式（0 跟随系统 / 1 浅色 / 2 深色 / 3 莫奈跟随系统 / 4 莫奈浅色 / 5 莫奈深色）
@@ -41,25 +43,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
             MiuixTheme(controller = controller) {
-                App()
+                // 键盘避让：edge-to-edge / 部分 ROM 下 adjustResize 不缩窗时，
+                // 根内容按 IME 高度垫底，保证最底部（状态行/列表末尾）可观测；
+                // 窗口真的被 adjustResize 缩过时 ime inset 为 0，不会双重避让。
+                Box(Modifier.fillMaxSize().imePadding()) {
+                    App()
+                }
             }
         }
     }
 }
 
-/** 崩溃日志记录：把未捕获异常写到 files/crash_log.txt */
-private fun ComponentActivity.installCrashLogger() {
-    val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
-    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-        try {
-            val sw = StringWriter()
-            throwable.printStackTrace(PrintWriter(sw))
-            val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-            val log = "[$time]\n$sw\n\n"
-            val file = File(filesDir, "crash_log.txt")
-            file.appendText(log)
-        } catch (_: Exception) {
-        }
-        defaultHandler?.uncaughtException(thread, throwable)
-    }
-}
+/* 崩溃处理已迁移至 CrashHandler.kt（不再闪退，改为错误页 + 分享） */

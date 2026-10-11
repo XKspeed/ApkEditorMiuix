@@ -9,9 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import com.apkeditor.miuix.ui.component.BackNavigationIcon
-import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
-import com.apkeditor.miuix.ui.util.LocalIsWideScreen
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
@@ -31,7 +30,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 右：Search 图标（切换搜索/过滤） + More 图标（下拉菜单）。
  *
  * **progressive 模式（主页同款）**：同时传入 [scrollBehavior]、[backdrop]、[scrollProgress]
- * 三件套时，顶栏走 AdaptiveTopAppBar —— 随滚动自动缩小（大标题 → 小标题），
+ * 三件套时，顶栏走 SmallTopAppBar（关于页同款，固定小标题），
  * 折叠后整条顶栏切换为 BlurredBar 的渐进模糊（内容透过顶栏可见），
  * 条件与主页/保存的APK/设置完全一致：`scrollProgress == 1f` 即视为折叠。
  * 不传则保持静态 TopAppBar（编辑器等场景沿用旧观感）。
@@ -52,7 +51,7 @@ fun MiuixTopBar(
     backdrop: LayerBackdrop? = null,
     scrollProgress: () -> Float = { 0f },
 ) {
-    // 注意：TopAppBar / AdaptiveTopAppBar 的 navigationIcon 是无接收者的 @Composable () -> Unit，
+    // 注意：TopAppBar / SmallTopAppBar 的 navigationIcon 是无接收者的 @Composable () -> Unit，
     // 不能声明成 RowScope 扩展（Kotlin 不会自动收窄，实测编译报 ARGUMENT_TYPE_MISMATCH）
     val navContent: @Composable () -> Unit = {
         if (onBack != null || navigationExtras != null) {
@@ -108,12 +107,12 @@ fun MiuixTopBar(
             collapsed -> MiuixTheme.colorScheme.surface
             else -> Color.Transparent
         }
+        // 统一为「关于页同款」顶栏：SmallTopAppBar（miuix 内部 pin 住不折叠），
+        // 滚动只驱动 barColor 与 BlurredBar 渐进模糊 —— 全 App 顶栏格式一致
         BlurredBar(backdrop, blurActive, scrollBehavior) {
-            AdaptiveTopAppBar(
+            SmallTopAppBar(
                 title = title,
                 subtitle = subtitle,
-                showTopAppBar = true,
-                isWideScreen = LocalIsWideScreen.current,
                 scrollBehavior = scrollBehavior,
                 color = barColor,
                 navigationIcon = navContent,

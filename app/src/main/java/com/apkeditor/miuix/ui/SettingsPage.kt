@@ -35,10 +35,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.apkeditor.miuix.AppLog
+import com.apkeditor.miuix.BuildSignature
 import com.apkeditor.miuix.ThemeState
 import com.apkeditor.miuix.data.ApkCacheManager
 import com.apkeditor.miuix.data.OutputConfig
-import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
@@ -52,6 +53,7 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -68,7 +70,11 @@ private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色", "莫奈�
 fun SettingsPage(
     padding: PaddingValues,
     onOpenUiSettings: () -> Unit = {},
+    onOpenTest: () -> Unit = {},
+    /** 打开运行日志页（debug 与 release 均可用） */
+    onOpenLogs: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val isWideScreen = LocalIsWideScreen.current
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val lazyListState = rememberLazyListState()
@@ -94,10 +100,8 @@ fun SettingsPage(
                 if (collapsed) MiuixTheme.colorScheme.surface else Color.Transparent
             }
             BlurredBar(backdrop, blurActive) {
-                AdaptiveTopAppBar(
+                SmallTopAppBar(
                     title = "设置",
-                    showTopAppBar = true,
-                    isWideScreen = isWideScreen,
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,
                 )
@@ -142,7 +146,7 @@ fun SettingsPage(
                                         DropdownItem(
                                             text = text,
                                             selected = ThemeState.mode == index,
-                                            onClick = { ThemeState.mode = index },
+                                            onClick = { ThemeState.mode = index; ThemeState.save(context) },
                                         )
                                     },
                                 ),
@@ -151,7 +155,7 @@ fun SettingsPage(
                                         DropdownItem(
                                             text = text,
                                             selected = ThemeState.mode == (index + 3),
-                                            onClick = { ThemeState.mode = index + 3 },
+                                            onClick = { ThemeState.mode = index + 3; ThemeState.save(context) },
                                         )
                                     },
                                 ),
@@ -165,11 +169,36 @@ fun SettingsPage(
                         )
                     }
                 }
+                // 测试分组：仅非官方签名（debug / 自签测试版）可见。
+                // 官方密钥签名的正式版里整组不渲染，用户看不到入口。
+                if (BuildSignature.showTestUi(context)) {
+                    item {
+                        SmallTitle("测试")
+                    }
+                    item {
+                        Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                            Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                ArrowPreference(
+                                    title = "界面测试",
+                                    summary = "Miuix 组件预览（Button / Switch / Slider / Card / Dialog）",
+                                    onClick = onOpenTest,
+                                )
+                            }
+                        }
+                    }
+                }
                 item {
                     SmallTitle("存储")
                 }
                 item {
                     CachePreference()
+                }
+                // 日志分组：**debug 与 release 都显示** —— 线上排障必须能拿到日志
+                item {
+                    SmallTitle("日志")
+                }
+                item {
+                    LogPreference(onOpenLogs = onOpenLogs)
                 }
                 item {
                     SmallTitle("输出")
@@ -179,6 +208,44 @@ fun SettingsPage(
                 }
                 item { Spacer(Modifier.height(24.dp)) }
             }
+        }
+    }
+}
+
+/**
+ * 日志分组：级别切换 + 进入日志页。
+ *
+ * **刻意不做任何签名/构建类型门控** —— 正式版用户遇到问题时要能自己拿到日志，
+ * 否则线上问题只能靠猜。
+ */
+@Composable
+private fun LogPreference(onOpenLogs: () -> Unit) {
+    val context = LocalContext.current
+    var level by remember { mutableStateOf(AppLog.currentLevel()) }
+
+    Card(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            OverlayDropdownPreference(
+                title = "日志级别",
+                summary = when (level) {
+                    AppLog.Level.VERBOSE -> "详细：记录每一步操作（排查最有效，日志增长快）"
+                    AppLog.Level.BRIEF -> "简略：只记关键节点与全部错误（默认）"
+                    AppLog.Level.OFF -> "关闭：不记录日志，出问题将无从排查"
+                },
+                items = AppLog.Level.entries.map { it.label },
+                selectedIndex = level.id,
+                modifier = Modifier.fillMaxWidth(),
+                onSelectedIndexChange = { idx ->
+                    val nl = AppLog.Level.fromId(idx)
+                    level = nl
+                    AppLog.setLevel(nl)
+                },
+            )
+            ArrowPreference(
+                title = "查看 / 分享日志",
+                summary = "查看运行日志，可一键分享或复制",
+                onClick = onOpenLogs,
+            )
         }
     }
 }

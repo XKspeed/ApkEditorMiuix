@@ -47,11 +47,10 @@ import android.graphics.drawable.Drawable
 import com.apkeditor.miuix.ui.component.BackNavigationIcon
 import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.components.SectionCard
-import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
-import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageScrollModifiers
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -60,6 +59,7 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -99,7 +99,6 @@ fun ApkInfoPage(
     val scope = rememberCoroutineScope()
 
     // 主页同款顶栏行为：滚动自动缩小 + 折叠后模糊
-    val isWideScreen = LocalIsWideScreen.current
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val lazyListState = rememberLazyListState()
     val scrollProgress by remember {
@@ -130,10 +129,8 @@ fun ApkInfoPage(
                 else -> Color.Transparent
             }
             BlurredBar(backdrop, blurActive) {
-                AdaptiveTopAppBar(
+                SmallTopAppBar(
                     title = "详情",
-                    showTopAppBar = true,
-                    isWideScreen = isWideScreen,
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,
                     navigationIcon = { BackNavigationIcon(onClick = onBack) },
@@ -158,7 +155,9 @@ fun ApkInfoPage(
             }
         }
     ) { innerPadding ->
-        when {
+        // backdrop 必须有内容来源：没有这层 layerBackdrop，BlurredBar 采样为空 → 模糊不可见
+        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
+            when {
             error != null -> ErrorBox(error!!, onRetry = null)
             info == null -> LoadingBox("正在解析 APK…")
             else -> LazyColumn(
@@ -230,6 +229,7 @@ fun ApkInfoPage(
                     }
                     Spacer(Modifier.height(24.dp))
                 }
+            }
             }
         }
     }

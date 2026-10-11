@@ -4,9 +4,11 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,6 +32,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,11 +41,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.apkeditor.miuix.data.ApkVersionService
+import com.apkeditor.miuix.data.OutputConfig
 import com.apkeditor.miuix.ui.components.DialogActions
 import com.apkeditor.miuix.ui.components.ListItemRow
 import com.apkeditor.miuix.ui.components.MiuixDialog
 import com.apkeditor.miuix.ui.components.TextField
-import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
@@ -50,11 +54,15 @@ import com.apkeditor.miuix.ui.util.pageScrollModifiers
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import com.apkeditor.miuix.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomePage(
@@ -74,6 +82,16 @@ fun HomePage(
     var showJump by remember { mutableStateOf(false) }
     var jumpPath by remember { mutableStateOf("") }
     var jumpError by remember { mutableStateOf<String?>(null) }
+
+    // ---- 快速编辑（版本号）----
+    val scope = rememberCoroutineScope()
+    /** 正在快速编辑的 APK；null = 弹窗关闭 */
+    var quickEditApk by remember { mutableStateOf<File?>(null) }
+    var veName by remember { mutableStateOf("") }
+    var veCode by remember { mutableStateOf("") }
+    var veBusy by remember { mutableStateOf(false) }
+    var veError by remember { mutableStateOf<String?>(null) }
+    var veInfo by remember { mutableStateOf<String?>(null) }
 
     /** 返回上一级目录（点顶栏 / 系统返回键共用） */
     fun goUp() {
@@ -160,10 +178,8 @@ fun HomePage(
                             )
                         }
                 ) {
-                    AdaptiveTopAppBar(
+                    SmallTopAppBar(
                         title = currentDir.absolutePath,
-                        showTopAppBar = true,
-                        isWideScreen = isWideScreen,
                         scrollBehavior = topAppBarScrollBehavior,
                         color = barColor,
                     )
@@ -211,6 +227,171 @@ fun HomePage(
                         },
                     )
                     HorizontalDivider(color = MiuixTheme.colorScheme.dividerLine)
+                }
+            }
+
+            selectedApk?.let { apk ->
+                OverlayDialog(
+                    show = true,
+                    title = apk.name,
+                    summary = apk.absolutePath,
+                    largeScreen = true,
+                    onDismissRequest = { selectedApk = null },
+                ) {
+                    Text(
+                        "大小: ${formatSize(apk.length())}",
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.subtitle,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        // 快速编辑：读/改版本号（versionName / versionCode），签名与否由设置开关决定
+                        Button(
+                            onClick = {
+                                quickEditApk = apk
+                                veName = ""
+                                veCode = ""
+                                veError = null
+                                veInfo = "读取版本号…"
+                                veBusy = false
+                                selectedApk = null
+                                scope.launch {
+                                    runCatching { ApkVersionService.readVersion(apk) }
+                                        .onSuccess { v ->
+                                            veName = v.versionName ?: ""
+                                            veCode = v.versionCode ?: ""
+                                            veInfo = if (v.versionName == null && v.versionCode == null) {
+                                                "该 APK 清单中没有版本号属性"
+                                            } else {
+                                                "当前: versionName=" + (v.versionName ?: "—") +
+                                                    " / versionCode=" + (v.versionCode ?: "—")
+                                            }
+                                        }
+                                        .onFailure {
+                                            veInfo = null
+                                            veError = "读取失败：" + it.message
+                                        }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) { Text("快速编辑") }
+
+                        Button(
+                            onClick = {
+                                onPickApk(Uri.fromFile(apk).toString())
+                                selectedApk = null
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) { Text("反编译") }
+                    }
+                }
+            }
+            // ---- 快速编辑弹窗：版本号编辑 ----
+            quickEditApk?.let { apk ->
+                OverlayDialog(
+                    show = true,
+                    title = "快速编辑",
+                    summary = apk.name,
+                    largeScreen = true,
+                    onDismissRequest = { if (!veBusy) quickEditApk = null },
+                ) {
+                    Text(
+                        "APK 版本号",
+                        color = MiuixTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.main,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (veInfo != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            veInfo!!,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            style = MiuixTheme.textStyles.subtitle,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    TextField(
+                        value = veName,
+                        onValueChange = { veName = it },
+                        label = "versionName（留空=不改）",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !veBusy,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    TextField(
+                        value = veCode,
+                        onValueChange = { veCode = it.filter { c -> c.isDigit() }.take(10) },
+                        label = "versionCode（留空=不改）",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !veBusy,
+                    )
+                    if (veError != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            veError!!,
+                            color = MiuixTheme.colorScheme.error,
+                            style = MiuixTheme.textStyles.subtitle,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (OutputConfig.isSignEnabled()) "输出：签名（可在设置中关闭）"
+                        else "输出：未签名（可在设置中开启签名）",
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.subtitle,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(
+                            onClick = { if (!veBusy) quickEditApk = null },
+                            modifier = Modifier.weight(1f),
+                            enabled = !veBusy,
+                        ) { Text("取消") }
+
+                        Button(
+                            onClick = {
+                                val name = veName.trim().ifBlank { null }
+                                val code = veCode.trim().toIntOrNull()
+                                if (name == null && code == null) {
+                                    veError = "请至少填写一项（versionName 或 versionCode）"
+                                    return@Button
+                                }
+                                veError = null
+                                veBusy = true
+                                veInfo = "正在重打包…"
+                                scope.launch {
+                                    runCatching { ApkVersionService.quickEdit(context, apk, name, code) }
+                                        .onSuccess { res ->
+                                            veBusy = false
+                                            val signTag = if (res.signed) "已签名" else "未签名"
+                                            veInfo = "完成（" + signTag + "）：" + res.outputPath
+                                            Toast.makeText(
+                                                context,
+                                                "快速编辑完成：" + res.outputName,
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                        }
+                                        .onFailure { e ->
+                                            veBusy = false
+                                            veInfo = null
+                                            veError = "失败：" + e.message
+                                        }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = !veBusy,
+                        ) { Text(if (veBusy) "处理中…" else "保存") }
+                    }
                 }
             }
         }
@@ -261,38 +442,6 @@ fun HomePage(
         }
     }
 
-    selectedApk?.let { apk ->
-        MiuixDialog(
-            title = apk.name,
-            onDismiss = { selectedApk = null },
-        ) {
-            Text("大小: ${formatSize(apk.length())}",
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                style = MiuixTheme.textStyles.subtitle,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text("路径: ${apk.absolutePath}",
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                style = MiuixTheme.textStyles.subtitle,
-            )
-            DialogActions(
-                confirmText = "反编译",
-                onConfirm = {
-                    onPickApk(Uri.fromFile(apk).toString())
-                    selectedApk = null
-                },
-                cancelText = "安装",
-                onCancel = {
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(Uri.fromFile(apk), "application/vnd.android.package-archive")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                    selectedApk = null
-                },
-            )
-        }
-    }
 }
 
 private fun formatSize(bytes: Long): String {

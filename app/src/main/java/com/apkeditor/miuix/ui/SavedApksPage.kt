@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.apkeditor.miuix.SavedApkInfo
 import com.apkeditor.miuix.SavedApkStore
-import com.apkeditor.miuix.ui.util.AdaptiveTopAppBar
 import com.apkeditor.miuix.ui.util.BlurredBar
 import com.apkeditor.miuix.ui.util.LocalIsWideScreen
 import com.apkeditor.miuix.ui.util.pageContentPadding
@@ -52,6 +51,7 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.text.SimpleDateFormat
@@ -94,10 +94,8 @@ fun SavedApksPage(padding: PaddingValues) {
                 if (collapsed) MiuixTheme.colorScheme.surface else Color.Transparent
             }
             BlurredBar(backdrop, blurActive) {
-                AdaptiveTopAppBar(
+                SmallTopAppBar(
                     title = "保存的 APK",
-                    showTopAppBar = true,
-                    isWideScreen = isWideScreen,
                     scrollBehavior = topAppBarScrollBehavior,
                     color = barColor,
                 )

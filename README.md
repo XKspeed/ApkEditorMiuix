@@ -1,4 +1,3 @@
-```markdown
 <div align="center">
 
 # ApkEditor·Miuix
@@ -186,4 +185,3 @@ GNU General Public License v3.0
 
 第三方库版权声明见 NOTICE，各依赖沿用其自身许可证。
 
-```
